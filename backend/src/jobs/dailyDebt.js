@@ -88,6 +88,13 @@ async function calculateAndUpdateDebt(userId = null) {
   }
 
   console.log(`[DebtJob] Reset ${completedRecurring.length} recurring tasks`);
+
+  // ── Delete completed non-recurring tasks from the previous day ────────────
+  const deleted = await prisma.task.deleteMany({
+    where: { completed: true, recurrence: 'none' },
+  });
+
+  console.log(`[DebtJob] Deleted ${deleted.count} completed non-recurring tasks`);
 }
 
 /**
