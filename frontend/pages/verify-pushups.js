@@ -737,48 +737,13 @@ if (streamRef.current) {
               </div>
             </div>
 
-            {/* Camera position reference — hidden on mobile to save scroll space */}
-            <div className="card bg-navy-700/40 p-4 hidden lg:block">
-              <p className="text-xs text-navy-200 font-medium uppercase tracking-wide mb-3">
-                Camera Position Reference
-              </p>
-              <p className="text-xs text-navy-300 mb-3">
-                Place your camera to the <span className="text-amber-400 font-semibold">side</span> so you look like the photos below — your full body should be visible in profile.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
-                    <img
-                      src="/upPushupPostition.png"
-                      alt="Up position — arms extended"
-                      className="w-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs text-green-400 font-medium">▲ Up position</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
-                    <img
-                      src="/downPushupPosition.png"
-                      alt="Down position — elbows bent"
-                      className="w-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs text-amber-400 font-medium">▼ Down position</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Tips */}
-            <div className="card bg-navy-700/40 py-3 px-4 space-y-1.5">
-              <p className="text-xs text-navy-200">
-                <span className="text-navy-200 font-medium">Tips:</span> Face the camera side-on for best elbow tracking.
-                Keep your arms fully visible. Good lighting improves accuracy.
-              </p>
-              <p className="text-xs text-navy-300">
-                <span className="text-amber-400 font-medium">Gesture shortcut:</span> Raise one hand above your shoulder and hold for 1.5 s to start or stop counting — no button needed.
-              </p>
-            </div>
+            {/* Reopen tips modal */}
+            <button
+              onClick={() => setShowTipsModal(true)}
+              className="btn-secondary w-full py-2.5 text-sm"
+            >
+              How to position yourself
+            </button>
           </div>
 
           {/* ── Right: Stats + submit ──────────────────────────────────────── */}
