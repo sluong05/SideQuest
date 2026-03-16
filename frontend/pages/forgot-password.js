@@ -41,6 +41,9 @@ export default function ForgotPassword() {
                 If an account exists for <span className="text-navy-50 font-medium">{email}</span>,
                 we sent a reset link. It expires in 1 hour.
               </p>
+              <p className="text-navy-300 text-xs">
+                Don't see it? Check your spam or junk folder.
+              </p>
               <Link href="/login" className="text-amber-400 hover:text-amber-300 text-sm font-medium">
                 Back to sign in
               </Link>
