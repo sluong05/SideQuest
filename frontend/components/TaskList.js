@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { completeTask, deleteTask } from '../lib/api';
+import { completeTask, uncompleteTask, deleteTask } from '../lib/api';
 
 function formatDueDate(dateStr) {
   const date = new Date(dateStr);
@@ -29,7 +29,7 @@ const colorStyles = {
   default: 'border-navy-400 bg-navy-600/60 hover:border-navy-300',
 };
 
-function TaskItem({ task, onComplete, onDelete, color = 'default' }) {
+function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' }) {
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const dueInfo = formatDueDate(task.dueDate);
@@ -37,7 +37,11 @@ function TaskItem({ task, onComplete, onDelete, color = 'default' }) {
   async function handleComplete() {
     setCompleting(true);
     try {
-      await onComplete(task.id);
+      if (task.completed) {
+        await onUncomplete(task.id);
+      } else {
+        await onComplete(task.id);
+      }
     } finally {
       setCompleting(false);
     }
@@ -63,10 +67,11 @@ function TaskItem({ task, onComplete, onDelete, color = 'default' }) {
       {/* Checkbox */}
       <button
         onClick={handleComplete}
-        disabled={task.completed || completing}
+        disabled={completing}
+        title={task.completed ? 'Mark incomplete' : undefined}
         className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
           task.completed
-            ? 'bg-green-500 border-green-500'
+            ? 'bg-green-500 border-green-500 hover:bg-red-500 hover:border-red-500'
             : 'border-navy-300 hover:border-amber-400'
         }`}
       >
@@ -125,6 +130,15 @@ export default function TaskList({ tasks, onTaskUpdated }) {
     }
   }
 
+  async function handleUncomplete(taskId) {
+    try {
+      await uncompleteTask(taskId);
+      onTaskUpdated();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function handleDelete(taskId) {
     try {
       await deleteTask(taskId);
@@ -162,19 +176,19 @@ export default function TaskList({ tasks, onTaskUpdated }) {
   return (
     <div className="space-y-2">
       {overdue.map((task) => (
-        <TaskItem key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} color="red" />
+        <TaskItem key={task.id} task={task} onComplete={handleComplete} onUncomplete={handleUncomplete} onDelete={handleDelete} color="red" />
       ))}
       {soonest.map((task) => (
-        <TaskItem key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} color="yellow" />
+        <TaskItem key={task.id} task={task} onComplete={handleComplete} onUncomplete={handleUncomplete} onDelete={handleDelete} color="yellow" />
       ))}
       {later.map((task) => (
-        <TaskItem key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} color="green" />
+        <TaskItem key={task.id} task={task} onComplete={handleComplete} onUncomplete={handleUncomplete} onDelete={handleDelete} color="green" />
       ))}
       {completed.length > 0 && incomplete.length > 0 && (
         <div className="border-t border-navy-400 my-3" />
       )}
       {completed.map((task) => (
-        <TaskItem key={task.id} task={task} onComplete={handleComplete} onDelete={handleDelete} color="default" />
+        <TaskItem key={task.id} task={task} onComplete={handleComplete} onUncomplete={handleUncomplete} onDelete={handleDelete} color="default" />
       ))}
     </div>
   );

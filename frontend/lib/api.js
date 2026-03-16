@@ -43,6 +43,9 @@ export const createTask = (title, dueDate, recurrence = 'none') =>
 export const completeTask = (taskId) =>
   api.patch(`/api/tasks/${taskId}/complete`);
 
+export const uncompleteTask = (taskId) =>
+  api.patch(`/api/tasks/${taskId}/uncomplete`);
+
 export const deleteTask = (taskId) => api.delete(`/api/tasks/${taskId}`);
 
 // Debt

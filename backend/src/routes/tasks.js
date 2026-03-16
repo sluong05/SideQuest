@@ -122,6 +122,30 @@ router.patch('/:id/complete', auth, async (req, res) => {
   }
 });
 
+// PATCH /api/tasks/:id/uncomplete — unmark task as complete
+router.patch('/:id/uncomplete', auth, async (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+
+  try {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (!task.completed) return res.status(400).json({ error: 'Task is not completed' });
+
+    const updated = await prisma.task.update({
+      where: { id: taskId },
+      data: { completed: false, completedAt: null },
+      include: { pushupDebt: true },
+    });
+
+    return res.json({ task: updated });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // DELETE /api/tasks/:id — delete a task
 router.delete('/:id', auth, async (req, res) => {
   const taskId = parseInt(req.params.id, 10);
