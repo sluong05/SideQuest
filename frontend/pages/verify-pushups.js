@@ -107,6 +107,7 @@ export default function VerifyPushups() {
   const [submitted,  setSubmitted]  = useState(false);
   const [totalOwed,  setTotalOwed]  = useState(0);
   const [streak,     setStreak]     = useState(0);
+  const [showTipsModal, setShowTipsModal] = useState(true);
 
   // ── Auth guard ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -509,6 +510,62 @@ if (streamRef.current) {
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Layout streak={streak}>
+
+      {/* ── Camera tips modal ─────────────────────────────────────────────── */}
+      {showTipsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="card bg-navy-700 max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div>
+              <p className="text-xs text-navy-200 font-medium uppercase tracking-wide mb-3">
+                Camera Position Reference
+              </p>
+              <p className="text-sm text-navy-300 mb-3">
+                Place your camera to the <span className="text-amber-400 font-semibold">side</span> so you look like the photos below — your full body should be visible in profile.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
+                    <img
+                      src="/upPushupPostition.png"
+                      alt="Up position — arms extended"
+                      className="w-full object-contain"
+                    />
+                  </div>
+                  <span className="text-xs text-green-400 font-medium">▲ Up position</span>
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
+                    <img
+                      src="/downPushupPosition.png"
+                      alt="Down position — elbows bent"
+                      className="w-full object-contain"
+                    />
+                  </div>
+                  <span className="text-xs text-amber-400 font-medium">▼ Down position</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-navy-600 pt-4 space-y-1.5">
+              <p className="text-sm text-navy-200">
+                <span className="font-medium">Tips:</span> Face the camera side-on for best elbow tracking.
+                Keep your arms fully visible. Good lighting improves accuracy.
+              </p>
+              <p className="text-sm text-navy-300">
+                <span className="text-amber-400 font-medium">Gesture shortcut:</span> Raise one hand above your shoulder and hold for 1.5 s to start or stop counting — no button needed.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowTipsModal(false)}
+              className="btn-primary w-full py-3 text-base font-bold"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto">
 
         {/* Page header */}
