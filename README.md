@@ -18,10 +18,10 @@ A productivity app where unfinished tasks become pushup debt that compounds over
 
 ```
 pushup-debt/
-├── backend/                  # Express API + Prisma + SQLite
+├── backend/                  # Express API + Prisma + PostgreSQL
 │   ├── prisma/
 │   │   ├── schema.prisma     # Database schema
-│   │   └── dev.db            # SQLite database (auto-created)
+│   │   └── migrations/       # PostgreSQL migration files
 │   ├── src/
 │   │   ├── index.js          # Express server entry point
 │   │   ├── middleware/
@@ -63,17 +63,31 @@ pushup-debt/
 │   │   └── globals.css       # Tailwind + custom component classes
 │   └── package.json
 │
+├── ARCHITECTURE.md           # Architecture overview and diagram guide
+├── DEPLOYMENT.md             # Railway + Vercel maintenance guide
 └── package.json              # Root: runs both servers with concurrently
 ```
 
 ---
 
-## Setup Instructions
+## Live App
+
+The app is deployed and accessible at:
+
+- **Frontend (Vercel):** your-app.vercel.app
+- **Backend (Railway):** your-app.up.railway.app
+
+See `DEPLOYMENT.md` for maintenance instructions.
+
+---
+
+## Local Development Setup
 
 ### Prerequisites
 
 - Node.js v18+
 - npm v9+
+- PostgreSQL (local instance or connection string)
 
 ### 1. Clone / navigate to the project
 
@@ -89,10 +103,10 @@ npm run install:all
 
 ### 3. Configure the backend environment
 
-The `.env` file is already created from `.env.example`. Optionally change `JWT_SECRET`:
+Create `backend/.env`:
 
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://your-user:your-password@localhost:5432/pushupdebt"
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 PORT=3001
 ```
@@ -101,10 +115,10 @@ PORT=3001
 
 ```bash
 cd backend
-npm run db:migrate
+npx prisma migrate dev
 ```
 
-This creates `backend/prisma/dev.db` and generates the Prisma client.
+This applies migrations and generates the Prisma client.
 
 ### 5. Start the app
 
@@ -206,8 +220,11 @@ cd backend
 # Open Prisma Studio (visual DB browser)
 npm run db:studio
 
-# Push schema changes (dev only)
-npx prisma db push
+# Create a new migration after schema changes
+npx prisma migrate dev --name describe_your_change
+
+# Apply migrations (runs automatically on Railway deploy)
+npx prisma migrate deploy
 
 # Regenerate Prisma client after schema changes
 npm run db:generate
@@ -217,5 +234,5 @@ npm run db:generate
 
 ## Notes
 
-- The database is a local **SQLite** file (`backend/prisma/dev.db`). For a shared or deployed setup, swap the Prisma datasource to PostgreSQL and update `DATABASE_URL`.
+- The database is **PostgreSQL** — locally you need a running Postgres instance, in production it's provided by the Railway Postgres plugin.
 - MediaPipe models (~10 MB) are downloaded from jsDelivr CDN on first visit to the verify-pushups page — an internet connection is required for that page.
