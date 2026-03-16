@@ -81,12 +81,19 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center text-navy-200 text-sm mt-6">
-            No account?{' '}
-            <Link href="/signup" className="text-amber-400 hover:text-amber-300 font-medium">
-              Sign up
-            </Link>
-          </p>
+          <div className="mt-6 space-y-2 text-center text-sm">
+            <p className="text-navy-200">
+              No account?{' '}
+              <Link href="/signup" className="text-amber-400 hover:text-amber-300 font-medium">
+                Sign up
+              </Link>
+            </p>
+            <p>
+              <Link href="/forgot-password" className="text-navy-300 hover:text-navy-100">
+                Forgot your password?
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

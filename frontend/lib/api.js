@@ -32,6 +32,12 @@ export const setUsername = (username) => api.patch('/api/auth/username', { usern
 export const changePassword = (oldPassword, newPassword) =>
   api.patch('/api/auth/password', { oldPassword, newPassword });
 
+export const forgotPassword = (email) =>
+  api.post('/api/auth/forgot-password', { email });
+
+export const resetPassword = (token, password) =>
+  api.post('/api/auth/reset-password', { token, password });
+
 // Tasks
 // Pass { date } for exact-day filter, { upToDate } for overdue+today view
 export const getTasks = (params = {}) =>
