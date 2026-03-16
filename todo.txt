@@ -1,1 +1,5 @@
-pushup detector is a little bugged, if you are on screen and bend your elbows it will think you did a pushup so you can cheese it.
+ 1. Password reset via email — users will get locked out otherwise. Use Resend (free, 3k emails/month). Add passwordResetToken + passwordResetExpiry to the User model.
+ 2. Custom domain — ~$10/year on Namecheap, makes the link shareable and memorable
+ 3. Rate limiting — add express-rate-limit to auth routes before sharing publicly (brute-force protection)
+ 4. PWA + push notifications — add manifest.json + service worker so friends can add to home screen; pair with daily debt reminder notifications from the existing cron
+ job
