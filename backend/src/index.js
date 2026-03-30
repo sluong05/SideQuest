@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { startDebtCronJob } = require('./jobs/dailyDebt');
+const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -13,6 +14,15 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
+
+// General rate limit on all API routes
+app.use('/api', generalLimiter);
+
+// Strict rate limit on sensitive auth endpoints
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/signup', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
