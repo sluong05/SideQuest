@@ -15,37 +15,41 @@ const prisma = new PrismaClient();
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.userId;
-    let streak = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Check up to 365 days back
+    const lookbackStart = new Date(today);
+    lookbackStart.setDate(today.getDate() - 365);
+
+    // Single query: all tasks due in the last 365 days
+    const tasks = await prisma.task.findMany({
+      where: {
+        userId,
+        dueDate: { gte: lookbackStart, lt: today },
+      },
+      include: { pushupDebt: true },
+    });
+
+    // Group tasks by day (YYYY-MM-DD key)
+    const byDay = {};
+    for (const task of tasks) {
+      const key = new Date(task.dueDate).toISOString().split('T')[0];
+      if (!byDay[key]) byDay[key] = [];
+      byDay[key].push(task);
+    }
+
+    // Walk backwards day by day and count consecutive clean days
+    let streak = 0;
     for (let i = 1; i <= 365; i++) {
-      const dayStart = new Date(today);
-      dayStart.setDate(today.getDate() - i);
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toISOString().split('T')[0];
 
-      const dayEnd = new Date(dayStart);
-      dayEnd.setHours(23, 59, 59, 999);
+      const dayTasks = byDay[key];
+      if (!dayTasks || dayTasks.length === 0) continue;
 
-      // Get all tasks that were due on this day
-      const tasksDueThisDay = await prisma.task.findMany({
-        where: {
-          userId,
-          dueDate: { gte: dayStart, lte: dayEnd },
-        },
-        include: { pushupDebt: true },
-      });
-
-      // If no tasks were due, skip this day (doesn't break streak)
-      if (tasksDueThisDay.length === 0) continue;
-
-      // Check if all tasks were completed
-      const allCompleted = tasksDueThisDay.every((t) => t.completed);
-
-      // Check if any unresolved debt exists from this day
-      const hasUnresolvedDebt = tasksDueThisDay.some(
-        (t) => t.pushupDebt && !t.pushupDebt.resolved
-      );
+      const allCompleted = dayTasks.every((t) => t.completed);
+      const hasUnresolvedDebt = dayTasks.some((t) => t.pushupDebt && !t.pushupDebt.resolved);
 
       if (allCompleted && !hasUnresolvedDebt) {
         streak++;

@@ -39,6 +39,7 @@ async function calculateAndUpdateDebt(userId = null) {
       await prisma.pushupDebt.create({
         data: {
           taskId: task.id,
+          userId: task.userId,
           pushupsOwed: basePushups,
           daysOverdue,
           interestApplied: false,
@@ -46,10 +47,17 @@ async function calculateAndUpdateDebt(userId = null) {
         },
       });
     } else if (!task.pushupDebt.resolved) {
-      await prisma.pushupDebt.update({
-        where: { id: task.pushupDebt.id },
-        data: { pushupsOwed: basePushups, daysOverdue },
-      });
+      // Only add debt for new overdue days — don't reset what the user has already paid off
+      const newDays = daysOverdue - task.pushupDebt.daysOverdue;
+      if (newDays > 0) {
+        await prisma.pushupDebt.update({
+          where: { id: task.pushupDebt.id },
+          data: {
+            pushupsOwed: task.pushupDebt.pushupsOwed + 5 * newDays,
+            daysOverdue,
+          },
+        });
+      }
     }
   }
 

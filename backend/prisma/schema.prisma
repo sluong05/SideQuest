@@ -18,6 +18,7 @@ model User {
 
   tasks          Task[]
   pushupSessions PushupSession[]
+  pushupDebts    PushupDebt[]
 }
 
 model Task {
@@ -36,7 +37,8 @@ model Task {
 
 model PushupDebt {
   id              Int      @id @default(autoincrement())
-  taskId          Int      @unique
+  taskId          Int?     @unique
+  userId          Int
   pushupsOwed     Float
   daysOverdue     Int
   interestApplied Boolean  @default(false)
@@ -44,7 +46,8 @@ model PushupDebt {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PushupSession {

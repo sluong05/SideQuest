@@ -20,13 +20,9 @@ router.get('/', auth, async (req, res) => {
         email: true,
         username: true,
         createdAt: true,
-        tasks: {
-          select: {
-            pushupDebt: {
-              where: { resolved: false },
-              select: { pushupsOwed: true },
-            },
-          },
+        pushupDebts: {
+          where: { resolved: false },
+          select: { pushupsOwed: true },
         },
         pushupSessions: {
           select: { pushupsCompleted: true },
@@ -35,10 +31,7 @@ router.get('/', auth, async (req, res) => {
     });
 
     const leaderboard = users.map((user) => {
-      const totalDebt = user.tasks.reduce((sum, task) => {
-        const taskDebt = task.pushupDebt ? task.pushupDebt.pushupsOwed : 0;
-        return sum + taskDebt;
-      }, 0);
+      const totalDebt = user.pushupDebts.reduce((sum, d) => sum + d.pushupsOwed, 0);
 
       const totalCompleted = user.pushupSessions.reduce(
         (sum, s) => sum + s.pushupsCompleted,

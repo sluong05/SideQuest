@@ -28,7 +28,7 @@ router.post('/', auth, async (req, res) => {
     const debts = await prisma.pushupDebt.findMany({
       where: {
         resolved: false,
-        task: { userId: req.userId },
+        userId: req.userId,
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -55,7 +55,7 @@ router.post('/', auth, async (req, res) => {
     const updatedDebts = await prisma.pushupDebt.findMany({
       where: {
         resolved: false,
-        task: { userId: req.userId },
+        userId: req.userId,
       },
     });
     const totalOwed = Math.ceil(updatedDebts.reduce((sum, d) => sum + d.pushupsOwed, 0));

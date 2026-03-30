@@ -12,7 +12,7 @@ router.get('/', auth, async (req, res) => {
     const debts = await prisma.pushupDebt.findMany({
       where: {
         resolved: false,
-        task: { userId: req.userId },
+        userId: req.userId,
       },
       include: { task: true },
       orderBy: { createdAt: 'asc' },
@@ -44,7 +44,7 @@ router.get('/summary', auth, async (req, res) => {
     const debts = await prisma.pushupDebt.findMany({
       where: {
         resolved: false,
-        task: { userId: req.userId },
+        userId: req.userId,
       },
       include: { task: true },
     });

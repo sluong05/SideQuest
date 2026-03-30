@@ -73,7 +73,7 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
             {debts.map((debt) => (
               <div key={debt.id} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-navy-50 truncate">{debt.task.title}</p>
+                  <p className="text-sm font-medium text-navy-50 truncate">{debt.task?.title ?? '(deleted task)'}</p>
                   <p className="text-xs text-navy-200">
                     {debt.daysOverdue} {debt.daysOverdue === 1 ? 'day' : 'days'} overdue
                   </p>
