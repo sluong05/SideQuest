@@ -93,10 +93,11 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
             Current Breakdown
           </h3>
           <div className="space-y-3">
-            {debts.map((debt) => (
+            {/* Named task debts */}
+            {debts.filter((d) => d.task).map((debt) => (
               <div key={debt.id} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-navy-50 truncate">{debt.task?.title ?? '(deleted task)'}</p>
+                  <p className="text-sm font-medium text-navy-50 truncate">{debt.task.title}</p>
                   <p className="text-xs text-navy-200">
                     {debt.daysOverdue} {debt.daysOverdue === 1 ? 'day' : 'days'} overdue
                   </p>
@@ -109,6 +110,24 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
                 </div>
               </div>
             ))}
+            {/* Combine all deleted-task debts into one row */}
+            {(() => {
+              const deleted = debts.filter((d) => !d.task);
+              if (deleted.length === 0) return null;
+              const total = Math.ceil(deleted.reduce((sum, d) => sum + d.pushupsOwed, 0));
+              return (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-navy-300 truncate italic">Deleted tasks</p>
+                    <p className="text-xs text-navy-200">{deleted.length} {deleted.length === 1 ? 'task' : 'tasks'}</p>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <span className="text-sm font-bold text-red-400 tabular-nums">{total}</span>
+                    <span className="text-xs text-navy-300 ml-1">reps</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
