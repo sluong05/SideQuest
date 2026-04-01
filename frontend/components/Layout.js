@@ -12,11 +12,8 @@ export default function Layout({ children, streak = 0 }) {
       <header className="border-b border-navy-400 bg-navy-700/90 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* App name */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="text-2xl">💪</span>
-            <span className="font-bold text-xl text-navy-50 group-hover:text-amber-400 transition-colors">
-              Pushup Debt
-            </span>
+          <Link href="/" className="flex items-center group">
+            <img src="/logo.png" alt="Pushup Debt" className="h-10 w-auto" />
           </Link>
 
           {/* Right side */}
