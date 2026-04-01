@@ -90,6 +90,25 @@ export default function VerifyPushups() {
   const stageRef   = useRef('up');    // 'up' | 'down'
   const repsRef    = useRef(0);
   const countingRef = useRef(false);  // whether rep counting is active
+  const audioCtxRef = useRef(null);
+
+  function playDing() {
+    if (typeof window === 'undefined') return;
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = audioCtxRef.current;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  }
 
   // Gesture refs
   const gestureStartRef    = useRef(null);   // timestamp when raise-hand gesture started
@@ -282,6 +301,7 @@ export default function VerifyPushups() {
         repsRef.current += 1;
         setReps(repsRef.current);
         setStage('up');
+        playDing();
       }
     }
 
