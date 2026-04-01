@@ -1,4 +1,27 @@
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
+
+function useTimeUntilMidnight() {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    function update() {
+      const now = new Date();
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0);
+      const diff = midnight - now;
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return timeLeft;
+}
 
 export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
   const potentialAdditional = todayAtRisk.length * 5;
@@ -94,6 +117,8 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
 }
 
 function PotentialDebtCard({ todayAtRisk, potentialAdditional }) {
+  const timeLeft = useTimeUntilMidnight();
+
   return (
     <div className="card border-amber-700/40 bg-amber-950/10">
       <div className="flex items-center justify-between mb-3">
@@ -102,6 +127,12 @@ function PotentialDebtCard({ todayAtRisk, potentialAdditional }) {
         </h3>
         <span className="text-xs text-navy-300">if left unfinished</span>
       </div>
+      {timeLeft && (
+        <div className="flex items-center gap-1.5 mb-3 text-xs text-navy-200">
+          <span>⏱</span>
+          <span><span className="font-mono text-amber-400">{timeLeft}</span> until debt is charged</span>
+        </div>
+      )}
 
       <div className="space-y-2">
         {todayAtRisk.map((task) => (

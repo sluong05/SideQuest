@@ -23,7 +23,10 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
     setError('');
 
     try {
-      const res = await createTask(title.trim(), dueDate, recurrence);
+      // Convert YYYY-MM-DD to local end-of-day so the deadline respects the user's timezone
+      const [year, month, day] = dueDate.split('-').map(Number);
+      const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
+      const res = await createTask(title.trim(), endOfDay.toISOString(), recurrence);
       onTaskAdded(res.data.task);
       onClose();
     } catch (err) {

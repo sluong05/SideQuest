@@ -61,7 +61,6 @@ router.post('/', auth, async (req, res) => {
 
   try {
     const due = dueDate ? new Date(dueDate) : new Date();
-    due.setUTCHours(23, 59, 59, 999);
 
     const task = await prisma.task.create({
       data: {
