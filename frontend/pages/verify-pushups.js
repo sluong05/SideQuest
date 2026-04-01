@@ -90,24 +90,15 @@ export default function VerifyPushups() {
   const stageRef   = useRef('up');    // 'up' | 'down'
   const repsRef    = useRef(0);
   const countingRef = useRef(false);  // whether rep counting is active
-  const audioCtxRef = useRef(null);
+  const dingRef = useRef(null);
 
   function playDing() {
     if (typeof window === 'undefined') return;
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    if (!dingRef.current) {
+      dingRef.current = new Audio('/DingSound.mp3');
     }
-    const ctx = audioCtxRef.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.3);
+    dingRef.current.currentTime = 0;
+    dingRef.current.play().catch(() => {});
   }
 
   // Gesture refs
