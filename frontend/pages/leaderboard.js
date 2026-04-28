@@ -13,7 +13,7 @@ export default function Leaderboard() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login');
+      router.push('/welcome');
     }
   }, [user, authLoading]);
 

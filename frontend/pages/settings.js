@@ -11,7 +11,7 @@ export default function Settings() {
   const [streak, setStreak] = useState(0);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push('/login');
+    if (!authLoading && !user) router.push('/welcome');
   }, [user, authLoading]);
 
   useEffect(() => {

@@ -121,7 +121,7 @@ export default function VerifyPushups() {
 
   // ── Auth guard ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!authLoading && !user) router.push('/login');
+    if (!authLoading && !user) router.push('/welcome');
   }, [user, authLoading]);
 
   // ── Load debt info ───────────────────────────────────────────────────────────

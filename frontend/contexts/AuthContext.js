@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
   function logoutUser() {
     localStorage.removeItem('token');
     setUser(null);
-    router.push('/login');
+    router.push('/welcome');
   }
 
   return (
