@@ -29,6 +29,7 @@
 
   .card {
     @apply bg-navy-500 border border-navy-400 rounded-xl p-6;
+    border-left: 2px solid rgba(245, 158, 11, 0.35);
   }
 
   .input {
