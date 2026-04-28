@@ -3,10 +3,10 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { changePassword, setUsername, getStreak } from '../lib/api';
+import { changePassword, setUsername, getStreak, deleteAccount } from '../lib/api';
 
 export default function Settings() {
-  const { user, loading: authLoading, updateUser } = useAuth();
+  const { user, loading: authLoading, updateUser, logoutUser } = useAuth();
   const router = useRouter();
   const [streak, setStreak] = useState(0);
 
@@ -41,6 +41,23 @@ export default function Settings() {
       setUsernameMsg({ type: 'error', text: err.response?.data?.error || 'Failed to save' });
     } finally {
       setUsernameSaving(false);
+    }
+  }
+
+  // ── Delete account ───────────────────────────────────────────────────────
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+      logoutUser();
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Failed to delete account. Try again.');
+      setDeleting(false);
     }
   }
 
@@ -201,8 +218,61 @@ export default function Settings() {
             </form>
           </div>
 
+          {/* Danger zone */}
+          <div className="card p-5 border-red-800/40" style={{ borderLeft: '2px solid rgba(239,68,68,0.4)' }}>
+            <p className="text-xs text-red-400 uppercase tracking-wide font-medium mb-1">Danger Zone</p>
+            <p className="text-sm text-navy-300 mb-4">
+              Permanently delete your account and all data. This cannot be undone.
+            </p>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="btn-danger text-sm py-2 px-4"
+            >
+              Delete Account
+            </button>
+          </div>
+
         </div>
       </div>
+
+      {/* Confirmation modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !deleting && setShowDeleteModal(false)}
+          />
+          <div className="relative bg-navy-800 border border-navy-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <p className="text-2xl mb-3">⚠️</p>
+            <h2 className="text-lg font-bold text-navy-50 mb-2">Delete your account?</h2>
+            <p className="text-sm text-navy-300 mb-6">
+              This will permanently delete your account, all tasks, pushup history, and debt records.
+              There is no way to recover this data.
+            </p>
+            {deleteError && (
+              <p className="text-sm text-red-400 bg-red-900/20 border border-red-800 rounded-lg px-3 py-2 mb-4">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="btn-secondary flex-1 py-2.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="btn-danger flex-1 py-2.5 text-sm"
+              >
+                {deleting ? 'Deleting…' : 'Yes, delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

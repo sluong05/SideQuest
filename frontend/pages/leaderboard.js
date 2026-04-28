@@ -44,7 +44,7 @@ export default function Leaderboard() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-navy-50">Leaderboard</h1>
           <p className="text-navy-200 text-sm mt-1">
-            Ranked by lowest pushup debt. Keep yours at zero!
+            Ranked by tasks completed · tiebreaker: clean slate, then lowest debt, then most pushups done
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export default function Leaderboard() {
                       )}
                     </div>
                     <p className="text-xs text-navy-200 mt-0.5">
-                      {entry.totalCompleted} pushups completed · member since{' '}
+                      {entry.tasksCompleted} tasks completed · {entry.totalPushups} pushups done · member since{' '}
                       {new Date(entry.memberSince).toLocaleDateString('en-US', {
                         month: 'short',
                         year: 'numeric',
@@ -130,7 +130,7 @@ export default function Leaderboard() {
 
         <div className="card mt-6 text-center bg-navy-700/50">
           <p className="text-sm text-navy-200">
-            Complete all your daily tasks and pay off debt to climb the ranks.
+            Complete more tasks to climb the ranks. Ties broken by debt, then pushups done.
           </p>
         </div>
       </div>

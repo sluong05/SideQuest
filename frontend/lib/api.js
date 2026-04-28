@@ -38,6 +38,8 @@ export const forgotPassword = (email) =>
 export const resetPassword = (token, password) =>
   api.post('/api/auth/reset-password', { token, password });
 
+export const deleteAccount = () => api.delete('/api/auth/account');
+
 // Tasks
 // Pass { date } for exact-day filter, { upToDate } for overdue+today view
 export const getTasks = (params = {}) =>

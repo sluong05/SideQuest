@@ -154,6 +154,22 @@ router.patch('/username', require('../middleware/auth'), async (req, res) => {
   }
 });
 
+// DELETE /api/auth/account — permanently delete the authenticated user and all their data
+router.delete('/account', require('../middleware/auth'), async (req, res) => {
+  try {
+    const userId = req.userId;
+    // Delete dependent records before the user row
+    await prisma.pushupDebt.deleteMany({ where: { userId } });
+    await prisma.pushupSession.deleteMany({ where: { userId } });
+    await prisma.task.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+    return res.json({ message: 'Account deleted' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/auth/me
 router.get('/me', require('../middleware/auth'), async (req, res) => {
   try {

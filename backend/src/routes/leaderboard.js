@@ -10,7 +10,8 @@ function maskEmail(email) {
   return `${name[0]}${name[1]}***@${domain}`;
 }
 
-// GET /api/leaderboard — users sorted by lowest total pushup debt
+// GET /api/leaderboard
+// Ranked by: 1) most tasks completed  2) clean (no debt)  3) lowest debt  4) most pushups done
 router.get('/', auth, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -26,30 +27,39 @@ router.get('/', auth, async (req, res) => {
         pushupSessions: {
           select: { pushupsCompleted: true },
         },
+        tasks: {
+          where: { completed: true },
+          select: { id: true },
+        },
       },
     });
 
     const leaderboard = users.map((user) => {
       const totalDebt = user.pushupDebts.reduce((sum, d) => sum + d.pushupsOwed, 0);
-
-      const totalCompleted = user.pushupSessions.reduce(
-        (sum, s) => sum + s.pushupsCompleted,
-        0
-      );
+      const totalPushups = user.pushupSessions.reduce((sum, s) => sum + s.pushupsCompleted, 0);
+      const tasksCompleted = user.tasks.length;
 
       return {
         id: user.id,
         username: user.username || maskEmail(user.email),
         totalDebt: Math.ceil(totalDebt),
-        totalCompleted,
+        totalPushups,
+        tasksCompleted,
         memberSince: user.createdAt,
       };
     });
 
-    // Sort by lowest debt first, then by most pushups completed as tiebreaker
     leaderboard.sort((a, b) => {
+      // 1. Most tasks completed
+      if (a.tasksCompleted !== b.tasksCompleted) return b.tasksCompleted - a.tasksCompleted;
+      // 2. Clean (zero debt) comes first
+      const aClean = a.totalDebt === 0 ? 0 : 1;
+      const bClean = b.totalDebt === 0 ? 0 : 1;
+      if (aClean !== bClean) return aClean - bClean;
+      // 3. Lower debt is better
       if (a.totalDebt !== b.totalDebt) return a.totalDebt - b.totalDebt;
-      return b.totalCompleted - a.totalCompleted;
+      // 4. More pushups done is better
+      return b.totalPushups - a.totalPushups;
     });
 
     return res.json({ leaderboard });
