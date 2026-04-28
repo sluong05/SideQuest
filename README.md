@@ -5,7 +5,7 @@ A productivity app where unfinished tasks become pushup debt that compounds over
 ## Features
 
 - **Task management** — create one-off, daily, or weekly recurring tasks with due dates
-- **Pushup debt** — missed deadlines generate pushup debt (5 pushups × days overdue), compounding at 10% interest per day
+- **Pushup debt** — missed deadlines generate pushup debt: 5 pushups for the first day, +5 for each additional day overdue
 - **Camera-verified pushups** — MediaPipe pose detection tracks elbow angle and back position to count valid reps hands-free
 - **Gesture control** — raise your hand above your shoulder and hold for 1.5 s to start/stop counting without touching the screen
 - **Leaderboard** — ranked by lowest outstanding debt
@@ -67,17 +67,6 @@ pushup-debt/
 ├── DEPLOYMENT.md             # Railway + Vercel maintenance guide
 └── package.json              # Root: runs both servers with concurrently
 ```
-
----
-
-## Live App
-
-The app is deployed and accessible at:
-
-- **Frontend (Vercel):** your-app.vercel.app
-- **Backend (Railway):** your-app.up.railway.app
-
-See `DEPLOYMENT.md` for maintenance instructions.
 
 ---
 
@@ -154,14 +143,6 @@ pushups = 5 × days_overdue
 | 2 days | 10 |
 | 3 days | 15 |
 
-### Interest
-
-Each day unpaid debt remains, 10% interest is applied:
-
-```
-new_debt = current_debt × 1.10
-```
-
 Debt recalculates automatically:
 - **On dashboard visit** — triggers recalculation for your account
 - **Daily at 00:01** — cron job runs for all users
@@ -201,9 +182,9 @@ Counts consecutive days where all tasks due that day were completed and no pushu
 | GET | `/api/tasks` | Yes | List tasks (`?date=` or `?upToDate=`) |
 | POST | `/api/tasks` | Yes | Create task (supports `recurrence: none\|daily\|weekly`) |
 | PATCH | `/api/tasks/:id/complete` | Yes | Mark task complete |
+| PATCH | `/api/tasks/:id/uncomplete` | Yes | Undo task completion |
 | DELETE | `/api/tasks/:id` | Yes | Delete task |
-| GET | `/api/debt` | Yes | List unresolved debts |
-| GET | `/api/debt/summary` | Yes | Total debt + stats |
+| GET | `/api/debt` | Yes | List unresolved debts + total |
 | POST | `/api/debt/calculate` | Yes | Trigger recalculation |
 | POST | `/api/sessions` | Yes | Log pushups |
 | GET | `/api/sessions` | Yes | Pushup history |
