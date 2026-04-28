@@ -108,9 +108,13 @@ export default function ParticleBackground({
 
       if (showPushupModel) {
         const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+        const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
         if (cancelled) return;
+        await MeshoptDecoder.ready;
 
-        new GLTFLoader().load('/pushupModel.glb', (gltf) => {
+        const welcomeLoader = new GLTFLoader();
+        welcomeLoader.setMeshoptDecoder(MeshoptDecoder);
+        welcomeLoader.load('/pushupModel.glb', (gltf) => {
           if (cancelled) return;
 
           const model = gltf.scene;
@@ -143,9 +147,13 @@ export default function ParticleBackground({
 
       if (showIdleModel) {
         const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+        const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
         if (cancelled) return;
+        await MeshoptDecoder.ready;
 
-        new GLTFLoader().load('/pushupModel.glb', (gltf) => {
+        const idleLoader = new GLTFLoader();
+        idleLoader.setMeshoptDecoder(MeshoptDecoder);
+        idleLoader.load('/pushupModel.glb', (gltf) => {
           if (cancelled) return;
 
           const model = gltf.scene;
