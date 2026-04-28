@@ -33,7 +33,7 @@ export default function Dashboard() {
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login');
+      router.push('/welcome');
     }
   }, [user, authLoading]);
 
