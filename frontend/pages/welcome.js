@@ -164,7 +164,7 @@ export default function Welcome() {
                 <h3 className="font-bold text-navy-50 mb-1">Camera-verified pushups</h3>
                 <p className="text-navy-200 text-sm leading-relaxed">
                   MediaPipe Pose tracks your elbow angle and back position in real time. A rep only counts when
-                  your arms go past 160° up and below 85° down, with your body parallel to the floor.
+                  your arms go past 155° up and below 90° down, with your body parallel to the floor.
                 </p>
               </div>
             </div>

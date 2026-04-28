@@ -92,6 +92,11 @@ export default function Login() {
                 Forgot your password?
               </Link>
             </p>
+            <p>
+              <Link href="/welcome" className="text-navy-300 hover:text-navy-100">
+                ← Back to home
+              </Link>
+            </p>
           </div>
         </div>
       </div>
