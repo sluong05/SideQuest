@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { logPushups, getDebtSummary, getStreak } from '../lib/api';
+import { logPushups, getDebt, getStreak } from '../lib/api';
 
 // ─── MediaPipe landmark indices ───────────────────────────────────────────────
 const IDX = {
@@ -127,7 +127,7 @@ export default function VerifyPushups() {
   // ── Load debt info ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
-    Promise.all([getDebtSummary(), getStreak()])
+    Promise.all([getDebt(), getStreak()])
       .then(([d, s]) => {
         setTotalOwed(d.data.totalOwed);
         setStreak(s.data.streak);

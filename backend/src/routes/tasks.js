@@ -1,10 +1,9 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { calculateAndUpdateDebt } = require('../jobs/dailyDebt');
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET /api/tasks — get all tasks for the logged-in user
 // ?date=YYYY-MM-DD        → tasks due exactly on that day
@@ -108,11 +107,6 @@ router.patch('/:id/complete', auth, async (req, res) => {
       },
       include: { pushupDebt: true },
     });
-
-    // If there was pushup debt and it's resolved (user completed task), mark it resolved
-    if (updated.pushupDebt && !updated.pushupDebt.resolved) {
-      // Keep the debt — task completion doesn't clear pushup debt, user must do pushups
-    }
 
     return res.json({ task: updated });
   } catch (err) {

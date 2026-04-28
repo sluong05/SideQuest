@@ -56,7 +56,6 @@ export const deleteTask = (taskId) => api.delete(`/api/tasks/${taskId}`);
 
 // Debt
 export const getDebt = () => api.get('/api/debt');
-export const getDebtSummary = () => api.get('/api/debt/summary');
 export const recalculateDebt = () => api.post('/api/debt/calculate');
 
 // Pushup sessions

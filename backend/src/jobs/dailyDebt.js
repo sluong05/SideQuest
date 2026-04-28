@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const cron = require('node-cron');
-
-const prisma = new PrismaClient();
 
 /**
  * Calculate pushup debt for a specific user (or all users if userId is null).
