@@ -3,13 +3,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import ParticleBackground from './ParticleBackground';
 
-export default function Layout({ children, streak = 0 }) {
+export default function Layout({ children, streak = 0, showIdleModel = false }) {
   const { user, logoutUser } = useAuth();
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-navy-600 relative">
-      <ParticleBackground />
+      <ParticleBackground showIdleModel={showIdleModel} />
 
       {/* Top bar */}
       <header className="border-b border-amber-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">

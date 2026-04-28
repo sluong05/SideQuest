@@ -22,7 +22,7 @@ export default function Welcome() {
 
   return (
     <div className="min-h-screen bg-navy-600 relative">
-      <ParticleBackground />
+      <ParticleBackground showPushupModel />
 
       {/* Nav */}
       <header className="border-b border-amber-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">

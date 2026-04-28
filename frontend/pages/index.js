@@ -109,7 +109,7 @@ export default function Dashboard() {
   }
 
   return (
-    <Layout streak={streak}>
+    <Layout streak={streak} showIdleModel>
       {/* Username prompt for existing accounts */}
       {!user?.username && (
         <div className="card border-amber-500/40 bg-amber-900/10 mb-6 p-4">
