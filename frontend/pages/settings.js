@@ -9,10 +9,17 @@ export default function Settings() {
   const { user, loading: authLoading, updateUser, logoutUser } = useAuth();
   const router = useRouter();
   const [streak, setStreak] = useState(0);
+  const [now, setNow] = useState(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/welcome');
   }, [user, authLoading]);
+
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -125,6 +132,23 @@ export default function Settings() {
                 <span className="text-navy-300">Username</span>
                 <span className={user.username ? 'text-navy-100' : 'text-navy-400 italic'}>
                   {user.username || 'not set'}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-navy-300">Timezone</span>
+                <span className="text-navy-100">{user.timezone || 'UTC'}</span>
+              </div>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-navy-300">Local Time</span>
+                <span className="text-navy-100 font-mono tabular-nums">
+                  {now
+                    ? new Intl.DateTimeFormat('en-US', {
+                        timeZone: user.timezone || 'UTC',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      }).format(now)
+                    : '—'}
                 </span>
               </div>
             </div>

@@ -1,13 +1,24 @@
 const prisma = require('../lib/prisma');
 const cron = require('node-cron');
 
+// Returns a plain Date representing midnight on the given date in the given timezone.
+// Used to count calendar-day boundaries locally rather than in UTC.
+function localCalendarDay(date, timezone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone || 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const y = parseInt(parts.find(p => p.type === 'year').value);
+  const m = parseInt(parts.find(p => p.type === 'month').value);
+  const d = parseInt(parts.find(p => p.type === 'day').value);
+  return new Date(y, m - 1, d);
+}
+
 /**
  * Calculate pushup debt for a specific user (or all users if userId is null).
- *
- * Rules:
- * - Incomplete tasks past their dueDate generate debt: pushups = 5 * days_overdue
- * - Existing unresolved debt compounds: new_debt = current_debt * 1.10
- * - Days overdue is recalculated each run
+ * Debt = 5 pushups on first overdue moment, +5 per local midnight that passes after.
  */
 async function calculateAndUpdateDebt(userId = null) {
   const now = new Date();
@@ -23,13 +34,17 @@ async function calculateAndUpdateDebt(userId = null) {
 
   const overdueTasks = await prisma.task.findMany({
     where: whereClause,
-    include: { pushupDebt: true },
+    include: { pushupDebt: true, user: { select: { timezone: true } } },
   });
 
   for (const task of overdueTasks) {
     const dueDate = new Date(task.dueDate);
     const msPerDay = 1000 * 60 * 60 * 24;
-    const daysOverdue = Math.max(1, Math.ceil((now - dueDate) / msPerDay));
+    const tz = task.user?.timezone || 'UTC';
+    // daysOverdue=1 the moment the due time passes; +1 for each local midnight after.
+    const dueDateLocalDay = localCalendarDay(dueDate, tz);
+    const nowLocalDay = localCalendarDay(now, tz);
+    const daysOverdue = 1 + Math.floor((nowLocalDay - dueDateLocalDay) / msPerDay);
     const basePushups = 5 * daysOverdue;
 
     if (!task.pushupDebt) {
@@ -40,7 +55,6 @@ async function calculateAndUpdateDebt(userId = null) {
           userId: task.userId,
           pushupsOwed: basePushups,
           daysOverdue,
-          interestApplied: false,
           resolved: false,
         },
       });

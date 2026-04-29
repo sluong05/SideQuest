@@ -10,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
-  const { email, username, password } = req.body;
+  const { email, username, password, timezone } = req.body;
 
   if (!email || !username || !password) {
     return res.status(400).json({ error: 'Email, username, and password are required' });
@@ -39,14 +39,14 @@ router.post('/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, username, password: hashedPassword },
+      data: { email, username, password: hashedPassword, timezone: timezone || 'UTC' },
     });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     return res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt },
+      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt, timezone: user.timezone },
     });
   } catch (err) {
     console.error(err);
@@ -56,7 +56,7 @@ router.post('/signup', async (req, res) => {
 
 // POST /api/auth/login — accepts email or username as identifier
 router.post('/login', async (req, res) => {
-  const { identifier, password } = req.body;
+  const { identifier, password, timezone } = req.body;
 
   if (!identifier || !password) {
     return res.status(400).json({ error: 'Username/email and password are required' });
@@ -78,11 +78,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if (timezone && timezone !== user.timezone) {
+      await prisma.user.update({ where: { id: user.id }, data: { timezone } });
+    }
+
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     return res.json({
       token,
-      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt },
+      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt, timezone: user.timezone },
     });
   } catch (err) {
     console.error(err);
@@ -175,7 +179,7 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, username: true, createdAt: true },
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     return res.json({ user });

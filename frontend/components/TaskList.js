@@ -3,21 +3,22 @@ import { completeTask, uncompleteTask, deleteTask } from '../lib/api';
 
 function formatDueDate(dateStr) {
   const date = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const taskDay = new Date(date);
-  taskDay.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const taskDay = new Date(date); taskDay.setHours(0, 0, 0, 0);
 
-  const diff = (taskDay - today) / (1000 * 60 * 60 * 24);
+  const dayDiff = Math.round((taskDay - today) / (1000 * 60 * 60 * 24));
+  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-  if (diff < 0) {
-    const days = Math.abs(Math.floor(diff));
-    return { label: days === 1 ? '1 day overdue' : `${days} days overdue`, overdue: true };
+  if (date < now) {
+    if (dayDiff === 0) return { label: `Due today at ${timeStr}`, overdue: true };
+    const days = Math.abs(dayDiff);
+    return { label: `${days} ${days === 1 ? 'day' : 'days'} overdue · ${timeStr}`, overdue: true };
   }
-  if (diff === 0) return { label: 'Due today', overdue: false };
-  if (diff === 1) return { label: 'Due tomorrow', overdue: false };
+  if (dayDiff === 0) return { label: `Due today at ${timeStr}`, overdue: false };
+  if (dayDiff === 1) return { label: `Due tomorrow at ${timeStr}`, overdue: false };
   return {
-    label: `Due ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+    label: `Due ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${timeStr}`,
     overdue: false,
   };
 }
@@ -158,16 +159,15 @@ export default function TaskList({ tasks, onTaskUpdated }) {
     );
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
 
   const completed = tasks.filter((t) => t.completed);
   const incomplete = tasks
     .filter((t) => !t.completed)
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
-  const overdue  = incomplete.filter((t) => new Date(t.dueDate) < today);
-  const upcoming = incomplete.filter((t) => new Date(t.dueDate) >= today);
+  const overdue  = incomplete.filter((t) => new Date(t.dueDate) < now);
+  const upcoming = incomplete.filter((t) => new Date(t.dueDate) >= now);
 
   const half    = Math.ceil(upcoming.length / 2);
   const soonest = upcoming.slice(0, half);

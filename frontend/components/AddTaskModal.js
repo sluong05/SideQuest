@@ -4,6 +4,7 @@ import { createTask } from '../lib/api';
 export default function AddTaskModal({ onClose, onTaskAdded }) {
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState(todayString());
+  const [dueTime, setDueTime] = useState('23:59');
   const [recurrence, setRecurrence] = useState('none');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,10 +28,10 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
     setError('');
 
     try {
-      // Convert YYYY-MM-DD to local end-of-day so the deadline respects the user's timezone
       const [year, month, day] = dueDate.split('-').map(Number);
-      const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
-      const res = await createTask(title.trim(), endOfDay.toISOString(), recurrence);
+      const [hours, minutes] = dueTime.split(':').map(Number);
+      const dueDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+      const res = await createTask(title.trim(), dueDateTime.toISOString(), recurrence);
       onTaskAdded(res.data.task);
       onClose();
     } catch (err) {
@@ -65,15 +66,23 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
           </div>
 
           <div>
-            <label className="label">Due Date</label>
-            <input
-              type="date"
-              className="input"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
+            <label className="label">Due Date & Time</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                className="input flex-1"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+              <input
+                type="time"
+                className="input w-32"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+              />
+            </div>
             <p className="text-xs text-navy-300 mt-1">
-              Incomplete tasks past this date generate pushup debt.
+              5 pushups owed the moment this deadline passes, then +5 each midnight after.
             </p>
           </div>
 

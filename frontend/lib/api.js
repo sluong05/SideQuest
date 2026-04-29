@@ -19,11 +19,11 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth
-export const signup = (email, username, password) =>
-  api.post('/api/auth/signup', { email, username, password });
+export const signup = (email, username, password, timezone) =>
+  api.post('/api/auth/signup', { email, username, password, timezone });
 
-export const login = (identifier, password) =>
-  api.post('/api/auth/login', { identifier, password });
+export const login = (identifier, password, timezone) =>
+  api.post('/api/auth/login', { identifier, password, timezone });
 
 export const getMe = () => api.get('/api/auth/me');
 

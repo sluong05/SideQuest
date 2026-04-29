@@ -1,26 +1,26 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
-function useTimeUntilMidnight() {
-  const [timeLeft, setTimeLeft] = useState('');
-
+function useNow() {
+  const [now, setNow] = useState(null);
   useEffect(() => {
-    function update() {
-      const now = new Date();
-      const midnight = new Date();
-      midnight.setHours(24, 0, 0, 0);
-      const diff = midnight - now;
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${h}h ${m}m ${s}s`);
-    }
-    update();
-    const id = setInterval(update, 1000);
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+  return now;
+}
 
-  return timeLeft;
+function formatCountdown(dueDate, now) {
+  if (!now) return '';
+  const diff = new Date(dueDate) - now;
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
 }
 
 export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
@@ -136,7 +136,7 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
 }
 
 function PotentialDebtCard({ todayAtRisk, potentialAdditional }) {
-  const timeLeft = useTimeUntilMidnight();
+  const now = useNow();
 
   return (
     <div className="card border-amber-700/40 bg-amber-950/10">
@@ -146,22 +146,25 @@ function PotentialDebtCard({ todayAtRisk, potentialAdditional }) {
         </h3>
         <span className="text-xs text-navy-300">if left unfinished</span>
       </div>
-      {timeLeft && (
-        <div className="flex items-center gap-1.5 mb-3 text-xs text-navy-200">
-          <span>⏱</span>
-          <span><span className="font-mono text-amber-400">{timeLeft}</span> until debt is charged</span>
-        </div>
-      )}
 
-      <div className="space-y-2">
-        {todayAtRisk.map((task) => (
-          <div key={task.id} className="flex items-center justify-between gap-3">
-            <p className="text-sm text-navy-100 truncate">{task.title}</p>
-            <span className="text-sm font-semibold text-amber-500/80 tabular-nums flex-shrink-0">
-              +5
-            </span>
-          </div>
-        ))}
+      <div className="space-y-2.5">
+        {todayAtRisk.map((task) => {
+          const countdown = formatCountdown(task.dueDate, now);
+          const pastDue = now && new Date(task.dueDate) <= now;
+          return (
+            <div key={task.id} className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm text-navy-100 truncate">{task.title}</p>
+                <p className={`text-xs font-mono mt-0.5 ${pastDue ? 'text-red-400' : 'text-amber-400'}`}>
+                  {pastDue ? 'past due — debt accruing' : `⏱ ${countdown} left`}
+                </p>
+              </div>
+              <span className="text-sm font-semibold text-amber-500/80 tabular-nums flex-shrink-0">
+                +5
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="border-t border-amber-900/30 mt-3 pt-3 flex items-center justify-between">

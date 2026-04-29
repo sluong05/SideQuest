@@ -22,7 +22,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await login(identifier, password);
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await login(identifier, password, timezone);
       loginUser(res.data.token, res.data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');

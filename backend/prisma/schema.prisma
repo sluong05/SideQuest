@@ -15,6 +15,7 @@ model User {
   createdAt            DateTime  @default(now())
   passwordResetToken   String?
   passwordResetExpiry  DateTime?
+  timezone             String    @default("UTC")
 
   tasks          Task[]
   pushupSessions PushupSession[]
@@ -41,7 +42,6 @@ model PushupDebt {
   userId          Int
   pushupsOwed     Float
   daysOverdue     Int
-  interestApplied Boolean  @default(false)
   resolved        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
