@@ -27,10 +27,10 @@ export default function Welcome() {
       {/* Nav */}
       <header className="border-b border-amber-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <img src="/logo.png" alt="Pushup Debt" className="h-10 w-auto" />
-          <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="Pushup Debt" className="h-7 sm:h-10 w-auto" />
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/login" className="btn-ghost text-sm">Sign In</Link>
-            <Link href="/signup" className="btn-primary text-sm py-2 px-4">Get Started</Link>
+            <Link href="/signup" className="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4">Get Started</Link>
           </div>
         </div>
       </header>
