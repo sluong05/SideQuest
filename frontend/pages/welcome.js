@@ -21,7 +21,7 @@ export default function Welcome() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-600 relative">
+    <div className="min-h-screen bg-navy-600 relative overflow-x-hidden">
       <ParticleBackground showPushupModel />
 
       {/* Nav */}
@@ -40,11 +40,11 @@ export default function Welcome() {
         <p className="text-amber-400/80 text-sm font-semibold uppercase tracking-widest mb-6">
           The productivity app that fights back
         </p>
-        <h1 className="text-6xl sm:text-7xl font-bold text-navy-50 leading-tight mb-4">
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold text-navy-50 leading-tight mb-4">
           Procrastination has
         </h1>
         <h1
-          className="text-6xl sm:text-7xl font-bold leading-tight mb-8"
+          className="text-4xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-8"
           style={{
             color: '#f59e0b',
             textShadow: '0 0 60px rgba(245,158,11,0.45), 0 0 120px rgba(245,158,11,0.2)',
