@@ -44,7 +44,7 @@ export default function Leaderboard() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-navy-50">Leaderboard</h1>
           <p className="text-navy-200 text-sm mt-1">
-            Ranked by tasks completed · tiebreaker: clean slate, then lowest debt, then most pushups done
+            Ranked by tasks completed in the last 7 days · tiebreaker: clean slate, then lowest debt
           </p>
         </div>
 
@@ -96,7 +96,12 @@ export default function Leaderboard() {
                       )}
                     </div>
                     <p className="text-xs text-navy-200 mt-0.5">
-                      {entry.tasksCompleted} tasks completed · {entry.totalPushups} pushups done · member since{' '}
+                      {entry.totalDebt === 0 ? (
+                        <span className="text-green-400 font-medium">Clean</span>
+                      ) : (
+                        <span className="text-red-400 font-medium">{entry.totalDebt} owed</span>
+                      )}
+                      {' · '}{entry.totalPushups} pushups done · member since{' '}
                       {new Date(entry.memberSince).toLocaleDateString('en-US', {
                         month: 'short',
                         year: 'numeric',
@@ -104,23 +109,12 @@ export default function Leaderboard() {
                     </p>
                   </div>
 
-                  {/* Debt */}
+                  {/* Tasks completed this week */}
                   <div className="text-right flex-shrink-0">
-                    {entry.totalDebt === 0 ? (
-                      <div className="flex items-center gap-1.5 text-green-400">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-sm font-bold">Clean</span>
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="text-lg font-bold text-red-400 tabular-nums">
-                          {entry.totalDebt}
-                        </span>
-                        <p className="text-xs text-navy-300">owed</p>
-                      </div>
-                    )}
+                    <span className="text-lg font-bold text-amber-400 tabular-nums">
+                      {entry.tasksCompleted7d}
+                    </span>
+                    <p className="text-xs text-navy-300">tasks (7d)</p>
                   </div>
                 </div>
               );
@@ -130,7 +124,7 @@ export default function Leaderboard() {
 
         <div className="card mt-6 text-center bg-navy-700/50">
           <p className="text-sm text-navy-200">
-            Complete more tasks to climb the ranks. Ties broken by debt, then pushups done.
+            Complete more tasks this week to climb the ranks. Resets every 7 days.
           </p>
         </div>
       </div>

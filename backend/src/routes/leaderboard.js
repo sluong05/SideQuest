@@ -11,9 +11,11 @@ function maskEmail(email) {
 }
 
 // GET /api/leaderboard
-// Ranked by: 1) most tasks completed  2) clean (no debt)  3) lowest debt  4) most pushups done
+// Ranked by: 1) most tasks completed in last 7 days  2) clean (no debt)  3) lowest debt  4) most pushups done
 router.get('/', auth, async (req, res) => {
   try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -28,7 +30,7 @@ router.get('/', auth, async (req, res) => {
           select: { pushupsCompleted: true },
         },
         tasks: {
-          where: { completed: true },
+          where: { completed: true, completedAt: { gte: sevenDaysAgo } },
           select: { id: true },
         },
       },
@@ -37,21 +39,21 @@ router.get('/', auth, async (req, res) => {
     const leaderboard = users.map((user) => {
       const totalDebt = user.pushupDebts.reduce((sum, d) => sum + d.pushupsOwed, 0);
       const totalPushups = user.pushupSessions.reduce((sum, s) => sum + s.pushupsCompleted, 0);
-      const tasksCompleted = user.tasks.length;
+      const tasksCompleted7d = user.tasks.length;
 
       return {
         id: user.id,
         username: user.username || maskEmail(user.email),
         totalDebt: Math.ceil(totalDebt),
         totalPushups,
-        tasksCompleted,
+        tasksCompleted7d,
         memberSince: user.createdAt,
       };
     });
 
     leaderboard.sort((a, b) => {
-      // 1. Most tasks completed
-      if (a.tasksCompleted !== b.tasksCompleted) return b.tasksCompleted - a.tasksCompleted;
+      // 1. Most tasks completed in last 7 days
+      if (a.tasksCompleted7d !== b.tasksCompleted7d) return b.tasksCompleted7d - a.tasksCompleted7d;
       // 2. Clean (zero debt) comes first
       const aClean = a.totalDebt === 0 ? 0 : 1;
       const bClean = b.totalDebt === 0 ? 0 : 1;
