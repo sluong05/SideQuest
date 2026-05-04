@@ -29,6 +29,16 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                 <span className="text-xs text-navy-200 hidden sm:inline">day streak</span>
               </div>
 
+              {/* Dashboard link */}
+              <Link
+                href="/"
+                className={`btn-ghost text-sm hidden sm:block ${
+                  router.pathname === '/' ? 'text-amber-400' : ''
+                }`}
+              >
+                Dashboard
+              </Link>
+
               {/* Leaderboard link */}
               <Link
                 href="/leaderboard"
