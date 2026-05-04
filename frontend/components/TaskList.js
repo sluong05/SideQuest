@@ -33,6 +33,7 @@ const colorStyles = {
 function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' }) {
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const dueInfo = formatDueDate(task.dueDate);
 
   async function handleComplete() {
@@ -48,7 +49,16 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
     }
   }
 
-  async function handleDelete() {
+  function handleDeleteClick() {
+    if (!task.completed) {
+      setShowConfirm(true);
+    } else {
+      confirmDelete();
+    }
+  }
+
+  async function confirmDelete() {
+    setShowConfirm(false);
     setDeleting(true);
     try {
       await onDelete(task.id);
@@ -108,7 +118,7 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
 
       {/* Delete */}
       <button
-        onClick={handleDelete}
+        onClick={handleDeleteClick}
         disabled={deleting}
         className="text-navy-300 hover:text-red-400 transition-colors p-1 flex-shrink-0"
         title="Delete task"
@@ -117,6 +127,33 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </button>
+
+      {/* Confirmation dialog for incomplete task deletion */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-sm text-center">
+            <p className="text-4xl mb-4">⚠️</p>
+            <h2 className="text-lg font-bold text-navy-50 mb-2">Delete Incomplete Task?</h2>
+            <p className="text-navy-200 text-sm mb-6">
+              Deleting this task will cost you <span className="text-red-400 font-bold">5 pushups</span>. Are you sure?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2 px-4 rounded-lg font-semibold text-sm bg-red-700 hover:bg-red-600 text-white transition-colors"
+              >
+                Delete anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

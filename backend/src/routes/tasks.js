@@ -140,16 +140,42 @@ router.patch('/:id/uncomplete', auth, async (req, res) => {
 });
 
 // DELETE /api/tasks/:id — delete a task
+// Deleting an incomplete task incurs a 5-pushup penalty
 router.delete('/:id', auth, async (req, res) => {
   const taskId = parseInt(req.params.id, 10);
 
   try {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { pushupDebt: true },
+    });
 
     if (!task) return res.status(404).json({ error: 'Task not found' });
     if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
 
+    const wasIncomplete = !task.completed;
+    const existingDebt = task.pushupDebt;
+
+    // Delete task — cascade sets pushupDebt.taskId = null if one exists
     await prisma.task.delete({ where: { id: taskId } });
+
+    if (wasIncomplete) {
+      if (existingDebt) {
+        await prisma.pushupDebt.update({
+          where: { id: existingDebt.id },
+          data: { pushupsOwed: existingDebt.pushupsOwed + 5 },
+        });
+      } else {
+        await prisma.pushupDebt.create({
+          data: {
+            taskId: null,
+            userId: req.userId,
+            pushupsOwed: 5,
+            daysOverdue: 1,
+          },
+        });
+      }
+    }
 
     return res.json({ message: 'Task deleted' });
   } catch (err) {
