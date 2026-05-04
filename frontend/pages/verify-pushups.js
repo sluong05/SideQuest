@@ -87,10 +87,11 @@ export default function VerifyPushups() {
   const poseRef    = useRef(null);
   const animRef    = useRef(null);
   const streamRef  = useRef(null);
-  const stageRef   = useRef('up');    // 'up' | 'down'
-  const repsRef    = useRef(0);
+  const stageRef    = useRef('up');    // 'up' | 'down'
+  const repsRef     = useRef(0);
   const countingRef = useRef(false);  // whether rep counting is active
-  const dingRef = useRef(null);
+  const dingRef     = useRef(null);
+  const downSinceRef = useRef(null);  // timestamp when elbow first dropped below 90°
 
   function playDing() {
     if (typeof window === 'undefined') return;
@@ -106,11 +107,12 @@ export default function VerifyPushups() {
   const gestureCooldownRef = useRef(false);  // prevents re-triggering immediately after toggle
 
   // UI state
-  const [reps,       setReps]       = useState(0);
-  const [angle,      setAngle]      = useState(null);
-  const [backAngle,  setBackAngle]  = useState(null);
-  const [stage,      setStage]      = useState('up');
-  const [counting,   setCounting]   = useState(false);
+  const [reps,            setReps]            = useState(0);
+  const [angle,           setAngle]           = useState(null);
+  const [backAngle,       setBackAngle]       = useState(null);
+  const [stage,           setStage]           = useState('up');
+  const [counting,        setCounting]        = useState(false);
+  const [downHoldProgress, setDownHoldProgress] = useState(0); // 0–1 while waiting to lock 'down'
   const [mpLoading,  setMpLoading]  = useState(true);
   const [camError,   setCamError]   = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -283,12 +285,29 @@ export default function VerifyPushups() {
     }
 
     // ── State machine — only runs when user has pressed Start ────────────────
+    const DOWN_HOLD_MS = 500;
+
     if (countingRef.current) {
-      if (deg < 90 && stageRef.current === 'up' && backParallel) {
-        stageRef.current = 'down';
-        setStage('down');
-      } else if (deg > 155 && stageRef.current === 'down' && backParallel) {
-        stageRef.current = 'up';
+      if (deg < 90 && backParallel && stageRef.current === 'up') {
+        // Start or continue timing the hold in the down position
+        if (downSinceRef.current === null) downSinceRef.current = Date.now();
+        const held = Date.now() - downSinceRef.current;
+        setDownHoldProgress(Math.min(1, held / DOWN_HOLD_MS));
+        if (held >= DOWN_HOLD_MS) {
+          stageRef.current = 'down';
+          setStage('down');
+          setDownHoldProgress(0);
+        }
+      } else if (stageRef.current === 'up' && downSinceRef.current !== null) {
+        // Came back up before holding long enough — reset timer
+        downSinceRef.current = null;
+        setDownHoldProgress(0);
+      }
+
+      if (deg > 155 && stageRef.current === 'down' && backParallel) {
+        stageRef.current    = 'up';
+        downSinceRef.current = null;
+        setDownHoldProgress(0);
         repsRef.current += 1;
         setReps(repsRef.current);
         setStage('up');
@@ -475,16 +494,19 @@ if (streamRef.current) {
 
   // ── Start / stop counting ────────────────────────────────────────────────────
   function startCounting() {
-    // Reset stage so a bent-arm starting position doesn't immediately count
-    stageRef.current  = 'up';
+    stageRef.current    = 'up';
+    downSinceRef.current = null;
     setStage('up');
+    setDownHoldProgress(0);
     countingRef.current = true;
     setCounting(true);
   }
 
   function stopCounting() {
-    countingRef.current = false;
+    countingRef.current  = false;
+    downSinceRef.current = null;
     setCounting(false);
+    setDownHoldProgress(0);
   }
 
   // ── Submit reps ──────────────────────────────────────────────────────────────
@@ -669,15 +691,23 @@ if (streamRef.current) {
               {!mpLoading && !camError && counting && (
                 <>
                   <div className="absolute top-3 left-3 z-10">
-                    <span
-                      className={`text-xs font-bold px-3 py-1.5 rounded-full shadow-lg transition-all duration-200 ${
-                        stage === 'down'
-                          ? 'bg-amber-500 text-white shadow-orange-500/30'
-                          : 'bg-navy-700/80 text-green-400 border border-green-500/40'
-                      }`}
-                    >
-                      {stage === 'down' ? '▼ DOWN' : '▲ UP'}
-                    </span>
+                    {stage === 'down' ? (
+                      <span className="text-xs font-bold px-3 py-1.5 rounded-full shadow-lg bg-amber-500 text-white shadow-orange-500/30">
+                        ▼ DOWN
+                      </span>
+                    ) : downHoldProgress > 0 ? (
+                      <div className="relative overflow-hidden text-xs font-bold px-3 py-1.5 rounded-full shadow-lg bg-navy-700/80 text-amber-400 border border-amber-500/60">
+                        <div
+                          className="absolute inset-0 bg-amber-500/30 rounded-full"
+                          style={{ width: `${downHoldProgress * 100}%` }}
+                        />
+                        <span className="relative">▼ HOLD…</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-bold px-3 py-1.5 rounded-full shadow-lg bg-navy-700/80 text-green-400 border border-green-500/40">
+                        ▲ UP
+                      </span>
+                    )}
                   </div>
                   <div className="absolute top-3 right-3 z-10">
                     <span className="text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full">🤚 raise hand to stop</span>
