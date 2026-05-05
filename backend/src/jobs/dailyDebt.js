@@ -25,6 +25,7 @@ async function calculateAndUpdateDebt(userId = null) {
 
   const whereClause = {
     completed: false,
+    deletedAt: null,
     dueDate: { lt: now },
   };
 
@@ -80,7 +81,7 @@ async function calculateAndUpdateDebt(userId = null) {
   if (userId) return;
 
   const completedRecurring = await prisma.task.findMany({
-    where: { completed: true, recurrence: { not: 'none' } },
+    where: { completed: true, deletedAt: null, recurrence: { not: 'none' } },
     include: { pushupDebt: true },
   });
 
@@ -109,12 +110,20 @@ async function calculateAndUpdateDebt(userId = null) {
 
   console.log(`[DebtJob] Reset ${completedRecurring.length} recurring tasks`);
 
-  // ── Delete completed non-recurring tasks from the previous day ────────────
+  // ── Hard-delete tasks that are past the 7-day leaderboard window ────────
+  // Soft-deleted incomplete tasks have no leaderboard value and can go immediately.
+  // Completed tasks (deleted or not) are kept for 7 days so the leaderboard counts them.
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const deleted = await prisma.task.deleteMany({
-    where: { completed: true, recurrence: 'none' },
+    where: {
+      OR: [
+        { completed: true, recurrence: 'none', completedAt: { lt: sevenDaysAgo } },
+        { deletedAt: { not: null }, completed: false },
+      ],
+    },
   });
 
-  console.log(`[DebtJob] Deleted ${deleted.count} completed non-recurring tasks`);
+  console.log(`[DebtJob] Hard-deleted ${deleted.count} expired tasks`);
 }
 
 /**

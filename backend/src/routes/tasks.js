@@ -12,7 +12,7 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const { date, upToDate } = req.query;
-    let whereClause = { userId: req.userId };
+    let whereClause = { userId: req.userId, deletedAt: null };
 
     if (upToDate) {
       const end = new Date(upToDate);
@@ -156,14 +156,18 @@ router.delete('/:id', auth, async (req, res) => {
     const wasIncomplete = !task.completed;
     const existingDebt = task.pushupDebt;
 
-    // Delete task — cascade sets pushupDebt.taskId = null if one exists
-    await prisma.task.delete({ where: { id: taskId } });
+    // Soft-delete: keep the row so completed tasks remain countable in the leaderboard
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { deletedAt: new Date() },
+    });
 
     if (wasIncomplete) {
       if (existingDebt) {
+        // Orphan the debt (taskId → null) so it groups under "Deleted tasks", and add penalty
         await prisma.pushupDebt.update({
           where: { id: existingDebt.id },
-          data: { pushupsOwed: existingDebt.pushupsOwed + 5 },
+          data: { taskId: null, pushupsOwed: existingDebt.pushupsOwed + 5 },
         });
       } else {
         await prisma.pushupDebt.create({

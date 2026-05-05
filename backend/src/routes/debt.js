@@ -19,7 +19,14 @@ router.get('/', auth, async (req, res) => {
 
     const totalOwed = debts.reduce((sum, d) => sum + d.pushupsOwed, 0);
 
-    return res.json({ debts, totalOwed: Math.ceil(totalOwed) });
+    // Null out the task reference for soft-deleted tasks so the frontend
+    // groups them under "Deleted tasks" rather than showing a stale task name.
+    const sanitised = debts.map((d) => ({
+      ...d,
+      task: d.task?.deletedAt ? null : d.task,
+    }));
+
+    return res.json({ debts: sanitised, totalOwed: Math.ceil(totalOwed) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

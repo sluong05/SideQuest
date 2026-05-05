@@ -30,6 +30,7 @@ model Task {
   createdAt   DateTime  @default(now())
   dueDate     DateTime
   completedAt DateTime?
+  deletedAt   DateTime?
   userId      Int
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
