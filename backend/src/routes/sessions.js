@@ -69,15 +69,22 @@ router.post('/', auth, async (req, res) => {
 // GET /api/sessions — get pushup session history for the user
 router.get('/', auth, async (req, res) => {
   try {
-    const sessions = await prisma.pushupSession.findMany({
-      where: { userId: req.userId },
-      orderBy: { date: 'desc' },
-      take: 30,
-    });
+    const [sessions, aggregate] = await Promise.all([
+      prisma.pushupSession.findMany({
+        where: { userId: req.userId },
+        orderBy: { date: 'desc' },
+        take: 30,
+      }),
+      prisma.pushupSession.aggregate({
+        where: { userId: req.userId },
+        _sum: { pushupsCompleted: true },
+      }),
+    ]);
 
     const totalCompleted = sessions.reduce((sum, s) => sum + s.pushupsCompleted, 0);
+    const allTimePushups = aggregate._sum.pushupsCompleted || 0;
 
-    return res.json({ sessions, totalCompleted });
+    return res.json({ sessions, totalCompleted, allTimePushups });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

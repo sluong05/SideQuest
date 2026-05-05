@@ -5,7 +5,16 @@ import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { changePassword, setUsername, getStreak, deleteAccount } from '../lib/api';
 
-export default function Settings() {
+const BADGES = [
+  { days: 3,   label: 'First Steps',  icon: '🌱' },
+  { days: 7,   label: 'One Week',     icon: '⚡' },
+  { days: 14,  label: 'Two Weeks',    icon: '🔥' },
+  { days: 30,  label: 'One Month',    icon: '💪' },
+  { days: 60,  label: 'Two Months',   icon: '🏋️' },
+  { days: 100, label: 'Century',      icon: '👑' },
+];
+
+export default function Profile() {
   const { user, loading: authLoading, updateUser, logoutUser } = useAuth();
   const router = useRouter();
   const [streak, setStreak] = useState(0);
@@ -28,7 +37,7 @@ export default function Settings() {
 
   // ── Username form ────────────────────────────────────────────────────────
   const [usernameInput, setUsernameInput] = useState('');
-  const [usernameMsg, setUsernameMsg]     = useState(null); // { type: 'success'|'error', text }
+  const [usernameMsg, setUsernameMsg] = useState(null);
   const [usernameSaving, setUsernameSaving] = useState(false);
 
   async function handleUsername(e) {
@@ -51,28 +60,11 @@ export default function Settings() {
     }
   }
 
-  // ── Delete account ───────────────────────────────────────────────────────
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
-
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      await deleteAccount();
-      logoutUser();
-    } catch (err) {
-      setDeleteError(err.response?.data?.error || 'Failed to delete account. Try again.');
-      setDeleting(false);
-    }
-  }
-
   // ── Password form ────────────────────────────────────────────────────────
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordMsg, setPasswordMsg]   = useState(null);
+  const [passwordMsg, setPasswordMsg] = useState(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
 
   async function handlePassword(e) {
@@ -100,6 +92,23 @@ export default function Settings() {
     }
   }
 
+  // ── Delete account ───────────────────────────────────────────────────────
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+      logoutUser();
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Failed to delete account. Try again.');
+      setDeleting(false);
+    }
+  }
+
   if (authLoading || (!user && !authLoading)) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
@@ -110,15 +119,73 @@ export default function Settings() {
 
   return (
     <Layout streak={streak}>
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link href="/" className="inline-flex items-center gap-1 text-sm text-navy-200 hover:text-navy-100 mb-2 transition-colors">
             ← Dashboard
           </Link>
-          <h1 className="text-2xl font-bold text-navy-50">Settings</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0">
+              <span className="text-xl font-bold text-amber-400">
+                {(user.username || user.email)[0].toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-navy-50">{user.username || user.email}</h1>
+              <p className="text-sm text-navy-300">
+                Member since {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
+
+          {/* Badges */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-navy-200 uppercase tracking-wide font-medium">Streak Badges</p>
+              {user.maxStreak > 0 && (
+                <span className="text-xs text-navy-400">Best streak: <span className="text-amber-400 font-semibold">{user.maxStreak} days</span></span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              {BADGES.map((badge) => {
+                const earned = (user.maxStreak ?? 0) >= badge.days;
+                return (
+                  <div
+                    key={badge.days}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                      earned
+                        ? 'bg-amber-500/10 border-amber-500/40'
+                        : 'bg-navy-700/40 border-navy-600 opacity-40'
+                    }`}
+                  >
+                    <span className={`text-2xl ${earned ? '' : 'grayscale'}`}>{badge.icon}</span>
+                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-amber-400' : 'text-navy-400'}`}>
+                      {badge.days}d
+                    </span>
+                    <span className={`text-xs text-center leading-tight ${earned ? 'text-navy-200' : 'text-navy-500'}`}>
+                      {badge.label}
+                    </span>
+                    {earned && (
+                      <span className="text-xs text-green-400 font-bold">✓</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {(user.maxStreak ?? 0) === 0 && (
+              <p className="text-xs text-navy-400 mt-3 text-center">
+                Complete all your tasks today to start earning badges.
+              </p>
+            )}
+            {streak > 0 && (
+              <p className="text-xs text-navy-400 mt-3 text-center">
+                Current streak: <span className="text-amber-400 font-semibold">{streak} days</span>
+              </p>
+            )}
+          </div>
 
           {/* Account info */}
           <div className="card p-5">
@@ -248,10 +315,7 @@ export default function Settings() {
             <p className="text-sm text-navy-300 mb-4">
               Permanently delete your account and all data. This cannot be undone.
             </p>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="btn-danger text-sm py-2 px-4"
-            >
+            <button onClick={() => setShowDeleteModal(true)} className="btn-danger text-sm py-2 px-4">
               Delete Account
             </button>
           </div>
@@ -259,7 +323,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Confirmation modal */}
+      {/* Delete confirmation modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div

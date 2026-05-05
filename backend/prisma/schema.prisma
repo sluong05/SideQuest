@@ -17,6 +17,7 @@ model User {
   passwordResetExpiry  DateTime?
   timezone             String    @default("UTC")
   totalTasksCompleted  Int       @default(0)
+  maxStreak            Int       @default(0)
 
   tasks          Task[]
   pushupSessions PushupSession[]

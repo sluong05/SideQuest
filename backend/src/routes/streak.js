@@ -57,6 +57,12 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
+    // Persist maxStreak if current streak beats it
+    await prisma.user.updateMany({
+      where: { id: userId, maxStreak: { lt: streak } },
+      data: { maxStreak: streak },
+    });
+
     return res.json({ streak });
   } catch (err) {
     console.error(err);

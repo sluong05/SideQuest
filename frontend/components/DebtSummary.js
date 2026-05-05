@@ -23,9 +23,29 @@ function formatCountdown(dueDate, now) {
   return `${s}s`;
 }
 
+const DEBT_LEVELS = [
+  { max: 0,   label: 'Debt Free',         flavor: null,                                                      color: 'green',  nextLabel: null,             dropTo: null },
+  { max: 25,  label: 'Light Debt',         flavor: 'Your debt collector is keeping a close eye on you.',      color: 'yellow', nextLabel: 'Debt Free',      dropTo: (n) => n },
+  { max: 75,  label: 'Risky',              flavor: 'The Pushup Bank is getting nervous.',                     color: 'orange', nextLabel: 'Light Debt',     dropTo: (n) => n - 25 },
+  { max: 150, label: 'Debt Spiral',        flavor: 'Financially and physically irresponsible.',               color: 'red',    nextLabel: 'Risky',          dropTo: (n) => n - 75 },
+  { max: Infinity, label: 'Pushup Bankruptcy', flavor: 'The Pushup Bank has sent collections. This is not a drill.', color: 'red', nextLabel: 'Debt Spiral', dropTo: (n) => n - 150 },
+];
+
+function getDebtLevel(total) {
+  return DEBT_LEVELS.find((l) => total <= l.max);
+}
+
+const levelBadgeStyle = {
+  green:  'bg-green-900/40 text-green-400 border border-green-700/40',
+  yellow: 'bg-yellow-900/30 text-yellow-400 border border-yellow-700/40',
+  orange: 'bg-orange-900/30 text-orange-400 border border-orange-700/40',
+  red:    'bg-red-900/40 text-red-400 border border-red-700/40',
+};
+
 export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
   const potentialAdditional = todayAtRisk.length * 5;
   const potentialTotal = totalOwed + potentialAdditional;
+  const level = getDebtLevel(totalOwed);
 
   if (totalOwed === 0 && todayAtRisk.length === 0) {
     return (
@@ -50,6 +70,8 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
     );
   }
 
+  const toDrop = level.dropTo ? level.dropTo(totalOwed) : null;
+
   return (
     <div className="space-y-4">
       {/* Total owed */}
@@ -60,6 +82,22 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
           <p className="text-sm text-navy-200 mt-2">
             {debts.length} overdue {debts.length === 1 ? 'task' : 'tasks'}
           </p>
+        </div>
+
+        {/* Debt level badge + flavor text */}
+        <div className="mt-4 flex flex-col items-center gap-1.5">
+          <span className={`text-xs font-bold px-3 py-1 rounded-full ${levelBadgeStyle[level.color]}`}>
+            {level.label}
+          </span>
+          {level.flavor && (
+            <p className="text-xs text-navy-300 italic text-center">{level.flavor}</p>
+          )}
+          {toDrop !== null && (
+            <p className="text-xs text-navy-400 text-center">
+              Pay <span className="text-amber-400 font-semibold">{toDrop}</span> to drop to{' '}
+              <span className="text-navy-200 font-medium">{level.nextLabel}</span>
+            </p>
+          )}
         </div>
 
         {/* Potential total preview */}
@@ -93,7 +131,6 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
             Current Breakdown
           </h3>
           <div className="space-y-3">
-            {/* Named task debts */}
             {debts.filter((d) => d.task).map((debt) => (
               <div key={debt.id} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -110,7 +147,6 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
                 </div>
               </div>
             ))}
-            {/* Combine all deleted-task debts into one row */}
             {(() => {
               const deleted = debts.filter((d) => !d.task);
               if (deleted.length === 0) return null;

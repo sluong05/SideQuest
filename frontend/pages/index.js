@@ -5,7 +5,102 @@ import TaskList from '../components/TaskList';
 import DebtSummary from '../components/DebtSummary';
 import AddTaskModal from '../components/AddTaskModal';
 import { useAuth } from '../contexts/AuthContext';
-import { getTasks, getDebt, getStreak, recalculateDebt, setUsername } from '../lib/api';
+import { getTasks, getDebt, getStreak, getSessions, recalculateDebt, setUsername } from '../lib/api';
+
+// ── Streak milestones ────────────────────────────────────────────────────────
+const MILESTONES = [3, 7, 14, 30, 60, 100];
+
+function getNextMilestone(streak) {
+  return MILESTONES.find((m) => m > streak) ?? null;
+}
+
+function getAchievedMilestones(streak) {
+  return MILESTONES.filter((m) => m <= streak);
+}
+
+// ── Pushup bar chart helpers ─────────────────────────────────────────────────
+function buildChartData(sessions) {
+  const DAYS = 14;
+  const buckets = [];
+  const now = new Date();
+  for (let i = DAYS - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    buckets.push({
+      date: d,
+      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      pushups: 0,
+    });
+  }
+  for (const s of sessions) {
+    const sd = new Date(s.date);
+    sd.setHours(0, 0, 0, 0);
+    const bucket = buckets.find((b) => b.date.getTime() === sd.getTime());
+    if (bucket) bucket.pushups += s.pushupsCompleted;
+  }
+  return buckets;
+}
+
+function PushupChart({ sessions }) {
+  const data = buildChartData(sessions);
+  const maxVal = Math.max(...data.map((d) => d.pushups), 1);
+  const W = 560;
+  const H = 110;
+  const padL = 4;
+  const padR = 4;
+  const padTop = 8;
+  const padBot = 28;
+  const chartW = W - padL - padR;
+  const chartH = H - padTop - padBot;
+  const barW = chartW / data.length;
+  const gap = 3;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ display: 'block' }}>
+      {data.map((d, i) => {
+        const barH = d.pushups > 0 ? Math.max(4, (d.pushups / maxVal) * chartH) : 2;
+        const x = padL + i * barW + gap / 2;
+        const y = padTop + chartH - barH;
+        const w = barW - gap;
+        const isToday = i === data.length - 1;
+        const showLabel = i % 2 === 0 || isToday;
+        return (
+          <g key={i}>
+            <rect
+              x={x} y={y} width={w}
+              height={d.pushups > 0 ? barH : 2}
+              rx={2}
+              fill={d.pushups > 0 ? (isToday ? '#f97316' : '#fbbf24') : '#1e3a4a'}
+            />
+            {d.pushups > 0 && (
+              <text
+                x={x + w / 2}
+                y={y - 2}
+                textAnchor="middle"
+                fontSize={8}
+                fill={isToday ? '#f97316' : '#fbbf24'}
+              >
+                {d.pushups}
+              </text>
+            )}
+            {showLabel && (
+              <text
+                x={x + w / 2}
+                y={H - 6}
+                textAnchor="middle"
+                fontSize={8}
+                fill="#4b6070"
+              >
+                {d.label}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 function todayLabel() {
   return new Date().toLocaleDateString('en-US', {
@@ -23,6 +118,8 @@ export default function Dashboard() {
   const [debts, setDebts] = useState([]);
   const [totalOwed, setTotalOwed] = useState(0);
   const [streak, setStreak] = useState(0);
+  const [sessions, setSessions] = useState([]);
+  const [allTimePushups, setAllTimePushups] = useState(0);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showDebtBlock, setShowDebtBlock] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
@@ -42,15 +139,18 @@ export default function Dashboard() {
     try {
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const [tasksRes, debtRes, streakRes] = await Promise.all([
-        getTasks({ upToDate: today }),   // overdue incomplete + completed today
+      const [tasksRes, debtRes, streakRes, sessionsRes] = await Promise.all([
+        getTasks({ upToDate: today }),
         getDebt(),
         getStreak(),
+        getSessions(),
       ]);
       setTasks(tasksRes.data.tasks);
       setDebts(debtRes.data.debts);
       setTotalOwed(debtRes.data.totalOwed);
       setStreak(streakRes.data.streak);
+      setSessions(sessionsRes.data.sessions);
+      setAllTimePushups(sessionsRes.data.allTimePushups);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -160,6 +260,7 @@ export default function Dashboard() {
           <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left column — Tasks */}
           <div className="lg:col-span-3">
@@ -239,6 +340,52 @@ export default function Dashboard() {
               todayAtRisk={todayAtRisk}
             />
 
+            {/* Streak milestone card */}
+            {(() => {
+              const next = getNextMilestone(streak);
+              const achieved = getAchievedMilestones(streak);
+              const daysAway = next ? next - streak : 0;
+              return (
+                <div className="card mt-4 bg-navy-700/50">
+                  <h3 className="text-xs font-semibold text-navy-200 uppercase tracking-wide mb-3">
+                    🔥 Streak Milestones
+                  </h3>
+                  {next ? (
+                    <p className="text-sm text-navy-100 mb-3">
+                      <span className="text-amber-400 font-bold">{daysAway}</span>{' '}
+                      {daysAway === 1 ? 'day' : 'days'} until your{' '}
+                      <span className="text-amber-400 font-bold">{next}-day badge</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-green-400 font-semibold mb-3">All milestones reached! 🏆</p>
+                  )}
+                  {next && (
+                    <div className="w-full bg-navy-800 rounded-full h-1.5 mb-3">
+                      <div
+                        className="bg-amber-500 h-1.5 rounded-full transition-all duration-500"
+                        style={{ width: `${(streak / next) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                  {achieved.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {achieved.map((m) => (
+                        <span
+                          key={m}
+                          className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium"
+                        >
+                          ✓ {m}d
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {achieved.length === 0 && streak === 0 && (
+                    <p className="text-xs text-navy-300">Complete all tasks today to start your streak!</p>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Formula info */}
             <div className="card mt-4 bg-navy-700/50">
               <h3 className="text-xs font-semibold text-navy-200 uppercase tracking-wide mb-3">
@@ -257,6 +404,47 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Progress section */}
+        <div className="mt-6 card">
+          <h2 className="text-base font-bold text-navy-50 mb-1">Your Progress</h2>
+          <p className="text-xs text-navy-300 mb-4">Pushups logged per day — last 14 days</p>
+
+          {sessions.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-3xl mb-2">📊</p>
+              <p className="text-navy-300 text-sm">No pushup sessions yet.</p>
+              <p className="text-navy-400 text-xs mt-1">Log some pushups to see your chart.</p>
+            </div>
+          ) : (
+            <PushupChart sessions={sessions} />
+          )}
+
+          {/* All-time stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-navy-600">
+            <div className="text-center">
+              <p className="text-xl font-bold text-amber-400 tabular-nums">{allTimePushups}</p>
+              <p className="text-xs text-navy-300 mt-0.5">pushups all-time</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-green-400 tabular-nums">{user?.totalTasksCompleted ?? 0}</p>
+              <p className="text-xs text-navy-300 mt-0.5">tasks completed</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-orange-400 tabular-nums">{streak}</p>
+              <p className="text-xs text-navy-300 mt-0.5">day streak</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-navy-100 tabular-nums">
+                {user?.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                  : '—'}
+              </p>
+              <p className="text-xs text-navy-300 mt-0.5">member since</p>
+            </div>
+          </div>
+        </div>
+        </>
       )}
 
       {/* Modals */}
