@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { startDebtCronJob } = require('./jobs/dailyDebt');
+const { startEmailReminderJobs } = require('./jobs/emailReminders');
 const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
@@ -37,8 +38,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Start cron job
+// Start cron jobs
 startDebtCronJob();
+startEmailReminderJobs();
 
 app.listen(PORT, () => {
   console.log(`Pushup Debt API running on http://localhost:${PORT}`);

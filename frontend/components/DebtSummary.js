@@ -1,27 +1,4 @@
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-
-function useNow() {
-  const [now, setNow] = useState(null);
-  useEffect(() => {
-    setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
-
-function formatCountdown(dueDate, now) {
-  if (!now) return '';
-  const diff = new Date(dueDate) - now;
-  if (diff <= 0) return null;
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const s = Math.floor((diff % 60000) / 1000);
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
 
 const DEBT_LEVELS = [
   { max: 0,   label: 'Debt Free',         flavor: null,                                                      color: 'green',  nextLabel: null,             dropTo: null },
@@ -59,13 +36,10 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
 
   if (totalOwed === 0 && todayAtRisk.length > 0) {
     return (
-      <div className="space-y-4">
-        <div className="card text-center py-8">
-          <p className="text-3xl mb-3">✅</p>
-          <p className="text-lg font-bold text-green-400">No Debt Right Now</p>
-          <p className="text-navy-200 text-sm mt-1">Finish today's tasks to keep it that way.</p>
-        </div>
-        <PotentialDebtCard todayAtRisk={todayAtRisk} potentialAdditional={potentialAdditional} />
+      <div className="card text-center py-8">
+        <p className="text-3xl mb-3">✅</p>
+        <p className="text-lg font-bold text-green-400">No Debt Right Now</p>
+        <p className="text-navy-200 text-sm mt-1">Finish today's tasks to keep it that way.</p>
       </div>
     );
   }
@@ -119,11 +93,6 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
         </Link>
       </div>
 
-      {/* Potential debt from today's unfinished tasks */}
-      {potentialAdditional > 0 && (
-        <PotentialDebtCard todayAtRisk={todayAtRisk} potentialAdditional={potentialAdditional} />
-      )}
-
       {/* Individual existing debts */}
       {debts.length > 0 && (
         <div className="card">
@@ -171,46 +140,3 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
   );
 }
 
-function PotentialDebtCard({ todayAtRisk, potentialAdditional }) {
-  const now = useNow();
-
-  return (
-    <div className="card border-amber-700/40 bg-amber-950/10">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-amber-400/80 uppercase tracking-wide">
-          At Risk Today
-        </h3>
-        <span className="text-xs text-navy-300">if left unfinished</span>
-      </div>
-
-      <div className="space-y-2.5">
-        {todayAtRisk.map((task) => {
-          const countdown = formatCountdown(task.dueDate, now);
-          const pastDue = now && new Date(task.dueDate) <= now;
-          return (
-            <div key={task.id} className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm text-navy-100 truncate">{task.title}</p>
-                <p className={`text-xs font-mono mt-0.5 ${pastDue ? 'text-red-400' : 'text-amber-400'}`}>
-                  {pastDue ? 'past due — debt accruing' : `⏱ ${countdown} left`}
-                </p>
-              </div>
-              <span className="text-sm font-semibold text-amber-500/80 tabular-nums flex-shrink-0">
-                +5
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="border-t border-amber-900/30 mt-3 pt-3 flex items-center justify-between">
-        <span className="text-xs text-navy-200">
-          {todayAtRisk.length} task{todayAtRisk.length !== 1 ? 's' : ''} · 5 pushups each
-        </span>
-        <span className="text-sm font-bold text-amber-400 tabular-nums">
-          +{potentialAdditional} pushups
-        </span>
-      </div>
-    </div>
-  );
-}

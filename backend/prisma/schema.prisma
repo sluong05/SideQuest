@@ -18,6 +18,7 @@ model User {
   timezone             String    @default("UTC")
   totalTasksCompleted  Int       @default(0)
   maxStreak            Int       @default(0)
+  emailReminders       Boolean   @default(true)
 
   tasks          Task[]
   pushupSessions PushupSession[]

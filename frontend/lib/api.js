@@ -40,6 +40,9 @@ export const resetPassword = (token, password) =>
 
 export const deleteAccount = () => api.delete('/api/auth/account');
 
+export const updateNotifications = (emailReminders) =>
+  api.patch('/api/auth/notifications', { emailReminders });
+
 // Tasks
 // Pass { date } for exact-day filter, { upToDate } for overdue+today view
 export const getTasks = (params = {}) =>

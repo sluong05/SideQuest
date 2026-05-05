@@ -179,9 +179,28 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true },
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    return res.json({ user });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH /api/auth/notifications — toggle email reminder preference
+router.patch('/notifications', require('../middleware/auth'), async (req, res) => {
+  const { emailReminders } = req.body;
+  if (typeof emailReminders !== 'boolean') {
+    return res.status(400).json({ error: 'emailReminders must be a boolean' });
+  }
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { emailReminders },
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true },
+    });
     return res.json({ user });
   } catch (err) {
     console.error(err);

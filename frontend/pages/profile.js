@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { changePassword, setUsername, getStreak, deleteAccount } from '../lib/api';
+import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications } from '../lib/api';
 
 const BADGES = [
   { days: 3,   label: 'First Steps',  icon: '🌱' },
@@ -89,6 +89,32 @@ export default function Profile() {
       setPasswordMsg({ type: 'error', text: err.response?.data?.error || 'Failed to change password' });
     } finally {
       setPasswordSaving(false);
+    }
+  }
+
+  // ── Notifications ────────────────────────────────────────────────────────
+  const [emailReminders, setEmailReminders] = useState(true);
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifMsg, setNotifMsg] = useState(null);
+
+  useEffect(() => {
+    if (user) setEmailReminders(user.emailReminders ?? true);
+  }, [user]);
+
+  async function handleToggleReminders() {
+    const next = !emailReminders;
+    setEmailReminders(next);
+    setNotifSaving(true);
+    setNotifMsg(null);
+    try {
+      const res = await updateNotifications(next);
+      updateUser(res.data.user);
+      setNotifMsg({ type: 'success', text: next ? 'Email reminders enabled.' : 'Email reminders disabled.' });
+    } catch (err) {
+      setEmailReminders(!next);
+      setNotifMsg({ type: 'error', text: 'Failed to save preference.' });
+    } finally {
+      setNotifSaving(false);
     }
   }
 
@@ -219,6 +245,39 @@ export default function Profile() {
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Notifications */}
+          <div className="card p-5">
+            <p className="text-xs text-navy-200 uppercase tracking-wide font-medium mb-4">Notifications</p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-navy-100">Email reminders</p>
+                <p className="text-xs text-navy-300 mt-0.5">
+                  Get notified when tasks are due soon and receive a nightly summary of your debt and progress.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={emailReminders}
+                onClick={handleToggleReminders}
+                disabled={notifSaving}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                  emailReminders ? 'bg-amber-500' : 'bg-navy-600 border border-navy-500'
+                } ${notifSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                    emailReminders ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {notifMsg && (
+              <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-navy-400'}`}>
+                {notifMsg.text}
+              </p>
+            )}
           </div>
 
           {/* Change username */}

@@ -7,6 +7,142 @@ import AddTaskModal from '../components/AddTaskModal';
 import { useAuth } from '../contexts/AuthContext';
 import { getTasks, getDebt, getStreak, getSessions, recalculateDebt, setUsername } from '../lib/api';
 
+// ── Shared time helpers ──────────────────────────────────────────────────────
+function useNow() {
+  const [now, setNow] = useState(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function formatCountdown(dueDate, now) {
+  if (!now) return '…';
+  const diff = new Date(dueDate) - now;
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+// ── Today's Focus card ───────────────────────────────────────────────────────
+function TodaysFocusCard({ todayAtRisk, tasks, onAddTask }) {
+  const now = useNow();
+  const pendingCount = todayAtRisk.length;
+  const potentialDebt = pendingCount * 5;
+
+  if (tasks.length === 0) {
+    return (
+      <div className="card mt-4 border-navy-500/60 bg-navy-700/20">
+        <p className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-4">
+          Today's Focus
+        </p>
+        <div className="text-center py-2">
+          <p className="text-3xl mb-3">📋</p>
+          <p className="text-sm font-medium text-navy-100">No tasks yet today.</p>
+          <p className="text-xs text-navy-300 mt-1 mb-5">
+            Add one commitment to start protecting your streak.
+          </p>
+          <button
+            onClick={onAddTask}
+            className="btn-primary text-sm py-2 px-5"
+          >
+            + Add Task
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (pendingCount === 0) {
+    return (
+      <div className="card mt-4 border-green-800/30 bg-green-950/10">
+        <p className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-3">
+          Today's Focus
+        </p>
+        <div className="flex items-start gap-3">
+          <span className="text-lg mt-0.5">✅</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-green-400">You're on track!</p>
+            <p className="text-xs text-navy-300 mt-1">
+              All tasks for today are handled. Keep the streak alive.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onAddTask}
+          className="mt-4 text-xs text-navy-400 hover:text-amber-400 transition-colors duration-150"
+        >
+          + Add another task
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card mt-4 border-amber-700/30 bg-amber-950/10">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-amber-500/80 uppercase tracking-widest">
+          Today's Focus
+        </p>
+        <span className="text-xs text-navy-400">stay on track</span>
+      </div>
+
+      <p className="text-sm text-navy-100 mb-0.5">
+        You have{' '}
+        <span className="text-amber-400 font-semibold">
+          {pendingCount} task{pendingCount > 1 ? 's' : ''}
+        </span>{' '}
+        at risk today.
+      </p>
+      <p className="text-xs text-navy-300 mb-4">
+        Finish {pendingCount > 1 ? 'them' : 'it'} in time to avoid{' '}
+        <span className="text-amber-400 font-semibold">+{potentialDebt} pushups</span>.
+      </p>
+
+      <div className="space-y-2 mb-4">
+        {todayAtRisk.map((task) => {
+          const cd = formatCountdown(task.dueDate, now);
+          const past = now && new Date(task.dueDate) <= now;
+          return (
+            <div
+              key={task.id}
+              className="flex items-center justify-between gap-3 bg-navy-700/40 rounded-lg px-3 py-2.5"
+            >
+              <p className="text-xs text-navy-100 truncate flex-1">{task.title}</p>
+              <span
+                className={`text-xs font-mono flex-shrink-0 ${
+                  past ? 'text-red-400' : 'text-amber-400'
+                }`}
+              >
+                {past ? 'past due' : cd ? `⏱ ${cd}` : '…'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-amber-900/30 pt-3 flex items-center justify-between">
+        <span className="text-xs text-navy-300">
+          Potential debt:{' '}
+          <span className="text-amber-400 font-semibold">+{potentialDebt} pushups</span>
+        </span>
+        <button
+          onClick={onAddTask}
+          className="text-xs text-navy-400 hover:text-amber-400 transition-colors duration-150"
+        >
+          + Add task
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Streak milestones ────────────────────────────────────────────────────────
 const MILESTONES = [3, 7, 14, 30, 60, 100];
 
@@ -164,6 +300,12 @@ export default function Dashboard() {
     recalculateDebt().catch(() => {}).finally(() => loadData());
   }, [user]);
 
+  // Update tab title to reflect outstanding debt
+  useEffect(() => {
+    document.title = totalOwed > 0 ? `(${totalOwed} pushups owed) PushupDebt` : 'PushupDebt';
+    return () => { document.title = 'PushupDebt'; };
+  }, [totalOwed]);
+
   async function handleTaskAdded() {
     // Recalculate in case the new task was already overdue, then refresh all data
     await recalculateDebt().catch(() => {});
@@ -308,6 +450,17 @@ export default function Dashboard() {
 
               <TaskList tasks={tasks} onTaskUpdated={loadData} />
             </div>
+
+            {/* Today's Focus — fills empty space when task list is short */}
+            {tasks.length <= 2 && (
+              <TodaysFocusCard
+                todayAtRisk={todayAtRisk}
+                tasks={tasks}
+                onAddTask={() =>
+                  totalOwed > 99 ? setShowDebtBlock(true) : setShowAddTask(true)
+                }
+              />
+            )}
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-3 mt-4">
