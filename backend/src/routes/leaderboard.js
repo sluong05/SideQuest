@@ -22,6 +22,7 @@ router.get('/', auth, async (req, res) => {
         email: true,
         username: true,
         createdAt: true,
+        totalTasksCompleted: true,
         pushupDebts: {
           where: { resolved: false },
           select: { pushupsOwed: true },
@@ -47,6 +48,7 @@ router.get('/', auth, async (req, res) => {
         totalDebt: Math.ceil(totalDebt),
         totalPushups,
         tasksCompleted7d,
+        totalTasksCompleted: user.totalTasksCompleted,
         memberSince: user.createdAt,
       };
     });

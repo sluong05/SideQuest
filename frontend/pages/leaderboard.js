@@ -101,7 +101,9 @@ export default function Leaderboard() {
                       ) : (
                         <span className="text-red-400 font-medium">{entry.totalDebt} owed</span>
                       )}
-                      {' · '}{entry.totalPushups} pushups done · member since{' '}
+                      {' · '}{entry.totalPushups} pushups done
+                      {' · '}<span className="text-amber-400 font-medium">{entry.totalTasksCompleted} tasks all-time</span>
+                      {' · '}member since{' '}
                       {new Date(entry.memberSince).toLocaleDateString('en-US', {
                         month: 'short',
                         year: 'numeric',

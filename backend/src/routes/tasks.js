@@ -99,14 +99,17 @@ router.patch('/:id/complete', auth, async (req, res) => {
     if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
     if (task.completed) return res.status(400).json({ error: 'Task already completed' });
 
-    const updated = await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        completed: true,
-        completedAt: new Date(),
-      },
-      include: { pushupDebt: true },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.task.update({
+        where: { id: taskId },
+        data: { completed: true, completedAt: new Date() },
+        include: { pushupDebt: true },
+      }),
+      prisma.user.update({
+        where: { id: req.userId },
+        data: { totalTasksCompleted: { increment: 1 } },
+      }),
+    ]);
 
     return res.json({ task: updated });
   } catch (err) {
@@ -126,11 +129,17 @@ router.patch('/:id/uncomplete', auth, async (req, res) => {
     if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
     if (!task.completed) return res.status(400).json({ error: 'Task is not completed' });
 
-    const updated = await prisma.task.update({
-      where: { id: taskId },
-      data: { completed: false, completedAt: null },
-      include: { pushupDebt: true },
-    });
+    const [updated] = await prisma.$transaction([
+      prisma.task.update({
+        where: { id: taskId },
+        data: { completed: false, completedAt: null },
+        include: { pushupDebt: true },
+      }),
+      prisma.user.update({
+        where: { id: req.userId },
+        data: { totalTasksCompleted: { decrement: 1 } },
+      }),
+    ]);
 
     return res.json({ task: updated });
   } catch (err) {
