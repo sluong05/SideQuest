@@ -212,6 +212,65 @@ export default function Welcome() {
         </div>
       </section>
 
+      {/* Install the app */}
+      <section className="relative z-10 py-20">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <p className="text-amber-400/80 text-sm font-semibold uppercase tracking-widest mb-3">No download needed</p>
+          <h2 className="text-3xl font-bold text-navy-50 mb-3">Add it to your home screen</h2>
+          <p className="text-navy-300 text-sm mb-12">
+            PushupDebt works like a native app — full screen, no browser chrome. Install it in seconds.
+          </p>
+
+          {/* iOS steps */}
+          <div className="card bg-navy-700/50 mb-4 text-left">
+            <div className="flex items-center gap-2 mb-5">
+              <span className="text-xl"></span>
+              <p className="text-sm font-bold text-navy-50">iPhone / iPad — Safari</p>
+            </div>
+            <div className="space-y-4">
+              {[
+                { n: '1', text: 'Open pushupdebt.com in Safari (not Chrome or Firefox).' },
+                {
+                  n: '2',
+                  text: (
+                    <>
+                      Tap the{' '}
+                      <span className="inline-flex items-center gap-1 bg-navy-600 border border-navy-500 px-2 py-0.5 rounded text-xs font-mono text-navy-100">
+                        Share
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                          <path d="M13 4.5a2.5 2.5 0 1 1 .702 1.737L6.97 9.604a2.518 2.518 0 0 1 0 .792l6.733 3.367a2.5 2.5 0 1 1-.671 1.341l-6.733-3.367a2.5 2.5 0 1 1 0-3.474l6.733-3.366A2.52 2.52 0 0 1 13 4.5Z" />
+                        </svg>
+                      </span>{' '}
+                      icon at the bottom of the screen.
+                    </>
+                  ),
+                },
+                { n: '3', text: 'Scroll down in the share sheet and tap "Add to Home Screen".' },
+                { n: '4', text: 'Tap "Add" in the top right. Done — it\'s on your home screen.' },
+              ].map(({ n, text }) => (
+                <div key={n} className="flex items-start gap-4">
+                  <span className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0 text-xs font-bold text-amber-400 mt-0.5">
+                    {n}
+                  </span>
+                  <p className="text-sm text-navy-200 leading-relaxed">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Android note */}
+          <div className="card bg-navy-700/30 text-left">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🤖</span>
+              <p className="text-sm font-bold text-navy-50">Android — Chrome</p>
+            </div>
+            <p className="text-sm text-navy-300 leading-relaxed">
+              Tap the <span className="font-mono text-navy-100">⋮</span> menu in the top right → <span className="text-navy-100">Add to Home screen</span> → <span className="text-navy-100">Add</span>.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="relative z-10 py-28 text-center">
         <div className="max-w-xl mx-auto px-4">
