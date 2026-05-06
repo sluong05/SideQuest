@@ -111,12 +111,7 @@ export default function PublicProfile() {
         {error && (
           <div className="card text-center py-12">
             <p className="text-3xl mb-3">🔒</p>
-            <p className="text-navy-200 font-medium">
-              {error === 'Not friends' ? "You're not friends with this user." : error}
-            </p>
-            {error === 'Not friends' && (
-              <p className="text-navy-400 text-sm mt-2">Send them a friend request to see their profile.</p>
-            )}
+            <p className="text-navy-200 font-medium">{error}</p>
           </div>
         )}
 

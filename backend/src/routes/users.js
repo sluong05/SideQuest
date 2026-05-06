@@ -1,7 +1,6 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
-const { getFriendIds } = require('./friends');
 
 const router = express.Router();
 
@@ -24,14 +23,6 @@ router.get('/:username', auth, async (req, res) => {
     });
 
     if (!target) return res.status(404).json({ error: 'User not found' });
-
-    // Allow self
-    if (target.id !== req.userId) {
-      const friendIds = await getFriendIds(req.userId);
-      if (!friendIds.includes(target.id)) {
-        return res.status(403).json({ error: 'Not friends' });
-      }
-    }
 
     const totalDebt = Math.ceil(target.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0));
     const totalPushups = target.pushupSessions.reduce((s, s2) => s + s2.pushupsCompleted, 0);
