@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const cron = require('node-cron');
+const { localDateString, localEndOfDayUTC } = require('../lib/timezone');
 
 // Returns a plain Date representing midnight on the given date in the given timezone.
 // Used to count calendar-day boundaries locally rather than in UTC.
@@ -82,19 +83,19 @@ async function calculateAndUpdateDebt(userId = null) {
 
   const completedRecurring = await prisma.task.findMany({
     where: { completed: true, deletedAt: null, recurrence: { not: 'none' } },
-    include: { pushupDebt: true },
+    include: { pushupDebt: true, user: { select: { timezone: true } } },
   });
 
   for (const task of completedRecurring) {
-    const nextDue = new Date();
+    const tz = task.user?.timezone || 'UTC';
+    let nextDue;
 
     if (task.recurrence === 'daily') {
-      nextDue.setUTCHours(23, 59, 59, 999);
+      // Reset to end of today in the user's local timezone
+      nextDue = localEndOfDayUTC(localDateString(now, tz), tz);
     } else if (task.recurrence === 'weekly') {
-      const base = new Date(task.dueDate);
-      base.setUTCDate(base.getUTCDate() + 7);
-      base.setUTCHours(23, 59, 59, 999);
-      nextDue.setTime(base.getTime());
+      // Preserve the original due time — just advance by exactly 7 days
+      nextDue = new Date(new Date(task.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000);
     }
 
     // Remove resolved debt so a fresh debt record can be created if overdue again

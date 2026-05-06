@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
+const { localMidnightUTC, localDateString } = require('../lib/timezone');
 
 const router = express.Router();
 
@@ -10,39 +11,51 @@ const router = express.Router();
  * AND no pushup debt was created (or all debt was resolved same day).
  *
  * We look back day by day from yesterday and count consecutive clean days.
+ * All day boundaries are computed in the user's stored timezone so that a
+ * task due at 11pm local is grouped under the correct calendar day.
  */
 router.get('/', auth, async (req, res) => {
   try {
     const userId = req.userId;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    const lookbackStart = new Date(today);
-    lookbackStart.setDate(today.getDate() - 365);
+    const userRecord = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    const tz = userRecord?.timezone || 'UTC';
 
-    // Single query: all tasks due in the last 365 days
+    const now = new Date();
+    const todayStr = localDateString(now, tz);
+    const todayUTC = localMidnightUTC(todayStr, tz);
+
+    const lookbackStart = new Date(todayUTC.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+    // All tasks due in the last 365 days (by local calendar)
     const tasks = await prisma.task.findMany({
       where: {
         userId,
-        dueDate: { gte: lookbackStart, lt: today },
+        dueDate: { gte: lookbackStart, lt: todayUTC },
       },
       include: { pushupDebt: true },
     });
 
-    // Group tasks by day (YYYY-MM-DD key)
+    // Group tasks by their LOCAL due date
     const byDay = {};
     for (const task of tasks) {
-      const key = new Date(task.dueDate).toISOString().split('T')[0];
+      const key = localDateString(new Date(task.dueDate), tz);
       if (!byDay[key]) byDay[key] = [];
       byDay[key].push(task);
     }
 
-    // Walk backwards day by day and count consecutive clean days
+    // Walk backwards one local day at a time. Stepping back by subtracting 1ms
+    // from each day's local midnight gives the last moment of the previous local
+    // day — correctly handles DST transitions where days aren't exactly 24h.
     let streak = 0;
-    for (let i = 1; i <= 365; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const key = d.toISOString().split('T')[0];
+    let curMidnight = todayUTC;
+    for (let i = 0; i < 365; i++) {
+      const prevMoment = new Date(curMidnight.getTime() - 1);
+      const key = localDateString(prevMoment, tz);
+      curMidnight = localMidnightUTC(key, tz);
 
       const dayTasks = byDay[key];
       if (!dayTasks || dayTasks.length === 0) continue;

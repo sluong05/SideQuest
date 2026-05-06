@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { calculateAndUpdateDebt } = require('../jobs/dailyDebt');
+const { localMidnightUTC } = require('../lib/timezone');
 
 const router = express.Router();
 
@@ -15,11 +16,13 @@ router.get('/', auth, async (req, res) => {
     let whereClause = { userId: req.userId, deletedAt: null };
 
     if (upToDate) {
-      const end = new Date(upToDate);
-      end.setHours(23, 59, 59, 999);
-      const dayStart = new Date(upToDate);
-      dayStart.setHours(0, 0, 0, 0);
-      // Return: all incomplete tasks (any due date) + tasks completed today
+      const userRecord = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { timezone: true },
+      });
+      const timezone = userRecord?.timezone || 'UTC';
+      const dayStart = localMidnightUTC(upToDate, timezone);
+      // Return: all incomplete tasks (any due date) + tasks completed today (local time)
       whereClause.OR = [
         { completed: false },
         { completed: true, completedAt: { gte: dayStart } },
