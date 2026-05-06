@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import confetti from 'canvas-confetti';
 import { completeTask, uncompleteTask, deleteTask } from '../lib/api';
 
 function formatDueDate(dateStr) {
@@ -158,10 +159,17 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
   );
 }
 
-export default function TaskList({ tasks, onTaskUpdated }) {
+export default function TaskList({ tasks, onTaskUpdated, onAddTask }) {
   async function handleComplete(taskId) {
     try {
       await completeTask(taskId);
+      confetti({
+        particleCount: 80,
+        spread: 55,
+        origin: { y: 0.6 },
+        colors: ['#f59e0b', '#fbbf24', '#34d399', '#ffffff'],
+        scalar: 0.9,
+      });
       onTaskUpdated();
     } catch (err) {
       console.error(err);
@@ -188,10 +196,30 @@ export default function TaskList({ tasks, onTaskUpdated }) {
 
   if (tasks.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-4xl mb-3">✅</p>
-        <p className="text-navy-100 font-medium">No tasks yet</p>
-        <p className="text-navy-300 text-sm mt-1">Add a task to get started</p>
+      <div className="py-6">
+        <p className="text-center text-navy-100 font-semibold text-base mb-5">Here's how it works</p>
+        <div className="space-y-3 mb-7">
+          {[
+            { step: '1', icon: '📋', title: 'Add a task', desc: 'Set a title and a due date — could be anything: gym, reading, a work deadline.' },
+            { step: '2', icon: '✅', title: 'Complete it on time', desc: 'Check it off before the due date. Your streak grows and the leaderboard updates.' },
+            { step: '3', icon: '💪', title: 'Miss it? Do pushups', desc: 'Every missed day costs 5 pushups. Pay them off on the verify page.' },
+          ].map(({ step, icon, title, desc }) => (
+            <div key={step} className="flex items-start gap-3 bg-navy-700/40 rounded-xl px-4 py-3">
+              <span className="text-xl flex-shrink-0 mt-0.5">{icon}</span>
+              <div>
+                <p className="text-sm font-semibold text-navy-50">{title}</p>
+                <p className="text-xs text-navy-300 mt-0.5">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        {onAddTask && (
+          <div className="text-center">
+            <button onClick={onAddTask} className="btn-primary py-2.5 px-8 text-sm">
+              + Add your first task
+            </button>
+          </div>
+        )}
       </div>
     );
   }

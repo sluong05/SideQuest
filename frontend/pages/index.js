@@ -452,11 +452,15 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <TaskList tasks={tasks} onTaskUpdated={loadData} />
+              <TaskList
+                tasks={tasks}
+                onTaskUpdated={loadData}
+                onAddTask={totalOwed > 99 ? () => setShowDebtBlock(true) : () => setShowAddTask(true)}
+              />
             </div>
 
             {/* Today's Focus — fills empty space when task list is short */}
-            {tasks.length <= 2 && (
+            {tasks.length > 0 && tasks.length <= 2 && (
               <TodaysFocusCard
                 todayAtRisk={todayAtRisk}
                 tasks={tasks}

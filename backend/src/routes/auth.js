@@ -162,10 +162,15 @@ router.patch('/username', require('../middleware/auth'), async (req, res) => {
 router.delete('/account', require('../middleware/auth'), async (req, res) => {
   try {
     const userId = req.userId;
-    // Delete dependent records before the user row
     await prisma.pushupDebt.deleteMany({ where: { userId } });
     await prisma.pushupSession.deleteMany({ where: { userId } });
     await prisma.task.deleteMany({ where: { userId } });
+    await prisma.friendship.deleteMany({
+      where: { OR: [{ requesterId: userId }, { receiverId: userId }] },
+    });
+    await prisma.challenge.deleteMany({
+      where: { OR: [{ challengerId: userId }, { challengedId: userId }] },
+    });
     await prisma.user.delete({ where: { id: userId } });
     return res.json({ message: 'Account deleted' });
   } catch (err) {
