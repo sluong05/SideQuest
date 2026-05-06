@@ -28,6 +28,23 @@ export default function Document() {
         {/* Theme */}
         <meta name="theme-color" content="#0f172a" />
         <meta name="msapplication-TileColor" content="#0f172a" />
+
+        {/* SEO */}
+        <meta name="description" content="Turn procrastination into gains. Miss a task deadline and owe pushups — pay them off with camera-verified reps." />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="PushupDebt" />
+        <meta property="og:title" content="PushupDebt — Turn procrastination into gains" />
+        <meta property="og:description" content="Miss a task deadline and owe pushups. Pay them off with camera-verified reps. Compete with friends on the leaderboard." />
+        <meta property="og:image" content="https://pushupdebt.com/og-image.svg" />
+        <meta property="og:url" content="https://pushupdebt.com" />
+
+        {/* Twitter / X */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="PushupDebt — Turn procrastination into gains" />
+        <meta name="twitter:description" content="Miss a task deadline and owe pushups. Pay them off with camera-verified reps." />
+        <meta name="twitter:image" content="https://pushupdebt.com/og-image.svg" />
       </Head>
       <body>
         <Main />

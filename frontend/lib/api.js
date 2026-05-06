@@ -99,4 +99,11 @@ export const createChallenge = (friendId, type, durationDays) =>
 export const acceptChallenge = (id) => api.patch(`/api/challenges/${id}/accept`);
 export const declineChallenge = (id) => api.patch(`/api/challenges/${id}/decline`);
 
+// Push notifications
+export const getVapidPublicKey = () => api.get('/api/push/vapid-public-key');
+export const subscribePush = (endpoint, p256dh, auth) =>
+  api.post('/api/push/subscribe', { endpoint, p256dh, auth });
+export const unsubscribePush = (endpoint) =>
+  api.delete('/api/push/unsubscribe', { data: { endpoint } });
+
 export default api;

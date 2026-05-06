@@ -25,10 +25,11 @@ model User {
   tasks              Task[]
   pushupSessions     PushupSession[]
   pushupDebts        PushupDebt[]
-  sentRequests       Friendship[]    @relation("SentRequests")
-  receivedRequests   Friendship[]    @relation("ReceivedRequests")
-  challengesGiven    Challenge[]     @relation("ChallengesGiven")
-  challengesReceived Challenge[]     @relation("ChallengesReceived")
+  sentRequests       Friendship[]       @relation("SentRequests")
+  receivedRequests   Friendship[]       @relation("ReceivedRequests")
+  challengesGiven    Challenge[]        @relation("ChallengesGiven")
+  challengesReceived Challenge[]        @relation("ChallengesReceived")
+  pushSubscriptions  PushSubscription[]
 }
 
 model Friendship {
@@ -94,6 +95,17 @@ model PushupSession {
   pushupsCompleted Int
   date             DateTime @default(now())
   userId           Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

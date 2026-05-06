@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile } from '../lib/api';
+import { usePush } from '../lib/usePush';
 
 const BADGES = [
   { days: 3,   label: 'First Steps',  icon: '🌱' },
@@ -142,6 +143,9 @@ export default function Profile() {
       setProfileSaving(false);
     }
   }
+
+  // ── Push notifications ───────────────────────────────────────────────────
+  const push = usePush();
 
   // ── Notifications ────────────────────────────────────────────────────────
   const [emailReminders, setEmailReminders] = useState(true);
@@ -381,6 +385,33 @@ export default function Profile() {
                 />
               </button>
             </div>
+            {push.supported && push.permission !== 'denied' && (
+              <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-navy-700">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-navy-100">Push notifications</p>
+                  <p className="text-xs text-navy-300 mt-0.5">
+                    {push.permission === 'denied'
+                      ? 'Blocked by browser — enable in site settings.'
+                      : 'Get alerts even when the tab is closed.'}
+                  </p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={push.subscribed}
+                  onClick={push.subscribed ? push.unsubscribe : push.subscribe}
+                  disabled={push.loading}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                    push.subscribed ? 'bg-amber-500' : 'bg-navy-600 border border-navy-500'
+                  } ${push.loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                      push.subscribed ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
             {notifMsg && (
               <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-navy-400'}`}>
                 {notifMsg.text}

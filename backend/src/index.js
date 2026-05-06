@@ -35,6 +35,7 @@ app.use('/api/streak', require('./routes/streak'));
 app.use('/api/friends', require('./routes/friends').router);
 app.use('/api/users', require('./routes/users'));
 app.use('/api/challenges', require('./routes/challenges'));
+app.use('/api/push', require('./routes/push'));
 
 // Health check
 app.get('/api/health', (req, res) => {

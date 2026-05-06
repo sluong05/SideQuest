@@ -24,6 +24,33 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+self.addEventListener('push', (e) => {
+  const data = e.data?.json() ?? {};
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'PushupDebt', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(e.notification.data.url);
+          return client.focus();
+        }
+      }
+      return clients.openWindow(e.notification.data.url);
+    })
+  );
+});
+
 self.addEventListener('fetch', (e) => {
   const { request } = e;
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import '../styles/globals.css';
 import { AuthProvider } from '../contexts/AuthContext';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function App({ Component, pageProps }) {
   useEffect(() => {
@@ -10,8 +11,10 @@ export default function App({ Component, pageProps }) {
   }, []);
 
   return (
-    <AuthProvider>
-      <Component {...pageProps} />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Component {...pageProps} />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

@@ -1,6 +1,7 @@
 const { Resend } = require('resend');
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
+const { sendPushToUser } = require('./pushNotifications');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -79,6 +80,19 @@ async function sendAtRiskReminders() {
       console.error(`[EmailJob] Failed to send at-risk reminder to ${user.email}:`, err.message);
     }
   }
+
+  // Also push notify each user
+  await Promise.all(
+    Object.values(byUser).map(({ user, tasks: userTasks }) => {
+      const count = userTasks.length;
+      return sendPushToUser(
+        user.id,
+        `⚠️ ${count} task${count > 1 ? 's' : ''} due soon`,
+        userTasks.map((t) => t.title).join(', '),
+        '/'
+      );
+    })
+  );
 
   console.log(`[EmailJob] Sent at-risk reminders to ${Object.keys(byUser).length} users`);
 }
@@ -172,6 +186,19 @@ async function sendDailyDigest() {
       console.error(`[EmailJob] Failed to send daily digest to ${user.email}:`, err.message);
     }
   }
+
+  // Push notify users who have debt
+  await Promise.all(
+    users
+      .filter((u) => {
+        const owed = u.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0);
+        return owed > 0;
+      })
+      .map((u) => {
+        const owed = Math.ceil(u.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0));
+        return sendPushToUser(u.id, '💪 Pushups owed', `You owe ${owed} pushups — don't let it pile up.`, '/verify-pushups');
+      })
+  );
 
   console.log(`[EmailJob] Sent daily digest to ${sent} users`);
 }
