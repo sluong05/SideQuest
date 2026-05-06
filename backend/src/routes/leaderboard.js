@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
+const { getFriendIds } = require('./friends');
 
 const router = express.Router();
 
@@ -10,13 +11,21 @@ function maskEmail(email) {
   return `${name[0]}${name[1]}***@${domain}`;
 }
 
-// GET /api/leaderboard
+// GET /api/leaderboard?friends=true
 // Ranked by: 1) most tasks completed in last 7 days  2) clean (no debt)  3) lowest debt  4) most pushups done
 router.get('/', auth, async (req, res) => {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const friendsOnly = req.query.friends === 'true';
+
+    let userFilter = {};
+    if (friendsOnly) {
+      const friendIds = await getFriendIds(req.userId);
+      userFilter = { id: { in: [req.userId, ...friendIds] } };
+    }
 
     const users = await prisma.user.findMany({
+      where: userFilter,
       select: {
         id: true,
         email: true,

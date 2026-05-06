@@ -19,10 +19,45 @@ model User {
   totalTasksCompleted  Int       @default(0)
   maxStreak            Int       @default(0)
   emailReminders       Boolean   @default(true)
+  bio                  String?
+  avatar               String?
 
-  tasks          Task[]
-  pushupSessions PushupSession[]
-  pushupDebts    PushupDebt[]
+  tasks              Task[]
+  pushupSessions     PushupSession[]
+  pushupDebts        PushupDebt[]
+  sentRequests       Friendship[]    @relation("SentRequests")
+  receivedRequests   Friendship[]    @relation("ReceivedRequests")
+  challengesGiven    Challenge[]     @relation("ChallengesGiven")
+  challengesReceived Challenge[]     @relation("ChallengesReceived")
+}
+
+model Friendship {
+  id          Int      @id @default(autoincrement())
+  requesterId Int
+  receiverId  Int
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requester User @relation("SentRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  receiver  User @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, receiverId])
+}
+
+model Challenge {
+  id           Int       @id @default(autoincrement())
+  challengerId Int
+  challengedId Int
+  type         String
+  durationDays Int
+  status       String    @default("pending")
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+
+  challenger User @relation("ChallengesGiven", fields: [challengerId], references: [id], onDelete: Cascade)
+  challenged User @relation("ChallengesReceived", fields: [challengedId], references: [id], onDelete: Cascade)
 }
 
 model Task {

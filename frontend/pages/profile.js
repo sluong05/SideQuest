@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications } from '../lib/api';
+import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile } from '../lib/api';
 
 const BADGES = [
   { days: 3,   label: 'First Steps',  icon: '🌱' },
@@ -92,6 +92,57 @@ export default function Profile() {
     }
   }
 
+  // ── Avatar & bio ────────────────────────────────────────────────────────
+  const [bioInput, setBioInput] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      setBioInput(user.bio || '');
+      setAvatarPreview(user.avatar || null);
+    }
+  }, [user]);
+
+  function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      img.src = ev.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 200;
+        const ctx = canvas.getContext('2d');
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+        setAvatarPreview(canvas.toDataURL('image/jpeg', 0.82));
+        setProfileMsg(null);
+      };
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSaveProfile(e) {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileMsg(null);
+    try {
+      const res = await updateProfile(bioInput, avatarPreview);
+      updateUser(res.data.user);
+      setProfileMsg({ type: 'success', text: 'Profile updated!' });
+    } catch (err) {
+      setProfileMsg({ type: 'error', text: err.response?.data?.error || 'Failed to save' });
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   // ── Notifications ────────────────────────────────────────────────────────
   const [emailReminders, setEmailReminders] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
@@ -166,6 +217,63 @@ export default function Profile() {
         </div>
 
         <div className="space-y-6">
+
+          {/* Avatar & bio */}
+          <form onSubmit={handleSaveProfile} className="card p-5">
+            <p className="text-xs text-navy-200 uppercase tracking-wide font-medium mb-4">Profile</p>
+            <div className="flex items-start gap-5">
+              {/* Avatar upload */}
+              <label className="flex-shrink-0 cursor-pointer group relative">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-navy-600 group-hover:border-amber-500/60 transition-colors">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-amber-500/20 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-amber-400">
+                        {(user.username || user.email)[0].toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-white text-xs font-semibold">Change</span>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </label>
+
+              {/* Bio */}
+              <div className="flex-1">
+                <label className="label">Bio</label>
+                <textarea
+                  className="input resize-none text-sm"
+                  rows={3}
+                  placeholder="A short intro — 160 characters max"
+                  value={bioInput}
+                  maxLength={160}
+                  onChange={(e) => { setBioInput(e.target.value); setProfileMsg(null); }}
+                />
+                <p className="text-xs text-navy-400 mt-1 text-right">{bioInput.length}/160</p>
+              </div>
+            </div>
+
+            {profileMsg && (
+              <p className={`text-sm px-3 py-2 rounded-lg border mt-3 ${
+                profileMsg.type === 'success'
+                  ? 'text-green-400 bg-green-900/20 border-green-800'
+                  : 'text-red-400 bg-red-900/20 border-red-800'
+              }`}>
+                {profileMsg.text}
+              </p>
+            )}
+            <button type="submit" disabled={profileSaving} className="btn-primary w-full py-2.5 mt-4">
+              {profileSaving ? 'Saving…' : 'Save Profile'}
+            </button>
+          </form>
 
           {/* Badges */}
           <div className="card p-5">

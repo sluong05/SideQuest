@@ -43,6 +43,9 @@ export const deleteAccount = () => api.delete('/api/auth/account');
 export const updateNotifications = (emailReminders) =>
   api.patch('/api/auth/notifications', { emailReminders });
 
+export const updateProfile = (bio, avatar) =>
+  api.patch('/api/auth/profile', { bio, avatar });
+
 // Tasks
 // Pass { date } for exact-day filter, { upToDate } for overdue+today view
 export const getTasks = (params = {}) =>
@@ -73,6 +76,27 @@ export const getSessions = () => api.get('/api/sessions');
 export const getStreak = () => api.get('/api/streak');
 
 // Leaderboard
-export const getLeaderboard = () => api.get('/api/leaderboard');
+export const getLeaderboard = (friends = false) =>
+  api.get('/api/leaderboard', { params: friends ? { friends: 'true' } : {} });
+
+// Friends
+export const getFriends = () => api.get('/api/friends');
+export const getFriendRequests = () => api.get('/api/friends/requests');
+export const getFriendFeed = () => api.get('/api/friends/feed');
+export const searchUsers = (q) => api.get('/api/friends/search', { params: { q } });
+export const sendFriendRequest = (username) => api.post('/api/friends/request', { username });
+export const acceptFriendRequest = (id) => api.patch(`/api/friends/${id}/accept`);
+export const declineFriendRequest = (id) => api.patch(`/api/friends/${id}/decline`);
+export const removeFriend = (id) => api.delete(`/api/friends/${id}`);
+
+// Public profiles
+export const getPublicProfile = (username) => api.get(`/api/users/${username}`);
+
+// Challenges
+export const getChallenges = () => api.get('/api/challenges');
+export const createChallenge = (friendId, type, durationDays) =>
+  api.post('/api/challenges', { friendId, type, durationDays });
+export const acceptChallenge = (id) => api.patch(`/api/challenges/${id}/accept`);
+export const declineChallenge = (id) => api.patch(`/api/challenges/${id}/decline`);
 
 export default api;

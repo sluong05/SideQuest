@@ -4,8 +4,9 @@ import Layout from '../components/Layout';
 import TaskList from '../components/TaskList';
 import DebtSummary from '../components/DebtSummary';
 import AddTaskModal from '../components/AddTaskModal';
+import ActivityFeed from '../components/ActivityFeed';
 import { useAuth } from '../contexts/AuthContext';
-import { getTasks, getDebt, getStreak, getSessions, recalculateDebt, setUsername } from '../lib/api';
+import { getTasks, getDebt, getStreak, getSessions, recalculateDebt, setUsername, getFriends } from '../lib/api';
 
 // ── Shared time helpers ──────────────────────────────────────────────────────
 function useNow() {
@@ -259,6 +260,7 @@ export default function Dashboard() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [showDebtBlock, setShowDebtBlock] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
+  const [hasFriends, setHasFriends] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameSaving, setUsernameSaving] = useState(false);
@@ -275,11 +277,12 @@ export default function Dashboard() {
     try {
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const [tasksRes, debtRes, streakRes, sessionsRes] = await Promise.all([
+      const [tasksRes, debtRes, streakRes, sessionsRes, friendsRes] = await Promise.all([
         getTasks({ upToDate: today }),
         getDebt(),
         getStreak(),
         getSessions(),
+        getFriends(),
       ]);
       setTasks(tasksRes.data.tasks);
       setDebts(debtRes.data.debts);
@@ -287,6 +290,7 @@ export default function Dashboard() {
       setStreak(streakRes.data.streak);
       setSessions(sessionsRes.data.sessions);
       setAllTimePushups(sessionsRes.data.allTimePushups);
+      setHasFriends(friendsRes.data.friends.length > 0);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -557,6 +561,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Friend activity feed */}
+        {hasFriends && <ActivityFeed />}
 
         {/* Progress section */}
         <div className="mt-6 card">

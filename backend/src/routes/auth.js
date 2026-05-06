@@ -179,9 +179,40 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true },
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    return res.json({ user });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH /api/auth/profile — update bio and/or avatar
+router.patch('/profile', require('../middleware/auth'), async (req, res) => {
+  const { bio, avatar } = req.body;
+  const data = {};
+
+  if (bio !== undefined) {
+    data.bio = bio ? String(bio).slice(0, 160) : null;
+  }
+  if (avatar !== undefined) {
+    if (avatar !== null && !String(avatar).startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Invalid avatar format' });
+    }
+    if (avatar && avatar.length > 300000) {
+      return res.status(400).json({ error: 'Avatar image is too large' });
+    }
+    data.avatar = avatar;
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data,
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true },
+    });
     return res.json({ user });
   } catch (err) {
     console.error(err);

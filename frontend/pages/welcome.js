@@ -176,8 +176,8 @@ export default function Welcome() {
               <div>
                 <h3 className="font-bold text-navy-50 mb-1">Leaderboard</h3>
                 <p className="text-navy-200 text-sm leading-relaxed">
-                  See how you rank against friends. Everyone's sorted by lowest outstanding debt —
-                  keeping your balance at zero is the only way to stay on top.
+                  See how you rank against others. Everyone's sorted by tasks completed in the last 7 days —
+                  stay consistent and you'll rise to the top.
                 </p>
               </div>
             </div>

@@ -32,6 +32,9 @@ app.use('/api/debt', require('./routes/debt'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/streak', require('./routes/streak'));
+app.use('/api/friends', require('./routes/friends').router);
+app.use('/api/users', require('./routes/users'));
+app.use('/api/challenges', require('./routes/challenges'));
 
 // Health check
 app.get('/api/health', (req, res) => {
