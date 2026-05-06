@@ -32,6 +32,7 @@ router.get('/', auth, async (req, res) => {
         username: true,
         createdAt: true,
         totalTasksCompleted: true,
+        avatar: true,
         pushupDebts: {
           where: { resolved: false },
           select: { pushupsOwed: true },
@@ -59,6 +60,7 @@ router.get('/', auth, async (req, res) => {
         tasksCompleted7d,
         totalTasksCompleted: user.totalTasksCompleted,
         memberSince: user.createdAt,
+        avatar: user.avatar || null,
       };
     });
 

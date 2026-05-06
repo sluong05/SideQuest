@@ -80,11 +80,25 @@ export default function Leaderboard() {
                 isCurrentUser ? 'border-amber-500/50 bg-amber-900/10' : i < 3 ? 'border-navy-300' : ''
               }`}
             >
-              <div className="w-8 text-center flex-shrink-0">
-                {i < 3
-                  ? <span className="text-xl">{medals[i]}</span>
-                  : <span className="text-sm font-bold text-navy-300">#{i + 1}</span>
-                }
+              <div className="relative flex-shrink-0">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-navy-600">
+                  {entry.avatar ? (
+                    <img src={entry.avatar} alt={entry.username} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-amber-500/20 flex items-center justify-center">
+                      <span className="text-sm font-bold text-amber-400">
+                        {(entry.username || '?')[0].toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {i < 3 ? (
+                  <span className="absolute -bottom-1 -right-1 text-sm leading-none">{medals[i]}</span>
+                ) : (
+                  <span className="absolute -bottom-1 -right-1 text-xs font-bold text-navy-300 bg-navy-800 rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                    {i + 1}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
