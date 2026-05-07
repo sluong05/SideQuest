@@ -145,22 +145,39 @@ router.get('/search', auth, async (req, res) => {
       where: {
         OR: [{ requesterId: req.userId }, { receiverId: req.userId }],
       },
-      select: { requesterId: true, receiverId: true, status: true },
+      select: { id: true, requesterId: true, receiverId: true, status: true },
     });
 
-    const relatedIds = existingRelations.flatMap((f) => [f.requesterId, f.receiverId]);
+    // Only exclude accepted friends — pending requests stay visible so their state is shown
+    const acceptedIds = existingRelations
+      .filter((f) => f.status === 'accepted')
+      .flatMap((f) => [f.requesterId, f.receiverId]);
 
     const users = await prisma.user.findMany({
       where: {
         username: { contains: q, mode: 'insensitive' },
-        id: { notIn: [...new Set([...relatedIds, req.userId])] },
+        id: { notIn: [...new Set([...acceptedIds, req.userId])] },
         NOT: { username: null },
       },
       select: { id: true, username: true },
       take: 10,
     });
 
-    return res.json({ results: users });
+    // Annotate each result with pending request state so the frontend doesn't lose it on navigation
+    const results = users.map((u) => {
+      const relation = existingRelations.find(
+        (f) => f.requesterId === u.id || f.receiverId === u.id
+      );
+      const pendingStatus =
+        relation?.status === 'pending'
+          ? relation.requesterId === req.userId
+            ? 'sent'
+            : 'received'
+          : null;
+      return { id: u.id, username: u.username, pendingStatus, friendshipId: relation?.id ?? null };
+    });
+
+    return res.json({ results });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
@@ -257,15 +274,17 @@ router.patch('/:id/decline', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/friends/:id — remove a friend (by friendship id OR friend's user id)
+// DELETE /api/friends/:id — remove an accepted friend OR cancel a pending sent request
 router.delete('/:id', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const friendship = await prisma.friendship.findFirst({
       where: {
         id,
-        status: 'accepted',
-        OR: [{ requesterId: req.userId }, { receiverId: req.userId }],
+        OR: [
+          { status: 'accepted', OR: [{ requesterId: req.userId }, { receiverId: req.userId }] },
+          { status: 'pending', requesterId: req.userId },
+        ],
       },
     });
     if (!friendship) return res.status(404).json({ error: 'Friendship not found' });

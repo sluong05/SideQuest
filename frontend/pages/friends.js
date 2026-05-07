@@ -117,7 +117,6 @@ export default function Friends() {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [sentTo, setSentTo] = useState(new Set());
 
   useEffect(() => {
     if (query.length < 2) { setSearchResults([]); return; }
@@ -134,8 +133,20 @@ export default function Friends() {
 
   async function handleAddFriend(username) {
     try {
-      await sendFriendRequest(username);
-      setSentTo((prev) => new Set([...prev, username]));
+      const res = await sendFriendRequest(username);
+      const friendshipId = res.data.friendship.id;
+      setSearchResults((prev) =>
+        prev.map((u) => u.username === username ? { ...u, pendingStatus: 'sent', friendshipId } : u)
+      );
+    } catch {}
+  }
+
+  async function handleUnsendRequest(friendshipId) {
+    try {
+      await removeFriend(friendshipId);
+      setSearchResults((prev) =>
+        prev.map((u) => u.friendshipId === friendshipId ? { ...u, pendingStatus: null, friendshipId: null } : u)
+      );
     } catch {}
   }
 
@@ -421,17 +432,31 @@ export default function Friends() {
                       </span>
                     </div>
                     <p className="flex-1 font-semibold text-navy-50">{u.username}</p>
-                    <button
-                      onClick={() => handleAddFriend(u.username)}
-                      disabled={sentTo.has(u.username)}
-                      className={`text-xs py-1.5 px-3 flex-shrink-0 ${
-                        sentTo.has(u.username)
-                          ? 'btn-secondary opacity-60 cursor-not-allowed'
-                          : 'btn-primary'
-                      }`}
-                    >
-                      {sentTo.has(u.username) ? 'Sent ✓' : 'Add Friend'}
-                    </button>
+                    {u.pendingStatus === 'sent' ? (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-navy-300">Request sent</span>
+                        <button
+                          onClick={() => handleUnsendRequest(u.friendshipId)}
+                          className="text-xs text-navy-400 hover:text-red-400 transition-colors py-1.5 px-2"
+                        >
+                          Unsend
+                        </button>
+                      </div>
+                    ) : u.pendingStatus === 'received' ? (
+                      <button
+                        onClick={() => setTab('Requests')}
+                        className="text-xs btn-secondary py-1.5 px-3 flex-shrink-0"
+                      >
+                        Respond
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAddFriend(u.username)}
+                        className="btn-primary text-xs py-1.5 px-3 flex-shrink-0"
+                      >
+                        Add Friend
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
