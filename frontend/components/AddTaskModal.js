@@ -110,7 +110,7 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
                     </span>
                   ) : opt.value === 'daily' ? (
                     <span className="flex items-center justify-center gap-1.5">
-                      <img src="/repeat.svg" className="w-4 h-4" />Daily
+                      <img src="/Repeat.svg" className="w-4 h-4" />Daily
                     </span>
                   ) : opt.label}
                 </button>

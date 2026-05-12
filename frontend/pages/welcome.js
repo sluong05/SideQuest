@@ -78,7 +78,7 @@ export default function Welcome() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
 
             <div className="card py-8 px-6 text-center">
-              <p className="text-4xl mb-5">📋</p>
+              <img src="/Calendar.svg" className="w-20 h-20 mx-auto mb-5" />
               <h3 className="text-base font-bold text-navy-50 mb-2">Add tasks with deadlines</h3>
               <p className="text-navy-200 text-sm leading-relaxed">
                 Create one-off or recurring tasks and set a due date. That date is your commitment.
@@ -86,7 +86,7 @@ export default function Welcome() {
             </div>
 
             <div className="card py-8 px-6 text-center">
-              <img src="/CarryDebt.svg" alt="Carry debt" className="w-20 h-20 mx-auto mb-5" />
+              <img src="/CarryDebt.svg" alt="Carry debt" className="w-40 h-40 mx-auto mb-5" />
               <h3 className="text-base font-bold text-navy-50 mb-2">Miss it, earn debt</h3>
               <p className="text-navy-200 text-sm leading-relaxed">
                 Every day a task sits overdue adds 5 pushups to your debt. The longer you wait, the worse it gets.
@@ -197,7 +197,7 @@ export default function Welcome() {
 
             <div className="card flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <img src="/repeat.svg" className="w-5 h-5" />
+                <img src="/Repeat.svg" className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-bold text-navy-50 mb-1">Recurring tasks</h3>
