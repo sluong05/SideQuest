@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { login } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import ParticleBackground from '../components/ParticleBackground';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -33,8 +34,9 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-700 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-navy-600 relative overflow-hidden flex items-center justify-center p-4">
+      <ParticleBackground />
+      <div className="relative z-10 w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
           <img src="/logo.png" alt="Pushup Debt" className="w-full h-auto mx-auto mb-3" />
