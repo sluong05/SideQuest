@@ -26,9 +26,11 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
-  function loginUser(token, userData) {
+  function loginUser(token) {
     localStorage.setItem('token', token);
-    setUser(userData);
+    getMe()
+      .then((res) => setUser(res.data.user))
+      .catch(() => {});
     router.push('/');
   }
 

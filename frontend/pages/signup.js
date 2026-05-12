@@ -43,7 +43,7 @@ export default function Signup() {
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await signup(email, username, password, timezone);
-      loginUser(res.data.token, res.data.user);
+      loginUser(res.data.token);
     } catch (err) {
       setError(err.response?.data?.error || 'Sign up failed. Please try again.');
     } finally {

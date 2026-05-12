@@ -25,7 +25,7 @@ export default function Login() {
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await login(identifier, password, timezone);
-      loginUser(res.data.token, res.data.user);
+      loginUser(res.data.token);
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
