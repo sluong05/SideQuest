@@ -38,6 +38,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
     { href: '/leaderboard', label: 'Leaderboard' },
     { href: '/friends',     label: 'Friends',   badge: pendingCount },
     { href: '/shop',        label: 'Shop' },
+    { href: '/profile',     label: 'Profile' },
   ];
 
   const activeLabel = navLinks.find((l) => l.href === router.pathname)?.label;
@@ -117,24 +118,17 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                         </Link>
                       );
                     })}
+                    <div className="border-t border-navy-600" />
+                    <button
+                      onClick={logoutUser}
+                      className="w-full text-left px-4 py-2.5 text-sm text-navy-300 hover:bg-navy-700/60 hover:text-red-400 transition-colors duration-100"
+                    >
+                      Logout
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Username / email — links to profile */}
-              <Link
-                href="/profile"
-                className={`text-sm hidden sm:block truncate max-w-[120px] transition-colors hover:text-amber-400 ${
-                  router.pathname === '/profile' ? 'text-amber-400' : 'text-navy-300'
-                }`}
-              >
-                {user.username || user.email}
-              </Link>
-
-              {/* Logout */}
-              <button onClick={logoutUser} className="btn-ghost text-sm">
-                Logout
-              </button>
             </div>
           )}
         </div>
