@@ -89,7 +89,7 @@ export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
         )}
 
         <Link href="/verify-pushups" className="btn-primary w-full mt-5 text-base py-3 text-center block">
-          💪 Log Pushups on Camera
+          <span className="flex items-center justify-center gap-1.5"><img src="/Bicep.svg" className="w-5 h-5" />Log Pushups on Camera</span>
         </Link>
       </div>
 

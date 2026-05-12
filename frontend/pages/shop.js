@@ -114,7 +114,7 @@ export default function Shop() {
             </p>
           </div>
           <Link href="/verify-pushups" className="btn-secondary text-xs py-2 px-3 flex-shrink-0">
-            💪 Earn More
+            <span className="flex items-center gap-1.5"><img src="/Bicep.svg" className="w-4 h-4" />Earn More</span>
           </Link>
         </div>
 

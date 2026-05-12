@@ -60,7 +60,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
             <div className="flex items-center gap-3">
               {/* Streak badge */}
               <div className="flex items-center gap-1.5 bg-navy-900/80 border border-amber-500/30 px-3 py-1.5 rounded-full">
-                <span className="text-base">🔥</span>
+                <img src="/Streak.svg" className="w-5 h-5" />
                 <span className="text-sm font-bold text-amber-400">{streak}</span>
                 <span className="text-xs text-navy-200 hidden sm:inline">day streak</span>
               </div>

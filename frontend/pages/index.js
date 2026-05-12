@@ -509,7 +509,7 @@ export default function Dashboard() {
               return (
                 <div className="card mt-4 bg-navy-700/50">
                   <h3 className="text-xs font-semibold text-navy-200 uppercase tracking-wide mb-3">
-                    🔥 Streak Milestones
+                    <span className="flex items-center gap-1.5"><img src="/Streak.svg" className="w-4 h-4" />Streak Milestones</span>
                   </h3>
                   {next ? (
                     <p className="text-sm text-navy-100 mb-3">
@@ -518,7 +518,7 @@ export default function Dashboard() {
                       <span className="text-amber-400 font-bold">{next}-day badge</span>
                     </p>
                   ) : (
-                    <p className="text-sm text-green-400 font-semibold mb-3">All milestones reached! 🏆</p>
+                    <p className="text-sm text-green-400 font-semibold mb-3 flex items-center gap-1.5">All milestones reached! <img src="/Ranking.svg" className="w-4 h-4" /></p>
                   )}
                   {next && (
                     <div className="w-full bg-navy-800 rounded-full h-1.5 mb-3">
@@ -558,7 +558,7 @@ export default function Dashboard() {
                   <span>pushups per overdue day</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-amber-400 font-mono">🔥</span>
+                  <img src="/Streak.svg" className="w-4 h-4" />
                   <span>streak resets if debt remains</span>
                 </div>
               </div>
@@ -638,7 +638,7 @@ export default function Dashboard() {
                 href="/verify-pushups"
                 className="btn-primary flex-1 text-center"
               >
-                💪 Do Pushups
+                <span className="flex items-center justify-center gap-1.5"><img src="/Bicep.svg" className="w-5 h-5" />Do Pushups</span>
               </a>
             </div>
           </div>

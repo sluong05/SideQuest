@@ -86,7 +86,7 @@ export default function Welcome() {
             </div>
 
             <div className="card py-8 px-6 text-center">
-              <p className="text-4xl mb-5">⏰</p>
+              <img src="/CarryDebt.svg" alt="Carry debt" className="w-20 h-20 mx-auto mb-5" />
               <h3 className="text-base font-bold text-navy-50 mb-2">Miss it, earn debt</h3>
               <p className="text-navy-200 text-sm leading-relaxed">
                 Every day a task sits overdue adds 5 pushups to your debt. The longer you wait, the worse it gets.
@@ -94,7 +94,7 @@ export default function Welcome() {
             </div>
 
             <div className="card py-8 px-6 text-center">
-              <p className="text-4xl mb-5">💪</p>
+              <img src="/Bicep.svg" alt="pushups" className="w-20 h-20 mx-auto mb-5" />
               <h3 className="text-base font-bold text-navy-50 mb-2">Pay it off in reps</h3>
               <p className="text-navy-200 text-sm leading-relaxed">
                 Do pushups on camera to clear your debt. Reps are tracked automatically — no self-reporting.
@@ -158,7 +158,7 @@ export default function Welcome() {
 
             <div className="card flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xl">📷</span>
+                <img src="/Camera.svg" alt="camera" className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-bold text-navy-50 mb-1">Camera-verified pushups</h3>
@@ -171,7 +171,7 @@ export default function Welcome() {
 
             <div className="card flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xl">🏆</span>
+                <img src="/Ranking.svg" className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-bold text-navy-50 mb-1">Leaderboard</h3>
@@ -184,7 +184,7 @@ export default function Welcome() {
 
             <div className="card flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xl">🔥</span>
+                <img src="/Streak.svg" className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-bold text-navy-50 mb-1">Streak tracking</h3>
@@ -197,7 +197,7 @@ export default function Welcome() {
 
             <div className="card flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-xl">🔄</span>
+                <img src="/repeat.svg" className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-bold text-navy-50 mb-1">Recurring tasks</h3>
@@ -274,7 +274,7 @@ export default function Welcome() {
       {/* Final CTA */}
       <section className="relative z-10 py-28 text-center">
         <div className="max-w-xl mx-auto px-4">
-          <p className="text-5xl mb-6">💪</p>
+          <img src="/Bicep.svg" alt="pushups" className="w-24 h-24 mx-auto mb-6" />
           <h2 className="text-4xl font-bold text-navy-50 mb-4">Ready to be held accountable?</h2>
           <p className="text-navy-300 mb-10">Free to use. No excuses accepted.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -46,7 +46,7 @@ export default function ActivityFeed() {
           {feed.map((event, i) => (
             <div key={i} className="flex items-start gap-3">
               <div className="w-7 h-7 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0 text-sm">
-                {event.type === 'task_completed' ? '✅' : '💪'}
+                {event.type === 'task_completed' ? '✅' : <img src="/Bicep.svg" className="w-4 h-4" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-navy-100">

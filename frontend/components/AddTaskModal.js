@@ -91,8 +91,8 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
             <div className="grid grid-cols-3 gap-2">
               {[
                 { value: 'none',   label: 'None' },
-                { value: 'daily',  label: '🔄 Daily' },
-                { value: 'weekly', label: '📅 Weekly' },
+                { value: 'daily',  label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -104,7 +104,15 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
                       : 'border-navy-400 text-navy-200 hover:border-navy-300'
                   }`}
                 >
-                  {opt.label}
+                  {opt.value === 'weekly' ? (
+                    <span className="flex items-center justify-center gap-1.5">
+                      <img src="/Calendar.svg" className="w-4 h-4" />Weekly
+                    </span>
+                  ) : opt.value === 'daily' ? (
+                    <span className="flex items-center justify-center gap-1.5">
+                      <img src="/repeat.svg" className="w-4 h-4" />Daily
+                    </span>
+                  ) : opt.label}
                 </button>
               ))}
             </div>

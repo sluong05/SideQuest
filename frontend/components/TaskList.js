@@ -106,7 +106,9 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
           </span>
           {task.recurrence !== 'none' && (
             <span className="text-xs bg-navy-700 text-navy-200 px-2 py-0.5 rounded-full">
-              {task.recurrence === 'daily' ? '🔄 Daily' : '📅 Weekly'}
+              {task.recurrence === 'daily' ? <span className="flex items-center gap-1"><img src="/repeat.svg" className="w-3 h-3 inline" />Daily</span> : (
+                <span className="flex items-center gap-1"><img src="/Calendar.svg" className="w-3 h-3 inline" />Weekly</span>
+              )}
             </span>
           )}
           {hasDebt && (
@@ -202,7 +204,7 @@ export default function TaskList({ tasks, onTaskUpdated, onAddTask }) {
           {[
             { step: '1', icon: '📋', title: 'Add a task', desc: 'Set a title and a due date — could be anything: gym, reading, a work deadline.' },
             { step: '2', icon: '✅', title: 'Complete it on time', desc: 'Check it off before the due date. Your streak grows and the leaderboard updates.' },
-            { step: '3', icon: '💪', title: 'Miss it? Do pushups', desc: 'Every missed day costs 5 pushups. Pay them off on the verify page.' },
+            { step: '3', icon: <img src="/Bicep.svg" className="w-6 h-6" />, title: 'Miss it? Do pushups', desc: 'Every missed day costs 5 pushups. Pay them off on the verify page.' },
           ].map(({ step, icon, title, desc }) => (
             <div key={step} className="flex items-start gap-3 bg-navy-700/40 rounded-xl px-4 py-3">
               <span className="text-xl flex-shrink-0 mt-0.5">{icon}</span>

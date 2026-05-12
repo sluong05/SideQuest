@@ -9,8 +9,8 @@ import { usePush } from '../lib/usePush';
 const BADGES = [
   { days: 3,   label: 'First Steps',  icon: '🌱' },
   { days: 7,   label: 'One Week',     icon: '⚡' },
-  { days: 14,  label: 'Two Weeks',    icon: '🔥' },
-  { days: 30,  label: 'One Month',    icon: '💪' },
+  { days: 14,  label: 'Two Weeks',    icon: <img src="/Streak.svg" className="w-8 h-8" /> },
+  { days: 30,  label: 'One Month',    icon: <img src="/Bicep.svg" className="w-8 h-8" /> },
   { days: 60,  label: 'Two Months',   icon: '🏋️' },
   { days: 100, label: 'Century',      icon: '👑' },
 ];

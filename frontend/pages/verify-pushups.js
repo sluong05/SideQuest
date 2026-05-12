@@ -648,7 +648,7 @@ if (streamRef.current) {
               {/* Camera error overlay */}
               {camError && !mpLoading && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700 p-8 text-center">
-                  <span className="text-5xl mb-4">📷</span>
+                  <img src="/Camera.svg" alt="camera" className="w-14 h-14 mb-4" />
                   <p className="text-red-400 font-medium">{camError}</p>
                   <button
                     onClick={() => window.location.reload()}

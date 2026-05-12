@@ -309,7 +309,7 @@ export default function Friends() {
                           c.winner === 'you' ? 'text-green-400 font-semibold' :
                           c.winner === 'tie' ? 'text-amber-400' : 'text-red-400'
                         }>
-                          {c.winner === 'you' ? '🏆 Won' : c.winner === 'tie' ? '🤝 Tie' : 'Lost'}
+                          {c.winner === 'you' ? <span className="flex items-center gap-1"><img src="/Ranking.svg" className="w-4 h-4" />Won</span> : c.winner === 'tie' ? '🤝 Tie' : 'Lost'}
                         </span>
                       </div>
                     );

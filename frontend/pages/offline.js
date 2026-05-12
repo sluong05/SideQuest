@@ -12,7 +12,7 @@ export default function Offline() {
       textAlign: 'center',
       padding: '24px',
     }}>
-      <p style={{ fontSize: '48px', marginBottom: '16px' }}>💪</p>
+      <img src="/Bicep.svg" alt="pushups" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
       <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '8px' }}>
         You're offline
       </h1>
