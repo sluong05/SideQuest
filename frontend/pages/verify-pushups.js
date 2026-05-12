@@ -76,7 +76,7 @@ function fillPill(ctx, x, y, w, h, r = 4) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function VerifyPushups() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
 
   // DOM refs
@@ -518,7 +518,9 @@ if (streamRef.current) {
     try {
       const res = await logPushups(reps);
       setTotalOwed(res.data.totalOwed);
-      setCoinsEarned(res.data.coinsEarned ?? 0);
+      const earned = res.data.coinsEarned ?? 0;
+      setCoinsEarned(earned);
+      if (earned > 0) updateUser({ ...user, coins: (user.coins ?? 0) + earned });
       setSubmitted(true);
       // Reset counter so user can do another set
       repsRef.current  = 0;
@@ -907,8 +909,9 @@ if (streamRef.current) {
                     : '🎉 All debt cleared!'}
                 </p>
                 {coinsEarned > 0 && (
-                  <p className="text-yellow-400 font-semibold text-sm mt-2">
-                    🪙 +{coinsEarned} coin{coinsEarned !== 1 ? 's' : ''} earned!
+                  <p className="flex items-center justify-center gap-1.5 text-yellow-400 font-semibold text-sm mt-2">
+                    <img src="/Pcoin.svg" alt="coin" className="w-4 h-4" />
+                    +{coinsEarned} coin{coinsEarned !== 1 ? 's' : ''} earned!
                   </p>
                 )}
                 <p className="text-navy-300 text-xs mt-2">Counter reset — keep going!</p>

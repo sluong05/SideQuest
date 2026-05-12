@@ -41,7 +41,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
 
               {/* Coin balance */}
               <div className="flex items-center gap-1.5 bg-navy-900/80 border border-yellow-600/30 px-3 py-1.5 rounded-full">
-                <span className="text-base">🪙</span>
+                <img src="/Pcoin.svg" alt="coin" className="w-5 h-5" />
                 <span className="text-sm font-bold text-yellow-400">{user.coins ?? 0}</span>
               </div>
 

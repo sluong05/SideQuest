@@ -104,7 +104,7 @@ export default function Shop() {
         {/* Coin balance card */}
         <div className="card mb-6 flex items-center gap-4 border-yellow-600/20 bg-yellow-950/10">
           <div className="w-12 h-12 rounded-full bg-yellow-500/15 border border-yellow-600/30 flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl">🪙</span>
+            <img src="/Pcoin.svg" alt="coin" className="w-8 h-8" />
           </div>
           <div className="flex-1">
             <p className="text-xs text-navy-300 uppercase tracking-widest font-semibold mb-0.5">Your Balance</p>
@@ -138,8 +138,9 @@ export default function Shop() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="font-bold text-navy-50">{item.name}</p>
-                    <span className="text-xs bg-yellow-500/15 border border-yellow-600/30 text-yellow-400 px-2 py-0.5 rounded-full font-semibold">
-                      🪙 {item.cost}
+                    <span className="flex items-center gap-1 text-xs bg-yellow-500/15 border border-yellow-600/30 text-yellow-400 px-2 py-0.5 rounded-full font-semibold">
+                      <img src="/Pcoin.svg" alt="coin" className="w-3.5 h-3.5" />
+                      {item.cost}
                     </span>
                   </div>
                   <p className="text-sm text-navy-300">{item.description}</p>
@@ -191,7 +192,10 @@ export default function Shop() {
               <span className="text-3xl">{activeItem.icon}</span>
               <div>
                 <h2 className="text-lg font-bold text-navy-50">{activeItem.name}</h2>
-                <p className="text-xs text-yellow-400 font-semibold">🪙 {activeItem.cost} coins</p>
+                <p className="flex items-center gap-1 text-xs text-yellow-400 font-semibold">
+                  <img src="/Pcoin.svg" alt="coin" className="w-3.5 h-3.5" />
+                  {activeItem.cost} coins
+                </p>
               </div>
             </div>
 
@@ -263,7 +267,11 @@ export default function Shop() {
                 disabled={!selectedFriend || buying || !!result?.type === 'success'}
                 className="btn-primary flex-1 py-2.5 text-sm"
               >
-                {buying ? 'Sending…' : `Confirm — 🪙 ${activeItem.cost}`}
+                {buying ? 'Sending…' : (
+                  <span className="flex items-center justify-center gap-1.5">
+                    Confirm — <img src="/Pcoin.svg" alt="coin" className="w-4 h-4" /> {activeItem.cost}
+                  </span>
+                )}
               </button>
             </div>
           </div>
