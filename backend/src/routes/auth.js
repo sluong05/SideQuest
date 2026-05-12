@@ -184,7 +184,7 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true },
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true, coins: true },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     return res.json({ user });
@@ -216,7 +216,7 @@ router.patch('/profile', require('../middleware/auth'), async (req, res) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data,
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true },
+      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true, coins: true },
     });
     return res.json({ user });
   } catch (err) {

@@ -50,6 +50,16 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    // Credit surplus pushups as coins (1 coin per pushup after all debt is cleared)
+    let coinsEarned = 0;
+    if (remaining > 0) {
+      coinsEarned = Math.floor(remaining);
+      await prisma.user.update({
+        where: { id: req.userId },
+        data: { coins: { increment: coinsEarned } },
+      });
+    }
+
     // Get updated total
     const updatedDebts = await prisma.pushupDebt.findMany({
       where: {
@@ -59,7 +69,7 @@ router.post('/', auth, async (req, res) => {
     });
     const totalOwed = Math.ceil(updatedDebts.reduce((sum, d) => sum + d.pushupsOwed, 0));
 
-    return res.status(201).json({ session, totalOwed, pushupsApplied: pushupsCompleted - Math.max(remaining, 0) });
+    return res.status(201).json({ session, totalOwed, coinsEarned, pushupsApplied: pushupsCompleted - Math.max(remaining, 0) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

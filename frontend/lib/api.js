@@ -99,6 +99,11 @@ export const createChallenge = (friendId, type, durationDays) =>
 export const acceptChallenge = (id) => api.patch(`/api/challenges/${id}/accept`);
 export const declineChallenge = (id) => api.patch(`/api/challenges/${id}/decline`);
 
+// Shop
+export const getShopItems = () => api.get('/api/shop/items');
+export const buyShopItem = (itemId, targetUsername) =>
+  api.post('/api/shop/buy', { itemId, targetUsername });
+
 // Push notifications
 export const getVapidPublicKey = () => api.get('/api/push/vapid-public-key');
 export const subscribePush = (endpoint, p256dh, auth) =>

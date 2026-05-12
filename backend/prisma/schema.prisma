@@ -21,6 +21,7 @@ model User {
   emailReminders       Boolean   @default(true)
   bio                  String?
   avatar               String?
+  coins                Int       @default(0)
 
   tasks              Task[]
   pushupSessions     PushupSession[]

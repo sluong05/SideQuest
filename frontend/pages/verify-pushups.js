@@ -115,9 +115,10 @@ export default function VerifyPushups() {
   const [downHoldProgress, setDownHoldProgress] = useState(0); // 0–1 while waiting to lock 'down'
   const [mpLoading,  setMpLoading]  = useState(true);
   const [camError,   setCamError]   = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted,  setSubmitted]  = useState(false);
-  const [totalOwed,  setTotalOwed]  = useState(0);
+  const [submitting,   setSubmitting]   = useState(false);
+  const [submitted,    setSubmitted]    = useState(false);
+  const [totalOwed,    setTotalOwed]    = useState(0);
+  const [coinsEarned,  setCoinsEarned]  = useState(0);
   const [streak,     setStreak]     = useState(0);
   const [showTipsModal, setShowTipsModal] = useState(true);
 
@@ -517,13 +518,14 @@ if (streamRef.current) {
     try {
       const res = await logPushups(reps);
       setTotalOwed(res.data.totalOwed);
+      setCoinsEarned(res.data.coinsEarned ?? 0);
       setSubmitted(true);
       // Reset counter so user can do another set
       repsRef.current  = 0;
       stageRef.current = 'up';
       setReps(0);
       setStage('up');
-      setTimeout(() => setSubmitted(false), 3000);
+      setTimeout(() => { setSubmitted(false); setCoinsEarned(0); }, 4000);
     } catch (err) {
       console.error(err);
     } finally {
@@ -904,6 +906,11 @@ if (streamRef.current) {
                     ? `${totalOwed} pushups remaining`
                     : '🎉 All debt cleared!'}
                 </p>
+                {coinsEarned > 0 && (
+                  <p className="text-yellow-400 font-semibold text-sm mt-2">
+                    🪙 +{coinsEarned} coin{coinsEarned !== 1 ? 's' : ''} earned!
+                  </p>
+                )}
                 <p className="text-navy-300 text-xs mt-2">Counter reset — keep going!</p>
               </div>
             ) : (

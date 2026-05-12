@@ -39,6 +39,12 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                 <span className="text-xs text-navy-200 hidden sm:inline">day streak</span>
               </div>
 
+              {/* Coin balance */}
+              <div className="flex items-center gap-1.5 bg-navy-900/80 border border-yellow-600/30 px-3 py-1.5 rounded-full">
+                <span className="text-base">🪙</span>
+                <span className="text-sm font-bold text-yellow-400">{user.coins ?? 0}</span>
+              </div>
+
               {/* Dashboard link */}
               <Link
                 href="/"
@@ -72,6 +78,16 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                     {pendingCount}
                   </span>
                 )}
+              </Link>
+
+              {/* Shop link */}
+              <Link
+                href="/shop"
+                className={`btn-ghost text-sm hidden sm:block ${
+                  router.pathname === '/shop' ? 'text-amber-400' : ''
+                }`}
+              >
+                Shop
               </Link>
 
               {/* Username / email — links to profile */}
