@@ -30,6 +30,7 @@ router.get('/', auth, async (req, res) => {
         id: true,
         username: true,
         email: true,
+        avatar: true,
         maxStreak: true,
         totalTasksCompleted: true,
         pushupDebts: { where: { resolved: false }, select: { pushupsOwed: true } },
@@ -40,6 +41,7 @@ router.get('/', auth, async (req, res) => {
     const result = friends.map((f) => ({
       id: f.id,
       username: f.username || f.email.split('@')[0],
+      avatar: f.avatar || null,
       totalDebt: Math.ceil(f.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0)),
       totalPushups: f.pushupSessions.reduce((s, s2) => s + s2.pushupsCompleted, 0),
       maxStreak: f.maxStreak,
@@ -58,7 +60,7 @@ router.get('/requests', auth, async (req, res) => {
   try {
     const requests = await prisma.friendship.findMany({
       where: { receiverId: req.userId, status: 'pending' },
-      include: { requester: { select: { id: true, username: true, email: true } } },
+      include: { requester: { select: { id: true, username: true, email: true, avatar: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -68,6 +70,7 @@ router.get('/requests', auth, async (req, res) => {
         from: {
           id: r.requester.id,
           username: r.requester.username || r.requester.email.split('@')[0],
+          avatar: r.requester.avatar || null,
         },
         createdAt: r.createdAt,
       })),
@@ -159,7 +162,7 @@ router.get('/search', auth, async (req, res) => {
         id: { notIn: [...new Set([...acceptedIds, req.userId])] },
         NOT: { username: null },
       },
-      select: { id: true, username: true },
+      select: { id: true, username: true, avatar: true },
       take: 10,
     });
 
@@ -174,7 +177,7 @@ router.get('/search', auth, async (req, res) => {
             ? 'sent'
             : 'received'
           : null;
-      return { id: u.id, username: u.username, pendingStatus, friendshipId: relation?.id ?? null };
+      return { id: u.id, username: u.username, avatar: u.avatar || null, pendingStatus, friendshipId: relation?.id ?? null };
     });
 
     return res.json({ results });

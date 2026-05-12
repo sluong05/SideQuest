@@ -10,6 +10,21 @@ import {
   getStreak,
 } from '../lib/api';
 
+function Avatar({ username, avatar, size = 10 }) {
+  const dim = `w-${size} h-${size}`;
+  return (
+    <div className={`${dim} rounded-full overflow-hidden border border-navy-600 flex-shrink-0`}>
+      {avatar ? (
+        <img src={avatar} alt={username} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-navy-700 flex items-center justify-center">
+          <span className="text-base font-bold text-navy-300">{username[0].toUpperCase()}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS = ['Friends', 'Requests', 'Find'];
 const CHALLENGE_TYPES = [
   { value: 'tasks', label: 'Tasks completed' },
@@ -321,11 +336,7 @@ export default function Friends() {
               <div className="space-y-3">
                 {friends.map((f) => (
                   <div key={f.id} className="card flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-base font-bold text-navy-300">
-                        {f.username[0].toUpperCase()}
-                      </span>
-                    </div>
+                    <Avatar username={f.username} avatar={f.avatar} />
                     <div className="flex-1 min-w-0">
                       <Link href={`/u/${f.username}`} className="font-semibold text-navy-50 hover:text-amber-400 transition-colors">
                         {f.username}
@@ -375,11 +386,7 @@ export default function Friends() {
               <div className="space-y-3">
                 {requests.map((r) => (
                   <div key={r.id} className="card flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-base font-bold text-navy-300">
-                        {r.from.username[0].toUpperCase()}
-                      </span>
-                    </div>
+                    <Avatar username={r.from.username} avatar={r.from.avatar} />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-navy-50">{r.from.username}</p>
                       <p className="text-xs text-navy-400">{timeAgo(r.createdAt)}</p>
@@ -426,11 +433,7 @@ export default function Friends() {
               <div className="space-y-3">
                 {searchResults.map((u) => (
                   <div key={u.id} className="card flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-base font-bold text-navy-300">
-                        {u.username[0].toUpperCase()}
-                      </span>
-                    </div>
+                    <Avatar username={u.username} avatar={u.avatar} />
                     <p className="flex-1 font-semibold text-navy-50">{u.username}</p>
                     {u.pendingStatus === 'sent' ? (
                       <div className="flex items-center gap-2 flex-shrink-0">

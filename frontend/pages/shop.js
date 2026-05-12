@@ -218,10 +218,14 @@ export default function Shop() {
                           : 'border-navy-600 bg-navy-700/50 hover:border-navy-500'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-full bg-navy-600 border border-navy-500 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-navy-300">
-                          {f.username[0].toUpperCase()}
-                        </span>
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-navy-500 flex-shrink-0">
+                        {f.avatar ? (
+                          <img src={f.avatar} alt={f.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-navy-600 flex items-center justify-center">
+                            <span className="text-sm font-bold text-navy-300">{f.username[0].toUpperCase()}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-navy-100">{f.username}</p>
