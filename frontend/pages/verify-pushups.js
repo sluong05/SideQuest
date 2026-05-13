@@ -536,7 +536,7 @@ if (streamRef.current) {
   }
 
   // ── Auth loading screen ──────────────────────────────────────────────────────
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -691,16 +691,23 @@ if (streamRef.current) {
                 </div>
               )}
 
-              {/* Stage badge + Stop button — shown while counting */}
+              {/* Stage cue + rep count — centered on video while counting */}
               {!mpLoading && !camError && counting && (
                 <>
-                  <div className="absolute top-3 left-3 z-10">
+                  {/* Stage cue — large, top-center */}
+                  <div className="absolute top-5 inset-x-0 flex justify-center z-10 pointer-events-none">
                     {stage === 'down' ? (
-                      <span className="text-xs font-bold px-3 py-1.5 rounded-full shadow-lg bg-amber-500 text-white shadow-orange-500/30">
+                      <span
+                        className="text-3xl font-black px-8 py-3 rounded-full bg-amber-500 text-white"
+                        style={{ textShadow: '0 2px 10px rgba(0,0,0,0.6)', boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
+                      >
                         ▼ DOWN
                       </span>
                     ) : downHoldProgress > 0 ? (
-                      <div className="relative overflow-hidden text-xs font-bold px-3 py-1.5 rounded-full shadow-lg bg-navy-700/80 text-amber-400 border border-amber-500/60">
+                      <div
+                        className="relative overflow-hidden text-3xl font-black px-8 py-3 rounded-full bg-navy-800/90 text-amber-400 border-2 border-amber-500/60"
+                        style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+                      >
                         <div
                           className="absolute inset-0 bg-amber-500/30 rounded-full"
                           style={{ width: `${downHoldProgress * 100}%` }}
@@ -708,12 +715,27 @@ if (streamRef.current) {
                         <span className="relative">▼ HOLD…</span>
                       </div>
                     ) : (
-                      <span className="text-xs font-bold px-3 py-1.5 rounded-full shadow-lg bg-navy-700/80 text-green-400 border border-green-500/40">
+                      <span
+                        className="text-3xl font-black px-8 py-3 rounded-full bg-navy-800/80 text-green-400 border-2 border-green-500/40"
+                        style={{ textShadow: '0 2px 10px rgba(0,0,0,0.6)', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
+                      >
                         ▲ UP
                       </span>
                     )}
                   </div>
-                  <div className="absolute top-3 right-3 z-10">
+
+                  {/* Rep count — centered on video */}
+                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                    <p
+                      className="text-9xl font-black tabular-nums text-amber-400 select-none"
+                      style={{ textShadow: '0 0 40px rgba(0,0,0,0.95), 0 4px 24px rgba(0,0,0,0.9)' }}
+                    >
+                      {reps}
+                    </p>
+                  </div>
+
+                  {/* Raise-hand hint */}
+                  <div className="absolute bottom-3 right-3 z-10">
                     <span className="text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full">🤚 raise hand to stop</span>
                   </div>
                 </>
