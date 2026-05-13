@@ -7,18 +7,9 @@ import AddTaskModal from '../components/AddTaskModal';
 import ActivityFeed from '../components/ActivityFeed';
 import { useAuth } from '../contexts/AuthContext';
 import { getTasks, getDebt, getStreak, getSessions, recalculateDebt, setUsername, getFriends } from '../lib/api';
+import { useNow } from '../lib/hooks';
 
 // ── Shared time helpers ──────────────────────────────────────────────────────
-function useNow() {
-  const [now, setNow] = useState(null);
-  useEffect(() => {
-    setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
-
 function formatCountdown(dueDate, now) {
   if (!now) return '…';
   const diff = new Date(dueDate) - now;
@@ -265,7 +256,6 @@ export default function Dashboard() {
   const [usernameError, setUsernameError] = useState('');
   const [usernameSaving, setUsernameSaving] = useState(false);
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/welcome');
@@ -298,20 +288,17 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // On mount, trigger debt recalculation then load data
   useEffect(() => {
     if (!user) return;
     recalculateDebt().catch(() => {}).finally(() => loadData());
   }, [user]);
 
-  // Update tab title to reflect outstanding debt
   useEffect(() => {
     document.title = totalOwed > 0 ? `(${totalOwed} pushups owed) PushupDebt` : 'PushupDebt';
     return () => { document.title = 'PushupDebt'; };
   }, [totalOwed]);
 
   async function handleTaskAdded() {
-    // Recalculate in case the new task was already overdue, then refresh all data
     await recalculateDebt().catch(() => {});
     loadData();
   }
@@ -334,8 +321,10 @@ export default function Dashboard() {
     }
   }
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
   const pendingCount = tasks.filter((t) => !t.completed).length;
   const completedCount = tasks.filter((t) => t.completed).length;
   const overdueCount = tasks.filter((t) => !t.completed && new Date(t.dueDate) < today).length;
@@ -346,7 +335,7 @@ export default function Dashboard() {
     return due >= today && due <= todayEnd;
   });
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />

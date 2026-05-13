@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile } from '../lib/api';
+import { useNow } from '../lib/hooks';
 import { usePush } from '../lib/usePush';
 
 const BADGES = [
@@ -19,17 +20,11 @@ export default function Profile() {
   const { user, loading: authLoading, updateUser, logoutUser } = useAuth();
   const router = useRouter();
   const [streak, setStreak] = useState(0);
-  const [now, setNow] = useState(null);
+  const now = useNow();
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/welcome');
   }, [user, authLoading]);
-
-  useEffect(() => {
-    setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -190,7 +185,7 @@ export default function Profile() {
     }
   }
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />

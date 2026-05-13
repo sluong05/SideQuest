@@ -76,7 +76,6 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
         task.completed ? 'border-navy-400 bg-navy-600/40 opacity-60' : colorStyles[color]
       }`}
     >
-      {/* Checkbox */}
       <button
         onClick={handleComplete}
         disabled={completing}
@@ -95,7 +94,6 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
         {completing && <span className="w-2.5 h-2.5 border border-navy-200 rounded-full animate-spin border-t-transparent" />}
       </button>
 
-      {/* Task content */}
       <div className="flex-1 min-w-0">
         <p className={`font-medium text-sm ${task.completed ? 'line-through text-navy-300' : 'text-navy-50'}`}>
           {task.title}
@@ -119,7 +117,6 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
         </div>
       </div>
 
-      {/* Delete */}
       <button
         onClick={handleDeleteClick}
         disabled={deleting}
@@ -131,7 +128,6 @@ function TaskItem({ task, onComplete, onUncomplete, onDelete, color = 'default' 
         </svg>
       </button>
 
-      {/* Confirmation dialog for incomplete task deletion */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-sm text-center">

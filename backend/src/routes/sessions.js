@@ -13,22 +13,19 @@ router.post('/', auth, async (req, res) => {
   }
 
   try {
-    // Log the session
+    const floored = Math.floor(pushupsCompleted);
+
     const session = await prisma.pushupSession.create({
       data: {
-        pushupsCompleted: Math.floor(pushupsCompleted),
+        pushupsCompleted: floored,
         userId: req.userId,
       },
     });
 
-    // Apply pushups to oldest unresolved debts first
-    let remaining = pushupsCompleted;
+    let remaining = floored;
 
     const debts = await prisma.pushupDebt.findMany({
-      where: {
-        resolved: false,
-        userId: req.userId,
-      },
+      where: { resolved: false, userId: req.userId },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -37,39 +34,33 @@ router.post('/', auth, async (req, res) => {
 
       if (remaining >= debt.pushupsOwed) {
         remaining -= debt.pushupsOwed;
+        debt.pushupsOwed = 0;
         await prisma.pushupDebt.update({
           where: { id: debt.id },
           data: { pushupsOwed: 0, resolved: true },
         });
       } else {
+        debt.pushupsOwed -= remaining;
         await prisma.pushupDebt.update({
           where: { id: debt.id },
-          data: { pushupsOwed: debt.pushupsOwed - remaining },
+          data: { pushupsOwed: debt.pushupsOwed },
         });
         remaining = 0;
       }
     }
 
-    // Credit surplus pushups as coins (1 coin per pushup after all debt is cleared)
     let coinsEarned = 0;
     if (remaining > 0) {
-      coinsEarned = Math.floor(remaining);
+      coinsEarned = remaining;
       await prisma.user.update({
         where: { id: req.userId },
         data: { coins: { increment: coinsEarned } },
       });
     }
 
-    // Get updated total
-    const updatedDebts = await prisma.pushupDebt.findMany({
-      where: {
-        resolved: false,
-        userId: req.userId,
-      },
-    });
-    const totalOwed = Math.ceil(updatedDebts.reduce((sum, d) => sum + d.pushupsOwed, 0));
+    const totalOwed = Math.ceil(debts.reduce((sum, d) => sum + d.pushupsOwed, 0));
 
-    return res.status(201).json({ session, totalOwed, coinsEarned, pushupsApplied: pushupsCompleted - Math.max(remaining, 0) });
+    return res.status(201).json({ session, totalOwed, coinsEarned, pushupsApplied: floored - remaining });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

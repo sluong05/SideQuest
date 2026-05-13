@@ -4,9 +4,16 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const prisma = require('../lib/prisma');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const USER_SELECT = {
+  id: true, email: true, username: true, createdAt: true,
+  timezone: true, totalTasksCompleted: true, maxStreak: true,
+  emailReminders: true, bio: true, avatar: true, coins: true,
+};
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -95,7 +102,7 @@ router.post('/login', async (req, res) => {
 });
 
 // PATCH /api/auth/password — change password (requires old password)
-router.patch('/password', require('../middleware/auth'), async (req, res) => {
+router.patch('/password', auth, async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 
   if (!oldPassword || !newPassword) {
@@ -126,7 +133,7 @@ router.patch('/password', require('../middleware/auth'), async (req, res) => {
 });
 
 // PATCH /api/auth/username — set or update username for existing accounts
-router.patch('/username', require('../middleware/auth'), async (req, res) => {
+router.patch('/username', auth, async (req, res) => {
   const { username } = req.body;
 
   if (!username) {
@@ -148,7 +155,7 @@ router.patch('/username', require('../middleware/auth'), async (req, res) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { username },
-      select: { id: true, email: true, username: true, createdAt: true },
+      select: USER_SELECT,
     });
 
     return res.json({ user });
@@ -159,7 +166,7 @@ router.patch('/username', require('../middleware/auth'), async (req, res) => {
 });
 
 // DELETE /api/auth/account — permanently delete the authenticated user and all their data
-router.delete('/account', require('../middleware/auth'), async (req, res) => {
+router.delete('/account', auth, async (req, res) => {
   try {
     const userId = req.userId;
     await prisma.pushupDebt.deleteMany({ where: { userId } });
@@ -180,11 +187,11 @@ router.delete('/account', require('../middleware/auth'), async (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', require('../middleware/auth'), async (req, res) => {
+router.get('/me', auth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true, coins: true },
+      select: USER_SELECT,
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
     return res.json({ user });
@@ -195,7 +202,7 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
 });
 
 // PATCH /api/auth/profile — update bio and/or avatar
-router.patch('/profile', require('../middleware/auth'), async (req, res) => {
+router.patch('/profile', auth, async (req, res) => {
   const { bio, avatar } = req.body;
   const data = {};
 
@@ -216,7 +223,7 @@ router.patch('/profile', require('../middleware/auth'), async (req, res) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data,
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true, bio: true, avatar: true, coins: true },
+      select: USER_SELECT,
     });
     return res.json({ user });
   } catch (err) {
@@ -226,7 +233,7 @@ router.patch('/profile', require('../middleware/auth'), async (req, res) => {
 });
 
 // PATCH /api/auth/notifications — toggle email reminder preference
-router.patch('/notifications', require('../middleware/auth'), async (req, res) => {
+router.patch('/notifications', auth, async (req, res) => {
   const { emailReminders } = req.body;
   if (typeof emailReminders !== 'boolean') {
     return res.status(400).json({ error: 'emailReminders must be a boolean' });
@@ -235,7 +242,7 @@ router.patch('/notifications', require('../middleware/auth'), async (req, res) =
     const user = await prisma.user.update({
       where: { id: req.userId },
       data: { emailReminders },
-      select: { id: true, email: true, username: true, createdAt: true, timezone: true, totalTasksCompleted: true, maxStreak: true, emailReminders: true },
+      select: USER_SELECT,
     });
     return res.json({ user });
   } catch (err) {

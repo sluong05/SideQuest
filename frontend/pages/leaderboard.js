@@ -41,7 +41,7 @@ export default function Leaderboard() {
       .finally(() => setFriendsLoading(false));
   }, [user, tab]);
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
