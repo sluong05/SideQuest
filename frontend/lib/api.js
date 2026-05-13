@@ -43,6 +43,12 @@ export const deleteAccount = () => api.delete('/api/auth/account');
 export const updateNotifications = (emailReminders) =>
   api.patch('/api/auth/notifications', { emailReminders });
 
+export const verifyEmail = (token) =>
+  api.post('/api/auth/verify-email', { token });
+
+export const resendVerification = () =>
+  api.post('/api/auth/resend-verification');
+
 export const updateProfile = (bio, avatar) =>
   api.patch('/api/auth/profile', { bio, avatar });
 

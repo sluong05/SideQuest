@@ -18,10 +18,12 @@ model User {
   timezone             String    @default("UTC")
   totalTasksCompleted  Int       @default(0)
   maxStreak            Int       @default(0)
-  emailReminders       Boolean   @default(true)
-  bio                  String?
-  avatar               String?
-  coins                Int       @default(0)
+  emailReminders         Boolean   @default(true)
+  bio                    String?
+  avatar                 String?
+  coins                  Int       @default(0)
+  emailVerified          Boolean   @default(false)
+  emailVerificationToken String?
 
   streakShieldActive    Boolean   @default(false)
   debtFreezeUntil       DateTime?

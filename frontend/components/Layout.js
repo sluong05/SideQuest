@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import ParticleBackground from './ParticleBackground';
-import { getFriendRequests } from '../lib/api';
+import { getFriendRequests, resendVerification } from '../lib/api';
 
 export default function Layout({ children, streak = 0, showIdleModel = false }) {
   const { user, logoutUser } = useAuth();
@@ -11,6 +11,21 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
   const [pendingCount, setPendingCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [resendState, setResendState] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error'
+
+  const showVerifyBanner = user && user.emailVerified === false && !bannerDismissed;
+
+  async function handleResend() {
+    if (resendState !== 'idle') return;
+    setResendState('sending');
+    try {
+      await resendVerification();
+      setResendState('sent');
+    } catch {
+      setResendState('error');
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -133,6 +148,39 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
           )}
         </div>
       </header>
+
+      {/* Email verification banner */}
+      {showVerifyBanner && (
+        <div className="relative z-40 bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+            <p className="text-sm text-amber-200">
+              <span className="font-semibold">Verify your email</span>
+              {' — '}check your inbox for a verification link to secure your account.
+            </p>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <button
+                onClick={handleResend}
+                disabled={resendState !== 'idle'}
+                className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-60"
+              >
+                {resendState === 'idle' && 'Resend email'}
+                {resendState === 'sending' && 'Sending…'}
+                {resendState === 'sent' && '✓ Sent!'}
+                {resendState === 'error' && 'Failed — try again'}
+              </button>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="text-navy-400 hover:text-navy-200 transition-colors"
+                aria-label="Dismiss"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8">

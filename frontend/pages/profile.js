@@ -66,8 +66,20 @@ export default function Profile() {
   async function handlePassword(e) {
     e.preventDefault();
     setPasswordMsg(null);
-    if (newPassword.length < 6) {
-      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters' });
+    if (newPassword.length < 8) {
+      setPasswordMsg({ type: 'error', text: 'Password must be at least 8 characters' });
+      return;
+    }
+    if (!/[a-zA-Z]/.test(newPassword)) {
+      setPasswordMsg({ type: 'error', text: 'Password must contain at least one letter' });
+      return;
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      setPasswordMsg({ type: 'error', text: 'Password must contain at least one number' });
+      return;
+    }
+    if (!/[^a-zA-Z0-9]/.test(newPassword)) {
+      setPasswordMsg({ type: 'error', text: 'Password must contain at least one special character' });
       return;
     }
     if (newPassword !== confirmPassword) {
