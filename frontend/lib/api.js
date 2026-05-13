@@ -103,6 +103,9 @@ export const declineChallenge = (id) => api.patch(`/api/challenges/${id}/decline
 export const getShopItems = () => api.get('/api/shop/items');
 export const buyShopItem = (itemId, targetUsername) =>
   api.post('/api/shop/buy', { itemId, targetUsername });
+export const getInventory = () => api.get('/api/shop/inventory');
+export const useItem = (itemId, taskId) =>
+  api.post('/api/shop/use', { itemId, ...(taskId !== undefined ? { taskId } : {}) });
 
 // Push notifications
 export const getVapidPublicKey = () => api.get('/api/push/vapid-public-key');

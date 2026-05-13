@@ -15,6 +15,11 @@ router.post('/', auth, async (req, res) => {
   try {
     const floored = Math.floor(pushupsCompleted);
 
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { pushupMultiplierActive: true },
+    });
+
     const session = await prisma.pushupSession.create({
       data: {
         pushupsCompleted: floored,
@@ -22,7 +27,16 @@ router.post('/', auth, async (req, res) => {
       },
     });
 
-    let remaining = floored;
+    // If multiplier is active, each pushup counts as 2 for debt draining
+    const drainPower = user.pushupMultiplierActive ? floored * 2 : floored;
+    let remaining = drainPower;
+
+    if (user.pushupMultiplierActive) {
+      await prisma.user.update({
+        where: { id: req.userId },
+        data: { pushupMultiplierActive: false },
+      });
+    }
 
     const debts = await prisma.pushupDebt.findMany({
       where: { resolved: false, userId: req.userId },
@@ -51,7 +65,9 @@ router.post('/', auth, async (req, res) => {
 
     let coinsEarned = 0;
     if (remaining > 0) {
-      coinsEarned = remaining;
+      // Coins earned from surplus pushups (after debt cleared), capped at actual reps done
+      const surplus = Math.min(remaining, floored);
+      coinsEarned = surplus;
       await prisma.user.update({
         where: { id: req.userId },
         data: { coins: { increment: coinsEarned } },
@@ -59,8 +75,15 @@ router.post('/', auth, async (req, res) => {
     }
 
     const totalOwed = Math.ceil(debts.reduce((sum, d) => sum + d.pushupsOwed, 0));
+    const multiplierUsed = user.pushupMultiplierActive;
 
-    return res.status(201).json({ session, totalOwed, coinsEarned, pushupsApplied: floored - remaining });
+    return res.status(201).json({
+      session,
+      totalOwed,
+      coinsEarned,
+      pushupsApplied: floored,
+      multiplierUsed,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

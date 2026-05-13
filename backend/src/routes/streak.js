@@ -20,7 +20,7 @@ router.get('/', auth, async (req, res) => {
 
     const userRecord = await prisma.user.findUnique({
       where: { id: userId },
-      select: { timezone: true },
+      select: { timezone: true, streakShieldActive: true, maxStreak: true },
     });
     const tz = userRecord?.timezone || 'UTC';
 
@@ -51,6 +51,7 @@ router.get('/', auth, async (req, res) => {
     // from each day's local midnight gives the last moment of the previous local
     // day — correctly handles DST transitions where days aren't exactly 24h.
     let streak = 0;
+    let shieldConsumed = false;
     let curMidnight = todayUTC;
     for (let i = 0; i < 365; i++) {
       const prevMoment = new Date(curMidnight.getTime() - 1);
@@ -65,16 +66,21 @@ router.get('/', auth, async (req, res) => {
 
       if (allCompleted && !hasUnresolvedDebt) {
         streak++;
+      } else if (!shieldConsumed && userRecord.streakShieldActive) {
+        shieldConsumed = true;
+        streak++;
       } else {
         break;
       }
     }
 
-    // Persist maxStreak if current streak beats it
-    await prisma.user.updateMany({
-      where: { id: userId, maxStreak: { lt: streak } },
-      data: { maxStreak: streak },
-    });
+    const updates = {};
+    if (shieldConsumed) updates.streakShieldActive = false;
+    if (streak > (userRecord.maxStreak ?? 0)) updates.maxStreak = streak;
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.user.update({ where: { id: userId }, data: updates });
+    }
 
     return res.json({ streak });
   } catch (err) {

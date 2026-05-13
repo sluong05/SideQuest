@@ -13,6 +13,8 @@ const USER_SELECT = {
   id: true, email: true, username: true, createdAt: true,
   timezone: true, totalTasksCompleted: true, maxStreak: true,
   emailReminders: true, bio: true, avatar: true, coins: true,
+  streakShieldActive: true, debtFreezeUntil: true,
+  pushupMultiplierActive: true, profileFlair: true,
 };
 
 // POST /api/auth/signup
@@ -171,6 +173,7 @@ router.delete('/account', auth, async (req, res) => {
     const userId = req.userId;
     await prisma.pushupDebt.deleteMany({ where: { userId } });
     await prisma.pushupSession.deleteMany({ where: { userId } });
+    await prisma.userItem.deleteMany({ where: { userId } });
     await prisma.task.deleteMany({ where: { userId } });
     await prisma.friendship.deleteMany({
       where: { OR: [{ requesterId: userId }, { receiverId: userId }] },

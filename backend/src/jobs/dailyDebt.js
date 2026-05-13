@@ -36,10 +36,11 @@ async function calculateAndUpdateDebt(userId = null) {
 
   const overdueTasks = await prisma.task.findMany({
     where: whereClause,
-    include: { pushupDebt: true, user: { select: { timezone: true } } },
+    include: { pushupDebt: true, user: { select: { timezone: true, debtFreezeUntil: true } } },
   });
 
   for (const task of overdueTasks) {
+    if (task.user?.debtFreezeUntil && task.user.debtFreezeUntil > now) continue;
     const dueDate = new Date(task.dueDate);
     const msPerDay = 1000 * 60 * 60 * 24;
     const tz = task.user?.timezone || 'UTC';
