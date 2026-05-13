@@ -103,6 +103,9 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+
 // POST /api/auth/login — accepts email or username as identifier
 router.post('/login', async (req, res) => {
   const { identifier, password, timezone } = req.body;
@@ -119,12 +122,43 @@ router.post('/login', async (req, res) => {
 
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-
-    if (timezone && timezone !== user.timezone) {
-      await prisma.user.update({ where: { id: user.id }, data: { timezone } });
+    // Check if account is locked
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockedUntil - Date.now()) / 60000);
+      return res.status(429).json({
+        error: `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}.`,
+      });
     }
+
+    const valid = await bcrypt.compare(password, user.password);
+
+    if (!valid) {
+      const attempts = user.loginAttempts + 1;
+      const shouldLock = attempts >= MAX_LOGIN_ATTEMPTS;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          loginAttempts: attempts,
+          lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+        },
+      });
+
+      if (shouldLock) {
+        return res.status(429).json({
+          error: `Too many failed attempts. Account locked for 15 minutes.`,
+        });
+      }
+
+      const remaining = MAX_LOGIN_ATTEMPTS - attempts;
+      return res.status(401).json({
+        error: `Invalid credentials. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining before lockout.`,
+      });
+    }
+
+    // Successful login — reset attempt counter
+    const updateData = { loginAttempts: 0, lockedUntil: null };
+    if (timezone && timezone !== user.timezone) updateData.timezone = timezone;
+    await prisma.user.update({ where: { id: user.id }, data: updateData });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 

@@ -24,6 +24,8 @@ model User {
   coins                  Int       @default(0)
   emailVerified          Boolean   @default(false)
   emailVerificationToken String?
+  loginAttempts          Int       @default(0)
+  lockedUntil            DateTime?
 
   streakShieldActive    Boolean   @default(false)
   debtFreezeUntil       DateTime?
