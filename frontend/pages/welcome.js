@@ -292,6 +292,14 @@ export default function Welcome() {
         </div>
       </section>
 
+      <footer className="border-t border-navy-500/40 py-6 text-center text-xs text-navy-400">
+        <div className="flex items-center justify-center gap-5">
+          <Link href="/privacy" className="hover:text-navy-200 transition-colors">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-navy-200 transition-colors">Terms of Service</Link>
+          <a href="mailto:stevenluong05@gmail.com" className="hover:text-navy-200 transition-colors">Contact</a>
+        </div>
+      </footer>
+
     </div>
   );
 }
