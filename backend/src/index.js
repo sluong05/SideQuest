@@ -1,12 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const { startDebtCronJob } = require('./jobs/dailyDebt');
 const { startEmailReminderJobs } = require('./jobs/emailReminders');
 const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // Middleware
 const allowedOrigins = process.env.ALLOWED_ORIGINS
