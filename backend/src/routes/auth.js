@@ -27,7 +27,8 @@ function validatePassword(password) {
 }
 
 async function sendVerificationEmail(email, token) {
-  const url = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+  const webUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+  const appUrl = `pushupdebt://verify-email?token=${token}`;
   await resend.emails.send({
     from: 'noreply@pushupdebt.com',
     to: email,
@@ -36,11 +37,11 @@ async function sendVerificationEmail(email, token) {
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2 style="color: #1a1a2e;">Verify your email</h2>
         <p>Thanks for signing up! Click the button below to verify your email address.</p>
-        <a href="${url}" style="display:inline-block; background:#f59e0b; color:#1a1a2e; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; margin:16px 0;">
+        <a href="${webUrl}" style="display:inline-block; background:#f59e0b; color:#1a1a2e; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; margin:16px 0;">
           Verify Email
         </a>
+        <p style="color:#666; font-size:13px;">Using the iOS app? <a href="${appUrl}" style="color:#f59e0b;">Open in App</a></p>
         <p style="color:#666; font-size:13px;">If you didn't create an account, you can safely ignore this email.</p>
-        <p style="color:#666; font-size:13px;">Or copy this link: ${url}</p>
       </div>
     `,
   });
@@ -390,6 +391,7 @@ router.post('/forgot-password', async (req, res) => {
     });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const appResetUrl = `pushupdebt://reset-password?token=${token}`;
 
     await resend.emails.send({
       from: 'noreply@pushupdebt.com',
@@ -402,8 +404,8 @@ router.post('/forgot-password', async (req, res) => {
           <a href="${resetUrl}" style="display:inline-block; background:#f59e0b; color:#1a1a2e; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; margin:16px 0;">
             Reset Password
           </a>
+          <p style="color:#666; font-size:13px;">Using the iOS app? <a href="${appResetUrl}" style="color:#f59e0b;">Open in App</a></p>
           <p style="color:#666; font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
-          <p style="color:#666; font-size:13px;">Or copy this link: ${resetUrl}</p>
         </div>
       `,
     });
