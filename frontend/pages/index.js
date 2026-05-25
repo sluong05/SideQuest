@@ -415,7 +415,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => totalOwed > 99 ? setShowDebtBlock(true) : setShowAddTask(true)}
+                  onClick={() => totalOwed > 249 ? setShowDebtBlock(true) : setShowAddTask(true)}
                   className={`text-sm py-2 px-3 flex items-center gap-1.5 rounded-lg font-semibold transition-colors duration-150 ${
                     totalOwed > 99
                       ? 'bg-navy-400 text-navy-200 cursor-not-allowed opacity-60'
@@ -444,7 +444,7 @@ export default function Dashboard() {
               <TaskList
                 tasks={tasks}
                 onTaskUpdated={loadData}
-                onAddTask={totalOwed > 99 ? () => setShowDebtBlock(true) : () => setShowAddTask(true)}
+                onAddTask={totalOwed > 249 ? () => setShowDebtBlock(true) : () => setShowAddTask(true)}
               />
             </div>
 
@@ -454,7 +454,7 @@ export default function Dashboard() {
                 todayAtRisk={todayAtRisk}
                 tasks={tasks}
                 onAddTask={() =>
-                  totalOwed > 99 ? setShowDebtBlock(true) : setShowAddTask(true)
+                  totalOwed > 249 ? setShowDebtBlock(true) : setShowAddTask(true)
                 }
               />
             )}

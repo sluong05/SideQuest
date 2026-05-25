@@ -1,11 +1,14 @@
 import Link from 'next/link';
 
 const DEBT_LEVELS = [
-  { max: 0,   label: 'Debt Free',         flavor: null,                                                      color: 'green',  nextLabel: null,             dropTo: null },
-  { max: 25,  label: 'Light Debt',         flavor: 'Your debt collector is keeping a close eye on you.',      color: 'yellow', nextLabel: 'Debt Free',      dropTo: (n) => n },
-  { max: 75,  label: 'Risky',              flavor: 'The Pushup Bank is getting nervous.',                     color: 'orange', nextLabel: 'Light Debt',     dropTo: (n) => n - 25 },
-  { max: 150, label: 'Debt Spiral',        flavor: 'Financially and physically irresponsible.',               color: 'red',    nextLabel: 'Risky',          dropTo: (n) => n - 75 },
-  { max: Infinity, label: 'Pushup Bankruptcy', flavor: 'The Pushup Bank has sent collections. This is not a drill.', color: 'red', nextLabel: 'Debt Spiral', dropTo: (n) => n - 150 },
+  { max: 0,   label: 'Debt Free',          flavor: null,                                                                          color: 'green',  nextLabel: null,              dropTo: null },
+  { max: 25,  label: 'Light Debt',          flavor: 'Your debt collector is keeping a close eye on you.',                          color: 'yellow', nextLabel: 'Debt Free',       dropTo: (n) => n },
+  { max: 75,  label: 'Risky',               flavor: 'The Pushup Bank is getting nervous.',                                         color: 'orange', nextLabel: 'Light Debt',      dropTo: (n) => n - 25 },
+  { max: 125, label: 'Debt Spiral',         flavor: 'Financially and physically irresponsible.',                                   color: 'red',    nextLabel: 'Risky',           dropTo: (n) => n - 75 },
+  { max: 175, label: 'Pushup Bankruptcy',   flavor: 'The Pushup Bank has sent collections. This is not a drill.',                  color: 'red',    nextLabel: 'Debt Spiral',     dropTo: (n) => n - 125 },
+  { max: 225, label: 'Critical Mass',       flavor: "You've become a cautionary tale at the Pushup Bank.",                        color: 'purple', nextLabel: 'Pushup Bankruptcy', dropTo: (n) => n - 175 },
+  { max: 249, label: 'Point of No Return',  flavor: 'One more overdue task and new tasks are blocked. Do pushups. Now.',          color: 'purple', nextLabel: 'Critical Mass',   dropTo: (n) => n - 225 },
+  { max: Infinity, label: 'Beyond Recovery', flavor: 'New tasks are blocked. The Pushup Bank has given up on you.',               color: 'purple', nextLabel: 'Point of No Return', dropTo: (n) => n - 249 },
 ];
 
 function getDebtLevel(total) {
@@ -17,6 +20,7 @@ const levelBadgeStyle = {
   yellow: 'bg-yellow-900/30 text-yellow-400 border border-yellow-700/40',
   orange: 'bg-orange-900/30 text-orange-400 border border-orange-700/40',
   red:    'bg-red-900/40 text-red-400 border border-red-700/40',
+  purple: 'bg-purple-900/40 text-purple-400 border border-purple-700/40',
 };
 
 export default function DebtSummary({ debts, totalOwed, todayAtRisk = [] }) {
