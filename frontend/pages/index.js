@@ -417,7 +417,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => totalOwed > 249 ? setShowDebtBlock(true) : setShowAddTask(true)}
                   className={`text-sm py-2 px-3 flex items-center gap-1.5 rounded-lg font-semibold transition-colors duration-150 ${
-                    totalOwed > 99
+                    totalOwed > 249
                       ? 'bg-navy-400 text-navy-200 cursor-not-allowed opacity-60'
                       : 'btn-primary'
                   }`}
