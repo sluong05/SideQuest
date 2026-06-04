@@ -117,7 +117,7 @@ export default function Welcome() {
                 <span className="font-bold font-mono" style={{ color: '#f59e0b' }}>
                   5 × days overdue.
                 </span>{' '}
-                Forget a task for a week and you owe 35 pushups. Let your total hit 100
+                Forget a task for a week and you owe 35 pushups. Let your total hit 250
                 and you're locked out of adding new tasks until you pay up.
               </p>
               <p className="text-navy-300 text-sm leading-relaxed">
@@ -131,8 +131,8 @@ export default function Welcome() {
                 {[
                   { label: '1 day overdue',      pushups: 5,   color: 'text-navy-100' },
                   { label: '3 days overdue',     pushups: 15,  color: 'text-amber-400' },
-                  { label: '1 week overdue',     pushups: 35,  color: 'text-orange-400' },
-                  { label: '20 days — blocked',  pushups: 100, color: 'text-red-400' },
+                  { label: '30 days overdue',     pushups: 150,  color: 'text-orange-400' },
+                  { label: '50 days — blocked',  pushups: 250, color: 'text-red-400' },
                 ].map(({ label, pushups, color }) => (
                   <div key={label} className="flex items-center justify-between py-2.5 border-b border-navy-600 last:border-0">
                     <span className="text-navy-300 text-sm">{label}</span>
@@ -141,7 +141,7 @@ export default function Welcome() {
                 ))}
               </div>
               <p className="text-xs text-navy-400 mt-5">
-                Total debt over 100 locks you out of adding new tasks.
+                Total debt over 250 locks you out of adding new tasks.
               </p>
             </div>
 
