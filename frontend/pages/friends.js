@@ -190,7 +190,7 @@ export default function Friends() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -232,7 +232,7 @@ export default function Friends() {
           <div className="space-y-4">
             {/* Pending challenges */}
             {pendingChallenges.length > 0 && (
-              <div className="card border-amber-700/40 bg-amber-950/10">
+              <div className="card border-blue-700/40 bg-amber-950/10">
                 <p className="text-xs font-semibold text-amber-500/80 uppercase tracking-widest mb-3">
                   Challenge Requests
                 </p>
@@ -242,7 +242,7 @@ export default function Friends() {
                       <div>
                         <p className="text-sm text-navy-100">
                           <span className="font-semibold">{c.challenger.username}</span> challenged you —{' '}
-                          <span className="text-amber-400">{c.type === 'tasks' ? 'most tasks' : 'most pushups'}</span>{' '}
+                          <span className="text-blue-400">{c.type === 'tasks' ? 'most tasks' : 'most pushups'}</span>{' '}
                           in {c.durationDays} days
                         </p>
                       </div>
@@ -274,7 +274,7 @@ export default function Friends() {
                       <div key={c.id} className="bg-navy-700/40 rounded-lg px-3 py-3">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-sm font-semibold text-navy-100">
-                            vs <Link href={`/u/${opponent.username}`} className="hover:text-amber-400 transition-colors">{opponent.username}</Link>
+                            vs <Link href={`/u/${opponent.username}`} className="hover:text-blue-400 transition-colors">{opponent.username}</Link>
                           </p>
                           <span className="text-xs text-navy-400">
                             {daysLeft !== null ? `${daysLeft}d left` : ''}
@@ -284,7 +284,7 @@ export default function Friends() {
                           {c.type === 'tasks' ? 'Most tasks completed' : 'Most pushups logged'}
                         </p>
                         <div className="flex gap-4 text-sm">
-                          <span className="text-amber-400 font-bold">You: {c.myScore ?? '—'}</span>
+                          <span className="text-blue-400 font-bold">You: {c.myScore ?? '—'}</span>
                           <span className="text-navy-300">vs</span>
                           <span className="text-navy-200">{opponent.username}: {c.opponentScore ?? '—'}</span>
                         </div>
@@ -307,7 +307,7 @@ export default function Friends() {
                         <span className="text-navy-300">vs {opponent.username}</span>
                         <span className={
                           c.winner === 'you' ? 'text-green-400 font-semibold' :
-                          c.winner === 'tie' ? 'text-amber-400' : 'text-red-400'
+                          c.winner === 'tie' ? 'text-blue-400' : 'text-red-400'
                         }>
                           {c.winner === 'you' ? <span className="flex items-center gap-1"><img src="/Ranking.svg" className="w-4 h-4" />Won</span> : c.winner === 'tie' ? '🤝 Tie' : 'Lost'}
                         </span>
@@ -321,7 +321,7 @@ export default function Friends() {
             {/* Friends list */}
             {friendsLoading ? (
               <div className="flex justify-center py-12">
-                <div className="w-7 h-7 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : friends.length === 0 ? (
               <div className="card text-center py-12">
@@ -338,7 +338,7 @@ export default function Friends() {
                   <div key={f.id} className="card flex items-center gap-4">
                     <Avatar username={f.username} avatar={f.avatar} />
                     <div className="flex-1 min-w-0">
-                      <Link href={`/u/${f.username}`} className="font-semibold text-navy-50 hover:text-amber-400 transition-colors">
+                      <Link href={`/u/${f.username}`} className="font-semibold text-navy-50 hover:text-blue-400 transition-colors">
                         {f.username}
                       </Link>
                       <p className="text-xs text-navy-300 mt-0.5">
@@ -375,7 +375,7 @@ export default function Friends() {
           <div>
             {requestsLoading ? (
               <div className="flex justify-center py-12">
-                <div className="w-7 h-7 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : requests.length === 0 ? (
               <div className="card text-center py-12">
@@ -421,7 +421,7 @@ export default function Friends() {
             </div>
             {searchLoading && (
               <div className="flex justify-center py-8">
-                <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
             {!searchLoading && query.length >= 2 && searchResults.length === 0 && (
@@ -491,7 +491,7 @@ export default function Friends() {
                       onClick={() => setChallengeType(ct.value)}
                       className={`text-sm py-2 px-3 rounded-lg border font-medium transition-colors ${
                         challengeType === ct.value
-                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
+                          ? 'bg-blue-500/20 border-blue-500/60 text-blue-400'
                           : 'bg-navy-700 border-navy-600 text-navy-300'
                       }`}
                     >
@@ -510,7 +510,7 @@ export default function Friends() {
                       onClick={() => setChallengeDuration(d)}
                       className={`text-sm py-2 rounded-lg border font-medium transition-colors ${
                         challengeDuration === d
-                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
+                          ? 'bg-blue-500/20 border-blue-500/60 text-blue-400'
                           : 'bg-navy-700 border-navy-600 text-navy-300'
                       }`}
                     >

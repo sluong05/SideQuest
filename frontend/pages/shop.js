@@ -212,7 +212,7 @@ export default function Shop() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -262,7 +262,7 @@ export default function Shop() {
                     <span className="text-xs bg-navy-700 text-navy-300 px-2 py-0.5 rounded-full">×{entry.quantity}</span>
                     <button
                       onClick={() => openUse(entry)}
-                      className="mt-1 text-xs py-1.5 px-4 bg-amber-500/15 border border-amber-500/40 text-amber-400 rounded-lg font-semibold hover:bg-amber-500/25 transition-colors"
+                      className="mt-1 text-xs py-1.5 px-4 bg-blue-500/15 border border-blue-500/40 text-blue-400 rounded-lg font-semibold hover:bg-blue-600/25 transition-colors"
                     >
                       Use
                     </button>
@@ -356,7 +356,7 @@ export default function Shop() {
               <label className="label mb-2 block">Choose your target</label>
               {friendsLoading ? (
                 <div className="flex justify-center py-4">
-                  <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -420,7 +420,7 @@ export default function Shop() {
                         onClick={() => setSelectedTask(t)}
                         className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
                           selectedTask?.id === t.id
-                            ? 'border-amber-500/60 bg-amber-500/10'
+                            ? 'border-blue-500/60 bg-blue-600/10'
                             : 'border-navy-600 bg-navy-700/50 hover:border-navy-500'
                         }`}
                       >
@@ -470,7 +470,7 @@ function FriendOption({ friend, selected, onSelect }) {
     <button
       onClick={onSelect}
       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors duration-150 ${
-        selected ? 'border-amber-500/60 bg-amber-500/10' : 'border-navy-600 bg-navy-700/50 hover:border-navy-500'
+        selected ? 'border-blue-500/60 bg-blue-600/10' : 'border-navy-600 bg-navy-700/50 hover:border-navy-500'
       }`}
     >
       <div className="w-8 h-8 rounded-full overflow-hidden border border-navy-500 flex-shrink-0">
@@ -488,7 +488,7 @@ function FriendOption({ friend, selected, onSelect }) {
           {friend.totalDebt > 0 ? `${friend.totalDebt} pushups owed` : 'Debt free'}
         </p>
       </div>
-      {selected && <span className="text-amber-400 text-sm flex-shrink-0">✓</span>}
+      {selected && <span className="text-blue-400 text-sm flex-shrink-0">✓</span>}
     </button>
   );
 }

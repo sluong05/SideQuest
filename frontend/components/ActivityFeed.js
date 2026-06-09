@@ -24,12 +24,12 @@ export default function ActivityFeed() {
   }, []);
 
   return (
-    <div className="card mt-6">
-      <h2 className="text-base font-bold text-navy-50 mb-4">Friend Activity</h2>
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.12)' }}>
+      <h2 className="text-[10px] font-bold text-navy-400 uppercase tracking-widest mb-4">Friend Activity</h2>
 
       {loading ? (
         <div className="flex justify-center py-6">
-          <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : feed.length === 0 ? (
         <div className="text-center py-6">
@@ -37,7 +37,7 @@ export default function ActivityFeed() {
           <p className="text-navy-400 text-xs mt-1">
             When friends complete tasks or log pushups, it'll show here.
           </p>
-          <Link href="/friends" className="inline-block mt-3 text-xs text-amber-400 hover:text-amber-300 transition-colors">
+          <Link href="/friends" className="inline-block mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors">
             Find friends →
           </Link>
         </div>
@@ -50,12 +50,12 @@ export default function ActivityFeed() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-navy-100">
-                  <Link href={`/u/${event.username}`} className="font-semibold hover:text-amber-400 transition-colors">
+                  <Link href={`/u/${event.username}`} className="font-semibold hover:text-blue-400 transition-colors">
                     {event.username}
                   </Link>
                   {event.type === 'task_completed'
                     ? <> completed <span className="text-navy-200">"{event.data.taskTitle}"</span></>
-                    : <> logged <span className="text-amber-400 font-semibold">{event.data.pushupsCompleted} pushups</span></>
+                    : <> logged <span className="text-blue-400 font-semibold">{event.data.pushupsCompleted} pushups</span></>
                   }
                 </p>
                 <p className="text-xs text-navy-400 mt-0.5">{timeAgo(event.timestamp)}</p>

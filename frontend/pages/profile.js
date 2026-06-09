@@ -200,7 +200,7 @@ export default function Profile() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -213,8 +213,8 @@ export default function Profile() {
             ← Dashboard
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-amber-400">
+            <div className="w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
+              <span className="text-xl font-bold text-blue-400">
                 {(user.username || user.email)[0].toUpperCase()}
               </span>
             </div>
@@ -235,12 +235,12 @@ export default function Profile() {
             <div className="flex items-start gap-5">
               {/* Avatar upload */}
               <label className="flex-shrink-0 cursor-pointer group relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-navy-600 group-hover:border-amber-500/60 transition-colors">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-navy-600 group-hover:border-blue-500/60 transition-colors">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-amber-500/20 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-amber-400">
+                    <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-blue-400">
                         {(user.username || user.email)[0].toUpperCase()}
                       </span>
                     </div>
@@ -291,7 +291,7 @@ export default function Profile() {
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs text-navy-200 uppercase tracking-wide font-medium">Streak Badges</p>
               {user.maxStreak > 0 && (
-                <span className="text-xs text-navy-400">Best streak: <span className="text-amber-400 font-semibold">{user.maxStreak} days</span></span>
+                <span className="text-xs text-navy-400">Best streak: <span className="text-blue-400 font-semibold">{user.maxStreak} days</span></span>
               )}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -302,12 +302,12 @@ export default function Profile() {
                     key={badge.days}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
                       earned
-                        ? 'bg-amber-500/10 border-amber-500/40'
+                        ? 'bg-blue-600/10 border-blue-500/40'
                         : 'bg-navy-700/40 border-navy-600 opacity-40'
                     }`}
                   >
                     <span className={`text-2xl ${earned ? '' : 'grayscale'}`}>{badge.icon}</span>
-                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-amber-400' : 'text-navy-400'}`}>
+                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-blue-400' : 'text-navy-400'}`}>
                       {badge.days}d
                     </span>
                     <span className={`text-xs text-center leading-tight ${earned ? 'text-navy-200' : 'text-navy-500'}`}>
@@ -327,7 +327,7 @@ export default function Profile() {
             )}
             {streak > 0 && (
               <p className="text-xs text-navy-400 mt-3 text-center">
-                Current streak: <span className="text-amber-400 font-semibold">{streak} days</span>
+                Current streak: <span className="text-blue-400 font-semibold">{streak} days</span>
               </p>
             )}
           </div>
@@ -382,7 +382,7 @@ export default function Profile() {
                 onClick={handleToggleReminders}
                 disabled={notifSaving}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                  emailReminders ? 'bg-amber-500' : 'bg-navy-600 border border-navy-500'
+                  emailReminders ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
                 } ${notifSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <span
@@ -408,7 +408,7 @@ export default function Profile() {
                   onClick={push.subscribed ? push.unsubscribe : push.subscribe}
                   disabled={push.loading}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                    push.subscribed ? 'bg-amber-500' : 'bg-navy-600 border border-navy-500'
+                    push.subscribed ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
                   } ${push.loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   <span

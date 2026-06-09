@@ -27,6 +27,9 @@ model User {
   loginAttempts          Int       @default(0)
   lockedUntil            DateTime?
 
+  xp                    Int       @default(0)
+  level                 Int       @default(1)
+
   streakShieldActive    Boolean   @default(false)
   debtFreezeUntil       DateTime?
   pushupMultiplierActive Boolean  @default(false)
@@ -82,6 +85,12 @@ model Task {
   completedAt DateTime?
   deletedAt   DateTime?
   userId      Int
+
+  category    String    @default("other")
+  difficulty  String    @default("medium")
+  xpReward    Int       @default(50)
+  debtType    String    @default("pushups")
+  debtAmount  Int       @default(5)
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   pushupDebt PushupDebt?

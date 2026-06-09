@@ -29,12 +29,12 @@ export default function VerifyEmail() {
     <div className="min-h-screen bg-navy-600 flex items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
         <Link href="/" className="inline-block mb-8">
-          <img src="/logo.png" alt="Pushup Debt" className="h-10 w-auto mx-auto" />
+          <div className="flex items-center justify-center gap-2 mb-3"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2L17.5 9.5L26 10.5L20 16.5L21.5 25L14 21L6.5 25L8 16.5L2 10.5L10.5 9.5L14 2Z" fill="#3B82F6" opacity="0.9"/><circle cx="14" cy="13" r="3" fill="white" opacity="0.9"/></svg><span style={{fontSize:"1.1rem",fontWeight:"bold",letterSpacing:"0.05em",color:"#F8FAFC"}}>SIDEQUEST</span></div>
         </Link>
 
         {status === 'loading' && (
           <div className="card py-10">
-            <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-navy-200 text-sm">Verifying your email…</p>
           </div>
         )}

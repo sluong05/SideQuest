@@ -11,17 +11,17 @@ module.exports = {
       },
       colors: {
         navy: {
-          50:  '#F9FAFB', // cream primary text
-          100: '#F3F4F6', // warm soft secondary text
-          200: '#9CA3AF', // muted warm gray text
-          300: '#6B7280', // dim warm gray / subtle icons
-          400: '#374151', // warm gray borders
-          500: '#273449', // card background (lighter than page bg)
-          600: '#1E293B', // PAGE BACKGROUND
-          700: '#16202E', // navbar / darker sections
-          800: '#0F1929', // input backgrounds
-          900: '#09101A', // overlays / deepest
-          950: '#040A10', // near-black
+          50:  '#F8FAFC', // crisp white — primary text
+          100: '#E2E8F0', // light blue-gray — secondary text
+          200: '#94A3B8', // muted blue-gray — hints/labels
+          300: '#475569', // dim text / placeholders
+          400: '#1E3A5F', // dark blue borders
+          500: '#0D1F38', // card background
+          600: '#080F20', // PAGE BACKGROUND
+          700: '#060C18', // nav / header
+          800: '#040A14', // input backgrounds / deepest sections
+          900: '#030710', // overlays
+          950: '#010509', // near-black
         },
       },
     },

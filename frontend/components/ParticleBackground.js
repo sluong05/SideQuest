@@ -40,7 +40,7 @@ export default function ParticleBackground({
       const ambient = new THREE.AmbientLight(0xffffff, 0.6);
       scene.add(ambient);
 
-      const dirLight = new THREE.DirectionalLight(0xf59e0b, 2);
+      const dirLight = new THREE.DirectionalLight(0x3b82f6, 2);
       dirLight.position.set(5, 3, 5);
       scene.add(dirLight);
 
@@ -64,7 +64,7 @@ export default function ParticleBackground({
       // ── Icosahedron ────────────────────────────────────────────────────────
       const ico = new THREE.Mesh(
         new THREE.IcosahedronGeometry(5, 0),
-        new THREE.MeshStandardMaterial({ color: 0xf97316, wireframe: true })
+        new THREE.MeshStandardMaterial({ color: 0x1d4ed8, wireframe: true })
       );
       ico.position.set(-38, -12, -15);
       scene.add(ico);
@@ -72,7 +72,7 @@ export default function ParticleBackground({
       // ── Octahedron ─────────────────────────────────────────────────────────
       const oct = new THREE.Mesh(
         new THREE.OctahedronGeometry(4, 0),
-        new THREE.MeshStandardMaterial({ color: 0xfbbf24, wireframe: true })
+        new THREE.MeshStandardMaterial({ color: 0x2563eb, wireframe: true })
       );
       oct.position.set(38, 12, -20);
       scene.add(oct);
@@ -80,11 +80,11 @@ export default function ParticleBackground({
       // ── Extra shapes ───────────────────────────────────────────────────────
       const shapes = [
         // [geometry, color, x, y, z]
-        [new THREE.TetrahedronGeometry(3, 0),    0xf59e0b, 0,  14, -10],
-        [new THREE.DodecahedronGeometry(4.5, 0), 0xf97316,  30, -14,  -8],
-        [new THREE.IcosahedronGeometry(7, 0),    0xfbbf24, -50,   6, -30],
-        [new THREE.OctahedronGeometry(2.5, 0),   0xf59e0b, 0,  -6,  -5],
-        [new THREE.TetrahedronGeometry(5, 0),    0xfbbf24,  42,  18, -28],
+        [new THREE.TetrahedronGeometry(3, 0),    0x3b82f6, 0,  14, -10],
+        [new THREE.DodecahedronGeometry(4.5, 0), 0x1e3a5f,  30, -14,  -8],
+        [new THREE.IcosahedronGeometry(7, 0),    0x1d4ed8, -50,   6, -30],
+        [new THREE.OctahedronGeometry(2.5, 0),   0x2563eb, 0,  -6,  -5],
+        [new THREE.TetrahedronGeometry(5, 0),    0x3b82f6,  42,  18, -28],
       ];
 
       const extraMeshes = shapes.map(([geo, color, x, y, z]) => {
@@ -99,7 +99,7 @@ export default function ParticleBackground({
 
       // ── Shared GLB material ────────────────────────────────────────────────
       const modelMat = new THREE.MeshStandardMaterial({
-        color: 0xf59e0b,
+        color: 0x3b82f6,
         wireframe: true,
       });
 

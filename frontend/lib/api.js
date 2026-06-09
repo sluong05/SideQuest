@@ -52,13 +52,12 @@ export const resendVerification = () =>
 export const updateProfile = (bio, avatar) =>
   api.patch('/api/auth/profile', { bio, avatar });
 
-// Tasks
-// Pass { date } for exact-day filter, { upToDate } for overdue+today view
+// Quests (backed by /api/tasks)
 export const getTasks = (params = {}) =>
   api.get('/api/tasks', { params });
 
-export const createTask = (title, dueDate, recurrence = 'none') =>
-  api.post('/api/tasks', { title, dueDate, recurrence });
+export const createTask = (title, dueDate, recurrence = 'none', questMeta = {}) =>
+  api.post('/api/tasks', { title, dueDate, recurrence, ...questMeta });
 
 export const completeTask = (taskId) =>
   api.patch(`/api/tasks/${taskId}/complete`);
