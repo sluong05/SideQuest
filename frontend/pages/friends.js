@@ -3,12 +3,14 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
+import { timeAgo } from '../lib/questMeta';
 import {
   getFriends, getFriendRequests, searchUsers,
   sendFriendRequest, acceptFriendRequest, declineFriendRequest,
   removeFriend, createChallenge, getChallenges, acceptChallenge, declineChallenge,
   getStreak,
 } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 function Avatar({ username, avatar, size = 10 }) {
   const dim = `w-${size} h-${size}`;
@@ -31,16 +33,6 @@ const CHALLENGE_TYPES = [
   { value: 'pushups', label: 'Pushups logged' },
 ];
 const DURATIONS = [3, 7, 14, 30];
-
-function timeAgo(timestamp) {
-  const diff = Date.now() - new Date(timestamp);
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
 
 export default function Friends() {
   const { user, loading: authLoading } = useAuth();
@@ -276,7 +268,7 @@ export default function Friends() {
                           <p className="text-sm font-semibold text-navy-100">
                             vs <Link href={`/u/${opponent.username}`} className="hover:text-blue-400 transition-colors">{opponent.username}</Link>
                           </p>
-                          <span className="text-xs text-navy-400">
+                          <span className="text-xs text-slate-400">
                             {daysLeft !== null ? `${daysLeft}d left` : ''}
                           </span>
                         </div>
@@ -309,7 +301,7 @@ export default function Friends() {
                           c.winner === 'you' ? 'text-green-400 font-semibold' :
                           c.winner === 'tie' ? 'text-blue-400' : 'text-red-400'
                         }>
-                          {c.winner === 'you' ? <span className="flex items-center gap-1"><img src="/Ranking.svg" className="w-4 h-4" />Won</span> : c.winner === 'tie' ? '🤝 Tie' : 'Lost'}
+                          {c.winner === 'you' ? <span className="flex items-center gap-1"><img src="/Ranking.svg" className="w-4 h-4" />Won</span> : c.winner === 'tie' ? <span className="flex items-center gap-1"><Icon name="handshake" className="w-4 h-4" color="currentColor" />Tie</span> : 'Lost'}
                         </span>
                       </div>
                     );
@@ -325,9 +317,9 @@ export default function Friends() {
               </div>
             ) : friends.length === 0 ? (
               <div className="card text-center py-12">
-                <p className="text-3xl mb-3">👥</p>
+                <div className="flex justify-center mb-3"><Icon name="users" className="w-8 h-8" color="#475569" /></div>
                 <p className="text-navy-200 font-medium">No friends yet</p>
-                <p className="text-navy-400 text-sm mt-1 mb-4">Find people by username to get started.</p>
+                <p className="text-slate-400 text-sm mt-1 mb-4">Find people by username to get started.</p>
                 <button onClick={() => setTab('Find')} className="btn-primary text-sm py-2 px-5">
                   Find Friends
                 </button>
@@ -358,7 +350,7 @@ export default function Friends() {
                       </button>
                       <button
                         onClick={() => handleRemoveFriend(f.id)}
-                        className="text-xs text-navy-400 hover:text-red-400 transition-colors py-1.5 px-2"
+                        className="text-xs text-slate-400 hover:text-red-400 transition-colors py-1.5 px-2"
                       >
                         Remove
                       </button>
@@ -379,7 +371,7 @@ export default function Friends() {
               </div>
             ) : requests.length === 0 ? (
               <div className="card text-center py-12">
-                <p className="text-3xl mb-3">📭</p>
+                <div className="flex justify-center mb-3"><Icon name="inbox" className="w-8 h-8" color="#475569" /></div>
                 <p className="text-navy-200">No pending requests</p>
               </div>
             ) : (
@@ -389,7 +381,7 @@ export default function Friends() {
                     <Avatar username={r.from.username} avatar={r.from.avatar} />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-navy-50">{r.from.username}</p>
-                      <p className="text-xs text-navy-400">{timeAgo(r.createdAt)}</p>
+                      <p className="text-xs text-slate-400">{timeAgo(r.createdAt)}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => handleAccept(r.id)} className="btn-primary text-xs py-1.5 px-3">
@@ -440,7 +432,7 @@ export default function Friends() {
                         <span className="text-xs text-navy-300">Request sent</span>
                         <button
                           onClick={() => handleUnsendRequest(u.friendshipId)}
-                          className="text-xs text-navy-400 hover:text-red-400 transition-colors py-1.5 px-2"
+                          className="text-xs text-slate-400 hover:text-red-400 transition-colors py-1.5 px-2"
                         >
                           Unsend
                         </button>
@@ -466,7 +458,7 @@ export default function Friends() {
             )}
             {query.length < 2 && (
               <div className="card text-center py-10 bg-navy-700/30">
-                <p className="text-navy-400 text-sm">Type at least 2 characters to search</p>
+                <p className="text-slate-400 text-sm">Type at least 2 characters to search</p>
               </div>
             )}
           </div>

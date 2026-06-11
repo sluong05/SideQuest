@@ -33,22 +33,27 @@ This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to `Tas
 /
 ├── frontend/
 │   ├── pages/
-│   │   ├── index.js          # Dashboard — task list + debt panel + progress chart
-│   │   ├── login.js
-│   │   ├── signup.js
-│   │   ├── profile.js        # Profile + badges + settings (username, password, delete account)
-│   │   ├── verify-pushups.js # Camera rep counter (MediaPipe)
-│   │   ├── leaderboard.js
-│   │   └── welcome.js        # Landing page
+│   │   ├── index.js          # Dashboard — quest rows + debt panel + Daily Focus card
+│   │   ├── quests.js         # All Quests — table + sidebar stat panels
+│   │   ├── debt.js           # Debt Hub — debt table + payoff method cards
+│   │   ├── pay/index.js      # "Pay Off Debt" method chooser (all Pay Debt buttons land here)
+│   │   ├── pay/{focus,wellness,chores,custom}.js  # Payoff activity pages (timer/checklist/free-form)
+│   │   ├── verify-pushups.js # Camera rep counter (MediaPipe) — the Fitness payoff method
+│   │   ├── shop.js           # Coin shop — items, inventory, recent purchases
+│   │   ├── progress.js, leaderboard.js, friends.js, profile.js
+│   │   ├── login.js, signup.js, welcome.js
 │   ├── components/
-│   │   ├── TaskList.js       # Task rows with due time labels + delete confirmation
-│   │   ├── AddTaskModal.js   # Create task — date + time picker
-│   │   ├── DebtSummary.js    # Right panel: debt total + level badge + at-risk card
-│   │   └── Layout.js         # Nav shell (logo, Dashboard, Leaderboard, username→profile)
+│   │   ├── Layout.js         # Nav shell (logo, nav tabs, streak/coins/level badges)
+│   │   ├── AddTaskModal.js   # Create quest — category/difficulty + date + time picker
+│   │   ├── Icons.js          # Shared stroke-SVG icon set + CategoryIcon
+│   │   ├── PayoffShell.js    # PAYOFF_METHODS source of truth + usePayoff hook + payoff page chrome
+│   │   ├── Panel.js          # Shared sidebar panel styles (PANEL_STYLE, SELECT_STYLE, PanelHeader)
+│   │   └── ActivityFeed.js   # Friend activity feed (dashboard)
 │   ├── contexts/
 │   │   └── AuthContext.js    # JWT load via /me, loginUser/logoutUser
 │   └── lib/
-│       └── api.js            # All axios calls (typed wrappers)
+│       ├── api.js            # All axios calls (typed wrappers)
+│       └── questMeta.js      # Category tints, difficulty styles, timeAgo
 │
 └── backend/
     ├── src/
@@ -153,20 +158,19 @@ If `totalOwed > 249`, the frontend blocks new task creation (shows a debt-block 
 
 ---
 
-## Debt Levels (frontend — DebtSummary.js)
+## Debt Levels (frontend — `debt.js DEBT_LEVELS`, dashboard variant in `index.js getDebtLevelInfo`)
 
-Shown as a badge in the total owed card with flavor text and a "Pay X to drop to Y" hint:
+Shown as a badge next to the debt total:
 
-| Range | Label | Flavor text |
-|---|---|---|
-| 0 | Debt Free | — |
-| 1–25 | Light Debt | "Your debt collector is keeping a close eye on you." |
-| 26–75 | Risky | "The Pushup Bank is getting nervous." |
-| 76–125 | Debt Spiral | "Financially and physically irresponsible." |
-| 126–175 | Pushup Bankruptcy | "The Pushup Bank has sent collections. This is not a drill." |
-| 176–225 | Critical Mass | "You've become a cautionary tale at the Pushup Bank." |
-| 226–249 | Point of No Return | "One more overdue task and new tasks are blocked. Do pushups. Now." |
-| 250+ | Beyond Recovery | "New tasks are blocked. The Pushup Bank has given up on you." |
+| Range | Label |
+|---|---|
+| 0 | Clear |
+| 1–25 | Light Burden |
+| 26–75 | Quest Debt |
+| 76–125 | Debt Spiral |
+| 126–175 | Quest Bankruptcy |
+| 176–249 | Critical Mass |
+| 250+ | Beyond Recovery (new quest creation blocked) |
 
 ---
 
@@ -183,28 +187,22 @@ Shown as a badge in the total owed card with flavor text and a "Pay X to drop to
 ## Frontend Key Patterns
 
 ### Navigation (Layout.js)
-- Logo click → dashboard
-- "Dashboard" link (highlighted when active)
-- "Leaderboard" link (highlighted when active)
-- Username/email → clickable link to `/profile` (highlighted when active)
-- Streak badge, Logout button
+- Tabs: Dashboard, Quests, Debt, Progress, Leaderboard, Shop (active tab highlighted)
+- Right side: streak badge, coin balance, level/XP pill, account dropdown (Friends, Profile, Logout)
 
-### Task due labels (`TaskList.js — formatDueDate`)
-Compares `date < now` (not midnight) so time-based overdue works correctly:
-- Past due time today → "Due today at 3:00 PM" (red)
-- Future today → "Due today at 3:00 PM" (yellow)
-- Tomorrow → "Due tomorrow at 3:00 PM"
-- Later → "Due May 5 at 3:00 PM"
-- Multi-day overdue → "2 days overdue · 3:00 PM"
+### Quest due labels (`formatDue` in quests.js and index.js)
+Compares `date < now` (not midnight) so time-based overdue works correctly. Two display variants:
+quests.js returns two lines ("Due Today" / "Today · 3:00 PM"), index.js a single label.
 
-### Task delete confirmation (`TaskList.js`)
-Clicking delete on an **incomplete** task shows a modal: "Deleting this task will cost you 5 pushups. Are you sure?" with Cancel and "Delete anyway" buttons. Completed tasks delete immediately with no confirmation.
+### Quest skip confirmation (quests.js `QuestCard`, index.js `DashQuestRow`)
+Skipping/deleting an **incomplete** quest shows a confirm modal warning it adds +debtAmount pts of debt.
 
-### At-Risk card (`DebtSummary.js — PotentialDebtCard`)
-- `todayAtRisk` = incomplete tasks with dueDate falling on today (calendar day)
-- Each task shows its own live countdown: `⏱ 2h 34m 12s left`
-- If due time already passed: `past due — debt accruing` (red)
-- Uses a shared `useNow()` hook (single 1s interval, not one per task)
+### Debt payoff flow
+- Every "Pay Debt" button routes to `/pay` (method chooser)
+- `PAYOFF_METHODS` in components/PayoffShell.js is the single source of truth for the five methods:
+  Fitness → /verify-pushups (camera), Focus/Wellness/Chores/Custom → /pay/* pages
+- All payoff pages submit via `usePayoff(activity)` → POST /api/sessions (oldest debt first, surplus → coins)
+- /pay/focus accepts `?quest=<id>` (from the dashboard Daily Focus card) and offers to mark that quest complete after the session
 
 ### Streak milestone card (`index.js`, right column)
 Milestones: 3, 7, 14, 30, 60, 100 days. Shows:

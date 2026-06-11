@@ -148,7 +148,7 @@ export default function Signup() {
             </Link>
           </p>
 
-          <p className="text-center text-navy-400 text-xs mt-4">
+          <p className="text-center text-slate-400 text-xs mt-4">
             By signing up you agree to our{' '}
             <Link href="/terms" className="hover:text-navy-200 underline">Terms of Service</Link>
             {' '}and{' '}

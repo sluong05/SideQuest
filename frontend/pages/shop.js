@@ -4,6 +4,9 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { getFriends, getTasks, buyShopItem, getInventory, useItem, getStreak } from '../lib/api';
+import { Icon } from '../components/Icons';
+import { timeAgo } from '../lib/questMeta';
+import { PANEL_STYLE, SELECT_STYLE, PanelHeader } from '../components/Panel';
 
 const SHOP_ITEMS = [
   {
@@ -11,36 +14,45 @@ const SHOP_ITEMS = [
     name: 'Debt Bomb',
     description: "Add 10 pushups to a friend's debt. Evil. Necessary.",
     cost: 50,
-    icon: '💣',
+    icon: 'bomb',
+    iconColor: '#f87171',
     type: 'instant',
+    category: 'chaos',
     requiresFriend: true,
-    successMsg: (target) => `💣 Debt Bomb dropped on ${target}! They now owe 10 more pushups.`,
+    successMsg: (target) => `Debt Bomb dropped on ${target}! They now owe 10 more pushups.`,
   },
   {
     id: 'taunt',
     name: 'Taunt',
     description: "Send a push notification to a friend to remind them they owe pushups.",
     cost: 10,
-    icon: '📣',
+    icon: 'megaphone',
+    iconColor: '#fb923c',
     type: 'instant',
+    category: 'chaos',
     requiresFriend: true,
-    successMsg: (target) => `📣 Taunt sent to ${target}!`,
+    successMsg: (target) => `Taunt sent to ${target}!`,
   },
   {
     id: 'streak_shield',
     name: 'Streak Shield',
     description: "Protect your streak from breaking once. Auto-fires when your streak is about to snap.",
     cost: 75,
-    icon: '🛡️',
+    icon: 'shield',
+    iconColor: '#60a5fa',
     type: 'inventory',
+    category: 'powerup',
+    featured: true,
   },
   {
     id: 'deadline_ext',
     name: 'Deadline Extension',
     description: "Push a task's due date forward by 24 hours. No questions asked.",
     cost: 25,
-    icon: '⏰',
+    icon: 'clock',
+    iconColor: '#60a5fa',
     type: 'inventory',
+    category: 'utility',
     requiresTask: true,
   },
   {
@@ -48,36 +60,66 @@ const SHOP_ITEMS = [
     name: 'Debt Freeze',
     description: "Freeze all debt accumulation for 24 hours. Breathe.",
     cost: 40,
-    icon: '🧊',
+    icon: 'snowflake',
+    iconColor: '#7dd3fc',
     type: 'inventory',
+    category: 'powerup',
   },
   {
     id: 'pushup_multiplier',
     name: 'Pushup Multiplier',
     description: "Your next pushup session drains debt at 2× rate.",
     cost: 35,
-    icon: '⚡',
+    icon: 'bolt',
+    iconColor: '#fbbf24',
     type: 'inventory',
+    category: 'powerup',
   },
   {
     id: 'debt_discount',
     name: 'Debt Discount',
     description: "Slash all your current debt by 25%. Instant relief.",
     cost: 20,
-    icon: '🎟️',
+    icon: 'ticket',
+    iconColor: '#c084fc',
     type: 'inventory',
+    category: 'utility',
   },
   {
     id: 'profile_flair',
     name: 'Profile Flair',
-    description: "Equip a ✨ cosmetic badge on your profile and leaderboard card.",
+    description: "Equip a sparkling cosmetic badge on your profile and leaderboard card.",
     cost: 60,
-    icon: '✨',
+    icon: 'sparkles',
+    iconColor: '#fbbf24',
     type: 'inventory',
+    category: 'cosmetic',
   },
 ];
 
 const ITEM_MAP = Object.fromEntries(SHOP_ITEMS.map((i) => [i.id, i]));
+const FEATURED_ITEM = SHOP_ITEMS.find((i) => i.featured);
+
+const CATEGORY_TABS = [
+  { key: 'All',      label: 'All' },
+  { key: 'powerup',  label: 'Power-Ups', icon: 'bolt' },
+  { key: 'chaos',    label: 'Chaos',     icon: 'bomb' },
+  { key: 'utility',  label: 'Utilities', icon: 'wrench' },
+  { key: 'cosmetic', label: 'Cosmetics', icon: 'gem' },
+];
+
+const RECENT_KEY = 'sq_recent_purchases';
+
+function CoinPrice({ amount, size = 'sm' }) {
+  const img = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
+  const txt = size === 'sm' ? 'text-sm' : 'text-base';
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <img src="/Pcoin.svg" alt="coin" className={img} />
+      <span className={`${txt} font-bold text-yellow-400 tabular-nums`}>{amount}</span>
+    </span>
+  );
+}
 
 export default function Shop() {
   const { user, loading: authLoading, updateUser } = useAuth();
@@ -88,6 +130,9 @@ export default function Shop() {
   const [tasks, setTasks] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [streak, setStreak] = useState(0);
+  const [category, setCategory] = useState('All');
+  const [sortBy, setSortBy] = useState('featured');
+  const [recentPurchases, setRecentPurchases] = useState([]);
 
   // Buy modal state
   const [buyItem, setBuyItem] = useState(null);
@@ -106,6 +151,12 @@ export default function Shop() {
   }, [user, authLoading]);
 
   useEffect(() => {
+    try {
+      setRecentPurchases(JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'));
+    } catch { /* ignore corrupt storage */ }
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     Promise.all([
       getFriends(),
@@ -122,6 +173,14 @@ export default function Shop() {
       .catch(() => {})
       .finally(() => setFriendsLoading(false));
   }, [user]);
+
+  function recordPurchase(item) {
+    setRecentPurchases((prev) => {
+      const next = [{ itemId: item.id, cost: item.cost, at: Date.now() }, ...prev].slice(0, 6);
+      try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* storage full */ }
+      return next;
+    });
+  }
 
   function openBuy(item) {
     setBuyItem(item);
@@ -143,6 +202,7 @@ export default function Shop() {
     try {
       await buyShopItem(buyItem.id, selectedFriend?.username);
       updateUser({ ...user, coins: (user.coins ?? 0) - buyItem.cost });
+      recordPurchase(buyItem);
 
       if (buyItem.type === 'inventory') {
         setInventory((prev) => {
@@ -211,7 +271,7 @@ export default function Shop() {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-navy-600 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#050A14' }}>
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -219,128 +279,413 @@ export default function Shop() {
 
   const coins = user?.coins ?? 0;
   const hasFriends = friends.length > 0;
+  const itemsOwned = inventory.reduce((s, e) => s + e.quantity, 0);
+
+  // Next unlock = cheapest item you can't afford yet
+  const nextUnlock = SHOP_ITEMS
+    .filter((i) => i.cost > coins)
+    .sort((a, b) => a.cost - b.cost)[0] ?? null;
+
+  // Recommended = cheapest items not already in inventory
+  const ownedIds = new Set(inventory.map((e) => e.itemId));
+  const recommended = SHOP_ITEMS
+    .filter((i) => !ownedIds.has(i.id) && !i.requiresFriend)
+    .sort((a, b) => a.cost - b.cost)
+    .slice(0, 3);
+
+  const visibleItems = SHOP_ITEMS
+    .filter((i) => category === 'All' || i.category === category)
+    .sort((a, b) => {
+      if (sortBy === 'priceLow')  return a.cost - b.cost;
+      if (sortBy === 'priceHigh') return b.cost - a.cost;
+      return 0;
+    });
+
+  const statCards = [
+    {
+      label: 'Available Coins',
+      icon: <img src="/Pcoin.svg" alt="coin" className="w-5 h-5" />,
+      iconBg: 'rgba(234,179,8,0.12)', iconBorder: 'rgba(234,179,8,0.3)',
+      value: <span className="text-lg font-bold text-yellow-400 tabular-nums">{coins} <span className="text-xs font-semibold">coins</span></span>,
+      sub: <Link href="/quests" className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 transition-colors">Earn more →</Link>,
+    },
+    {
+      label: 'Items Owned',
+      icon: <Icon name="backpack" className="w-4 h-4" color="#4ade80" />,
+      iconBg: 'rgba(34,197,94,0.1)', iconBorder: 'rgba(34,197,94,0.28)',
+      value: <span className="text-lg font-bold tabular-nums" style={{ color: '#4ade80' }}>{itemsOwned}</span>,
+      sub: <span className="text-[10px]" style={{ color: '#475569' }}>{inventory.length} unique item{inventory.length !== 1 ? 's' : ''}</span>,
+    },
+    {
+      label: 'Featured Item',
+      icon: <Icon name="gift" className="w-4 h-4" color="#c084fc" />,
+      iconBg: 'rgba(168,85,247,0.1)', iconBorder: 'rgba(168,85,247,0.3)',
+      value: <span className="text-sm font-bold" style={{ color: '#c084fc' }}>{FEATURED_ITEM.name}</span>,
+      sub: <span className="text-[10px] inline-flex items-center gap-1" style={{ color: '#475569' }}><Icon name={FEATURED_ITEM.icon} className="w-3 h-3" color="currentColor" /> {FEATURED_ITEM.cost} coins</span>,
+    },
+    {
+      label: 'Next Unlock',
+      icon: <Icon name="unlock" className="w-4 h-4" color="#fb923c" />,
+      iconBg: 'rgba(249,115,22,0.1)', iconBorder: 'rgba(249,115,22,0.3)',
+      value: nextUnlock
+        ? <span className="text-sm font-bold" style={{ color: '#fb923c' }}>{nextUnlock.name}</span>
+        : <span className="text-sm font-bold" style={{ color: '#4ade80' }}>All unlocked!</span>,
+      sub: nextUnlock ? (
+        <div className="w-full">
+          <div className="w-full h-1 rounded-full overflow-hidden mt-1" style={{ background: 'rgba(249,115,22,0.12)' }}>
+            <div className="h-full rounded-full" style={{ width: `${Math.min((coins / nextUnlock.cost) * 100, 100)}%`, background: 'linear-gradient(90deg,#ea580c,#fb923c)' }} />
+          </div>
+          <span className="text-[10px]" style={{ color: '#475569' }}>{coins} / {nextUnlock.cost} coins</span>
+        </div>
+      ) : <span className="text-[10px]" style={{ color: '#475569' }}>You can afford everything</span>,
+    },
+  ];
 
   return (
     <Layout streak={streak}>
-      <div className="max-w-2xl mx-auto">
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-navy-50">Shop</h1>
-          <p className="text-navy-300 text-sm mt-1">Spend your hard-earned coins on power-ups and chaos.</p>
-        </div>
+      {/* Page header */}
+      <div className="mb-5">
+        <h1 className="text-3xl font-bold tracking-tight" style={{ color: '#f8fafc' }}>Shop</h1>
+        <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+          Spend your coins to unlock powerful boosts, chaos items, and useful upgrades.
+        </p>
+      </div>
 
-        {/* Coin balance */}
-        <div className="card mb-6 flex items-center gap-4 border-yellow-600/20 bg-yellow-950/10">
-          <div className="w-12 h-12 rounded-full bg-yellow-500/15 border border-yellow-600/30 flex items-center justify-center flex-shrink-0">
-            <img src="/Pcoin.svg" alt="coin" className="w-8 h-8" />
+      {/* Stats strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        {statCards.map(({ label, icon, iconBg, iconBorder, value, sub }) => (
+          <div key={label} className="rounded-2xl p-3.5 flex items-start gap-3" style={PANEL_STYLE}>
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: iconBg, border: `1px solid ${iconBorder}` }}
+            >
+              {icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#475569' }}>{label}</p>
+              <div className="leading-tight">{value}</div>
+              <div className="mt-0.5">{sub}</div>
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-xs text-navy-300 uppercase tracking-widest font-semibold mb-0.5">Your Balance</p>
-            <p className="text-3xl font-bold text-yellow-400 tabular-nums">{coins}</p>
-            <p className="text-xs text-navy-400 mt-0.5">Earn coins by doing pushups when you have no debt — 1 pushup = 1 coin.</p>
-          </div>
-          <Link href="/verify-pushups" className="btn-secondary text-xs py-2 px-3 flex-shrink-0">
-            <span className="flex items-center gap-1.5"><img src="/Bicep.svg" className="w-4 h-4" />Earn More</span>
-          </Link>
-        </div>
+        ))}
+      </div>
 
-        {/* Inventory */}
-        {inventory.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-navy-300 uppercase tracking-widest mb-3">Your Inventory</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {inventory.map((entry) => {
-                const def = ITEM_MAP[entry.itemId];
-                if (!def) return null;
+      <div className="flex gap-6 items-start">
+
+        {/* ── Main column ─────────────────────────────────────────── */}
+        <div className="flex-1 min-w-0">
+
+          {/* Category tabs + sort */}
+          <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+            <div
+              className="flex gap-1 p-1 rounded-xl overflow-x-auto flex-shrink-0"
+              style={{ background: 'rgba(8,21,37,0.7)', border: '1px solid rgba(59,130,246,0.1)' }}
+            >
+              {CATEGORY_TABS.map(({ key, label, icon }) => {
+                const active = category === key;
                 return (
-                  <div
-                    key={entry.itemId}
-                    className="card flex flex-col items-center gap-2 py-4 text-center border-navy-500"
+                  <button
+                    key={key}
+                    onClick={() => setCategory(key)}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150"
+                    style={{
+                      background: active ? 'rgba(37,99,235,0.85)' : 'transparent',
+                      color: active ? '#ffffff' : '#475569',
+                      border: active ? '1px solid rgba(59,130,246,0.5)' : '1px solid transparent',
+                      boxShadow: active ? '0 0 12px rgba(37,99,235,0.35)' : 'none',
+                    }}
                   >
-                    <span className="text-3xl">{def.icon}</span>
-                    <p className="text-xs font-bold text-navy-100">{def.name}</p>
-                    <span className="text-xs bg-navy-700 text-navy-300 px-2 py-0.5 rounded-full">×{entry.quantity}</span>
-                    <button
-                      onClick={() => openUse(entry)}
-                      className="mt-1 text-xs py-1.5 px-4 bg-blue-500/15 border border-blue-500/40 text-blue-400 rounded-lg font-semibold hover:bg-blue-600/25 transition-colors"
-                    >
-                      Use
-                    </button>
-                  </div>
+                    {icon && <Icon name={icon} className="w-3 h-3" color="currentColor" />}
+                    {label}
+                  </button>
                 );
               })}
             </div>
+            <div className="relative flex-shrink-0">
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={SELECT_STYLE}>
+                <option value="featured">Sort: Featured</option>
+                <option value="priceLow">Price: Low to High</option>
+                <option value="priceHigh">Price: High to Low</option>
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: '#475569' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
-        )}
 
-        {/* Items for sale */}
-        <div className="space-y-4">
-          <p className="text-xs font-semibold text-navy-300 uppercase tracking-widest">Available Items</p>
-
-          {SHOP_ITEMS.map((item) => {
-            const canAfford = coins >= item.cost;
-            const needsFriendsAndHasNone = item.requiresFriend && !hasFriends;
-            const disabled = !canAfford || needsFriendsAndHasNone;
-            return (
+          {/* Featured banner */}
+          {(category === 'All' || FEATURED_ITEM.category === category) && (
+            <div
+              className="relative rounded-2xl overflow-hidden mb-4 px-5 py-4"
+              style={{
+                background: 'linear-gradient(90deg, rgba(30,58,138,0.45) 0%, rgba(8,21,37,0.92) 60%)',
+                border: '1px solid rgba(59,130,246,0.28)',
+              }}
+            >
               <div
-                key={item.id}
-                className={`card flex items-center gap-5 transition-colors duration-150 ${
-                  disabled ? 'border-navy-700 opacity-60' : 'border-navy-600'
-                }`}
-              >
-                <div className="w-14 h-14 rounded-xl bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0">
-                  <span className="text-3xl">{item.icon}</span>
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: [
+                    'radial-gradient(ellipse 300px 90px at 8% 50%, rgba(249,115,22,0.18), transparent 70%)',
+                    'radial-gradient(ellipse 420px 120px at 60% 100%, rgba(37,99,235,0.3), transparent 70%)',
+                  ].join(', '),
+                }}
+              />
+              <div className="relative flex items-center gap-4 flex-wrap">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: 'rgba(249,115,22,0.12)',
+                    border: '1px solid rgba(249,115,22,0.35)',
+                    boxShadow: '0 0 22px rgba(249,115,22,0.25)',
+                  }}
+                >
+                  <Icon name={FEATURED_ITEM.icon} className="w-7 h-7" color="#fb923c" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="font-bold text-navy-50">{item.name}</p>
-                    <span className="flex items-center gap-1 text-xs bg-yellow-500/15 border border-yellow-600/30 text-yellow-400 px-2 py-0.5 rounded-full font-semibold">
-                      <img src="/Pcoin.svg" alt="coin" className="w-3.5 h-3.5" />
-                      {item.cost}
-                    </span>
+                  <span
+                    className="inline-block text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full mb-1"
+                    style={{ background: 'rgba(249,115,22,0.15)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.35)' }}
+                  >
+                    ✦ Featured Item
+                  </span>
+                  <p className="text-base font-bold" style={{ color: '#f8fafc' }}>{FEATURED_ITEM.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{FEATURED_ITEM.description}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <CoinPrice amount={FEATURED_ITEM.cost} size="lg" />
+                  <button
+                    onClick={() => coins >= FEATURED_ITEM.cost && openBuy(FEATURED_ITEM)}
+                    disabled={coins < FEATURED_ITEM.cost}
+                    className="text-xs font-bold px-5 py-2 rounded-lg text-white transition-all duration-150"
+                    style={coins >= FEATURED_ITEM.cost
+                      ? { background: 'linear-gradient(90deg,#ea580c,#f97316)', border: '1px solid rgba(249,115,22,0.6)', boxShadow: '0 0 14px rgba(249,115,22,0.35)' }
+                      : { background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.2)', color: '#9a5b2e', cursor: 'not-allowed' }
+                    }
+                  >
+                    {coins >= FEATURED_ITEM.cost ? 'Buy Now' : `${FEATURED_ITEM.cost - coins} more needed`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Items grid */}
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: '#475569' }}>All Items</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            {visibleItems.map((item) => {
+              const canAfford = coins >= item.cost;
+              const needsFriendsAndHasNone = item.requiresFriend && !hasFriends;
+              const disabled = !canAfford || needsFriendsAndHasNone;
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-2xl p-4 flex flex-col items-center text-center transition-all duration-150"
+                  style={{
+                    background: 'rgba(8,21,37,0.75)',
+                    border: `1px solid ${disabled ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.16)'}`,
+                    opacity: disabled ? 0.65 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; e.currentTarget.style.boxShadow = '0 0 18px rgba(37,99,235,0.12)'; } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = disabled ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.16)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-2.5"
+                    style={{
+                      background: 'rgba(37,99,235,0.12)',
+                      border: '1px solid rgba(59,130,246,0.25)',
+                      boxShadow: disabled ? 'none' : '0 0 16px rgba(37,99,235,0.2)',
+                    }}
+                  >
+                    <Icon name={item.icon} className="w-6 h-6" color={item.iconColor} />
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <p className="text-sm font-bold leading-tight" style={{ color: '#f8fafc' }}>{item.name}</p>
                     {item.type === 'inventory' && (
-                      <span className="text-xs bg-navy-700 text-navy-400 px-2 py-0.5 rounded-full">Stored</span>
+                      <span
+                        className="text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
+                        style={{ background: 'rgba(59,130,246,0.08)', color: '#64748b', border: '1px solid rgba(59,130,246,0.12)' }}
+                      >
+                        Stored
+                      </span>
                     )}
                   </div>
-                  <p className="text-sm text-navy-300">{item.description}</p>
-                  {!canAfford && (
-                    <p className="text-xs text-red-400 mt-1">
-                      Need {item.cost - coins} more coin{item.cost - coins !== 1 ? 's' : ''}
-                    </p>
-                  )}
-                  {canAfford && needsFriendsAndHasNone && (
-                    <p className="text-xs text-navy-400 mt-1">Add friends to use this item</p>
-                  )}
+                  <p className="text-[11px] leading-snug mb-3 flex-1" style={{ color: '#64748b' }}>{item.description}</p>
+                  <div className="mb-2.5">
+                    <CoinPrice amount={item.cost} />
+                  </div>
+                  <button
+                    onClick={() => !disabled && openBuy(item)}
+                    disabled={disabled}
+                    className="w-full text-xs py-2 rounded-lg font-semibold transition-all duration-150"
+                    style={disabled
+                      ? { background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.08)', color: '#334155', cursor: 'not-allowed' }
+                      : { background: 'rgba(37,99,235,0.88)', border: '1px solid rgba(59,130,246,0.5)', color: '#fff', boxShadow: '0 0 10px rgba(37,99,235,0.3)' }
+                    }
+                    onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.boxShadow = '0 0 18px rgba(37,99,235,0.55)'; } }}
+                    onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = 'rgba(37,99,235,0.88)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(37,99,235,0.3)'; } }}
+                  >
+                    {!canAfford ? `${item.cost - coins} more needed` : needsFriendsAndHasNone ? 'Requires friends' : 'Purchase'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => !disabled && openBuy(item)}
-                  disabled={disabled}
-                  className={`flex-shrink-0 text-sm py-2 px-4 font-semibold rounded-lg transition-colors duration-150 ${
-                    disabled ? 'bg-navy-700 text-navy-400 cursor-not-allowed' : 'btn-primary'
-                  }`}
-                >
-                  Buy
-                </button>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          <p className="text-center text-xs font-medium py-4" style={{ color: '#334155' }}>
+            More items coming soon ✦
+          </p>
+
+          {!friendsLoading && !hasFriends && (
+            <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(8,21,37,0.5)', border: '1px solid rgba(59,130,246,0.1)' }}>
+              <div className="flex justify-center mb-2"><Icon name="users" className="w-6 h-6" color="#475569" /></div>
+              <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>No friends to target yet</p>
+              <p className="text-xs mt-1 mb-4" style={{ color: '#475569' }}>Add friends first to use chaos items on them.</p>
+              <Link href="/friends" className="btn-primary text-sm py-2 px-5">Find Friends</Link>
+            </div>
+          )}
         </div>
 
-        {!friendsLoading && !hasFriends && (
-          <div className="card mt-6 text-center py-8 bg-navy-700/30">
-            <p className="text-2xl mb-2">👥</p>
-            <p className="text-navy-200 text-sm font-medium">No friends to target yet</p>
-            <p className="text-navy-400 text-xs mt-1 mb-4">Add friends first to use instant items on them.</p>
-            <Link href="/friends" className="btn-primary text-sm py-2 px-5">Find Friends</Link>
+        {/* ── Right sidebar (fixed width) ────────────────────────── */}
+        <div className="hidden lg:flex flex-col gap-4 flex-shrink-0" style={{ width: 288 }}>
+
+          {/* Your Inventory */}
+          <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+            <PanelHeader icon={<Icon name="backpack" className="w-3 h-3" color="#60a5fa" />}>Your Inventory</PanelHeader>
+            {inventory.length === 0 ? (
+              <p className="text-xs" style={{ color: '#334155' }}>No items yet. Buy something below!</p>
+            ) : (
+              <div className="space-y-2">
+                {inventory.map((entry) => {
+                  const def = ITEM_MAP[entry.itemId];
+                  if (!def) return null;
+                  return (
+                    <div
+                      key={entry.itemId}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                      style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.1)' }}
+                    >
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(59,130,246,0.18)' }}
+                      >
+                        <Icon name={def.icon} className="w-4 h-4" color={def.iconColor} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate" style={{ color: '#f8fafc' }}>{def.name}</p>
+                        <p className="text-[10px]" style={{ color: '#475569' }}>×{entry.quantity} owned</p>
+                      </div>
+                      <button
+                        onClick={() => openUse(entry)}
+                        className="text-[11px] py-1 px-3 rounded-lg font-semibold flex-shrink-0 transition-colors"
+                        style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.28)', color: '#60a5fa' }}
+                      >
+                        Use
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Recommended for You */}
+          {recommended.length > 0 && (
+            <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+              <PanelHeader icon={<Icon name="sparkle" className="w-3 h-3" color="#60a5fa" />}>Recommended for You</PanelHeader>
+              <div className="space-y-2">
+                {recommended.map((item) => {
+                  const canAfford = coins >= item.cost;
+                  return (
+                    <div key={item.id} className="flex items-center gap-2.5">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(59,130,246,0.18)' }}
+                      >
+                        <Icon name={item.icon} className="w-4 h-4" color={item.iconColor} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate" style={{ color: '#f8fafc' }}>{item.name}</p>
+                        <p className="text-[10px] flex items-center gap-1" style={{ color: '#475569' }}>
+                          <img src="/Pcoin.svg" alt="" className="w-2.5 h-2.5" />
+                          <span className="font-bold text-yellow-400">{item.cost}</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => canAfford && openBuy(item)}
+                        disabled={!canAfford}
+                        className="text-[11px] py-1 px-3 rounded-lg font-semibold flex-shrink-0 transition-colors"
+                        style={canAfford
+                          ? { background: 'rgba(37,99,235,0.85)', border: '1px solid rgba(59,130,246,0.5)', color: '#fff' }
+                          : { background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.08)', color: '#334155', cursor: 'not-allowed' }
+                        }
+                      >
+                        Buy
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Purchases */}
+          {recentPurchases.length > 0 && (
+            <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+              <PanelHeader icon={<Icon name="clock" className="w-3 h-3" color="#60a5fa" />}>Recent Purchases</PanelHeader>
+              <div className="space-y-2">
+                {recentPurchases.map((p, idx) => {
+                  const def = ITEM_MAP[p.itemId];
+                  if (!def) return null;
+                  return (
+                    <div key={`${p.itemId}-${p.at}-${idx}`} className="flex items-center gap-2.5">
+                      <Icon name={def.icon} className="w-4 h-4 flex-shrink-0" color={def.iconColor} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate" style={{ color: '#94a3b8' }}>{def.name}</p>
+                        <p className="text-[10px]" style={{ color: '#334155' }}>{timeAgo(p.at)}</p>
+                      </div>
+                      <span className="text-[11px] font-bold flex-shrink-0" style={{ color: '#fbbf24' }}>−{p.cost}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Earn more coins */}
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(59,130,246,0.22)' }}
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)', boxShadow: '0 0 14px rgba(234,179,8,0.15)' }}
+              >
+                <img src="/Pcoin.svg" alt="coin" className="w-5 h-5" />
+              </div>
+              <p className="text-sm font-bold" style={{ color: '#f8fafc' }}>Earn more coins</p>
+            </div>
+            <p className="text-xs leading-relaxed mb-3" style={{ color: '#64748b' }}>
+              Complete quests while you have <span className="font-bold" style={{ color: '#fbbf24' }}>zero active debt</span>. Debt? No coins until it's paid.
+            </p>
+            <Link
+              href="/quests"
+              className="flex items-center justify-center w-full py-2 rounded-lg text-xs font-bold text-white transition-all duration-150"
+              style={{ background: 'rgba(37,99,235,0.88)', border: '1px solid rgba(59,130,246,0.5)', boxShadow: '0 0 10px rgba(37,99,235,0.3)' }}
+            >
+              View Quests →
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Buy modal */}
       {buyItem && (
         <Modal onClose={closeBuy}>
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">{buyItem.icon}</span>
+            <Icon name={buyItem.icon} className="w-8 h-8" color={buyItem.iconColor} />
             <div>
               <h2 className="text-lg font-bold text-navy-50">{buyItem.name}</h2>
               <p className="flex items-center gap-1 text-xs text-yellow-400 font-semibold">
@@ -399,10 +744,10 @@ export default function Shop() {
         return (
           <Modal onClose={closeUse}>
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-3xl">{def.icon}</span>
+              <Icon name={def.icon} className="w-8 h-8" color={def.iconColor} />
               <div>
                 <h2 className="text-lg font-bold text-navy-50">Use {def.name}</h2>
-                <p className="text-xs text-navy-400">×{useItemEntry.quantity} in inventory</p>
+                <p className="text-xs text-slate-400">×{useItemEntry.quantity} in inventory</p>
               </div>
             </div>
             <p className="text-sm text-navy-300 mb-5">{def.description}</p>
@@ -411,21 +756,21 @@ export default function Shop() {
               <div className="mb-5">
                 <label className="label mb-2 block">Choose a task to extend</label>
                 {tasks.length === 0 ? (
-                  <p className="text-sm text-navy-400 py-2">No incomplete tasks.</p>
+                  <p className="text-sm text-slate-400 py-2">No incomplete tasks.</p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {tasks.map((t) => (
                       <button
                         key={t.id}
                         onClick={() => setSelectedTask(t)}
-                        className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
-                          selectedTask?.id === t.id
-                            ? 'border-blue-500/60 bg-blue-600/10'
-                            : 'border-navy-600 bg-navy-700/50 hover:border-navy-500'
-                        }`}
+                        className="w-full text-left px-3 py-2.5 rounded-lg border transition-colors"
+                        style={{
+                          background: selectedTask?.id === t.id ? 'rgba(37,99,235,0.1)' : 'rgba(8,21,37,0.6)',
+                          borderColor: selectedTask?.id === t.id ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.12)',
+                        }}
                       >
                         <p className="text-sm font-semibold text-navy-100">{t.title}</p>
-                        <p className="text-xs text-navy-400 mt-0.5">
+                        <p className="text-xs text-slate-400 mt-0.5">
                           Due {new Date(t.dueDate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                         </p>
                       </button>
@@ -457,8 +802,11 @@ export default function Shop() {
 function Modal({ children, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-navy-800 border border-navy-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+        style={{ background: 'var(--bg-card-alt)', border: '1px solid rgba(59,130,246,0.2)' }}
+      >
         {children}
       </div>
     </div>
@@ -469,22 +817,24 @@ function FriendOption({ friend, selected, onSelect }) {
   return (
     <button
       onClick={onSelect}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors duration-150 ${
-        selected ? 'border-blue-500/60 bg-blue-600/10' : 'border-navy-600 bg-navy-700/50 hover:border-navy-500'
-      }`}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors duration-150"
+      style={{
+        background: selected ? 'rgba(37,99,235,0.1)' : 'rgba(8,21,37,0.6)',
+        borderColor: selected ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.12)',
+      }}
     >
-      <div className="w-8 h-8 rounded-full overflow-hidden border border-navy-500 flex-shrink-0">
+      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(59,130,246,0.2)' }}>
         {friend.avatar ? (
           <img src={friend.avatar} alt={friend.username} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-navy-600 flex items-center justify-center">
-            <span className="text-sm font-bold text-navy-300">{friend.username[0].toUpperCase()}</span>
+          <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.15)' }}>
+            <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>{friend.username[0].toUpperCase()}</span>
           </div>
         )}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-navy-100">{friend.username}</p>
-        <p className="text-xs text-navy-400">
+        <p className="text-xs text-slate-400">
           {friend.totalDebt > 0 ? `${friend.totalDebt} pushups owed` : 'Debt free'}
         </p>
       </div>

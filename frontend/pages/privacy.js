@@ -21,7 +21,7 @@ export default function Privacy() {
 
         <main className="max-w-3xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-navy-50 mb-2">Privacy Policy</h1>
-          <p className="text-navy-400 text-sm mb-10">Last updated: May 13, 2025</p>
+          <p className="text-slate-400 text-sm mb-10">Last updated: May 13, 2025</p>
 
           <Section title="1. Who We Are">
             <p>SideQuest is operated by Steven Luong ("we," "us," or "our"), an individual based in Washington, United States. You can reach us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
@@ -94,7 +94,7 @@ export default function Privacy() {
             <p>Questions about this policy? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
-          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-navy-400">
+          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-slate-400">
             <Link href="/terms" className="hover:text-navy-200 transition-colors">Terms of Service</Link>
             <Link href="/welcome" className="hover:text-navy-200 transition-colors">Back to Home</Link>
           </div>

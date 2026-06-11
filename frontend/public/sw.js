@@ -1,4 +1,4 @@
-const CACHE = 'pushupdebt-v1';
+const CACHE = 'sidequest-v1';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE = [
@@ -27,7 +27,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('push', (e) => {
   const data = e.data?.json() ?? {};
   e.waitUntil(
-    self.registration.showNotification(data.title || 'PushupDebt', {
+    self.registration.showNotification(data.title || 'SideQuest', {
       body: data.body || '',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
@@ -54,9 +54,11 @@ self.addEventListener('notificationclick', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
 
-  // Never intercept API calls or non-GET requests
+  // Never intercept API calls, non-GET requests, or Next.js build assets
+  // (build assets are content-hashed in prod; caching them risks serving stale code)
   if (request.method !== 'GET') return;
   if (request.url.includes('/api/')) return;
+  if (new URL(request.url).pathname.startsWith('/_next/')) return;
 
   // For navigation requests: network-first, fall back to offline page
   if (request.mode === 'navigate') {

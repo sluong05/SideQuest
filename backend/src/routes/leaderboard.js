@@ -33,6 +33,10 @@ router.get('/', auth, async (req, res) => {
         createdAt: true,
         totalTasksCompleted: true,
         avatar: true,
+        xp: true,
+        level: true,
+        maxStreak: true,
+        coins: true,
         pushupDebts: {
           where: { resolved: false },
           select: { pushupsOwed: true },
@@ -61,6 +65,10 @@ router.get('/', auth, async (req, res) => {
         totalTasksCompleted: user.totalTasksCompleted,
         memberSince: user.createdAt,
         avatar: user.avatar || null,
+        xp: user.xp ?? 0,
+        level: user.level ?? 1,
+        maxStreak: user.maxStreak ?? 0,
+        coins: user.coins ?? 0,
       };
     });
 

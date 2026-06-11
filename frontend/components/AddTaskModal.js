@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { createTask } from '../lib/api';
+import { Icon, CategoryIcon } from './Icons';
+import { CATEGORY_COLORS } from '../lib/questMeta';
 
 const CATEGORIES = [
-  { value: 'fitness',      label: 'Fitness',      icon: '💪' },
-  { value: 'learning',     label: 'Learning',     icon: '📚' },
-  { value: 'focus',        label: 'Focus',        icon: '🎯' },
-  { value: 'productivity', label: 'Productivity', icon: '⚡' },
-  { value: 'wellness',     label: 'Wellness',     icon: '🧘' },
-  { value: 'chores',       label: 'Chores',       icon: '🏠' },
-  { value: 'other',        label: 'Other',        icon: '✦' },
+  { value: 'fitness',      label: 'Fitness'      },
+  { value: 'learning',     label: 'Learning'     },
+  { value: 'focus',        label: 'Focus'        },
+  { value: 'productivity', label: 'Productivity' },
+  { value: 'wellness',     label: 'Wellness'     },
+  { value: 'chores',       label: 'Chores'       },
+  { value: 'other',        label: 'Other'        },
 ];
 
 const DIFFICULTIES = [
@@ -17,29 +19,15 @@ const DIFFICULTIES = [
   { value: 'hard',   label: 'Hard',   xp: 100, color: '#f87171',  activeBg: 'rgba(239,68,68,0.15)',   activeBorder: 'rgba(239,68,68,0.5)' },
 ];
 
-const DEBT_TYPES = [
-  { value: 'pushups', label: 'Pushups',  icon: '💪', unit: 'reps' },
-  { value: 'study',   label: 'Study',    icon: '📖', unit: 'min' },
-  { value: 'walk',    label: 'Walk',     icon: '🚶', unit: 'min' },
-  { value: 'clean',   label: 'Clean',    icon: '🧹', unit: 'min' },
-  { value: 'read',    label: 'Read',     icon: '📕', unit: 'pages' },
-  { value: 'custom',  label: 'Custom',   icon: '✏️', unit: '' },
-];
-
-const CATEGORY_COLORS = {
-  fitness: 'rgba(59,130,246,0.15)', learning: 'rgba(168,85,247,0.15)', focus: 'rgba(16,185,129,0.15)',
-  productivity: 'rgba(234,179,8,0.15)', wellness: 'rgba(34,197,94,0.15)', chores: 'rgba(251,146,60,0.15)', other: 'rgba(59,130,246,0.1)',
-};
 
 function todayString() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtType, debtAmount }) {
+function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtAmount }) {
   const cat = CATEGORIES.find((c) => c.value === category);
   const diff = DIFFICULTIES.find((d) => d.value === difficulty);
-  const debt = DEBT_TYPES.find((d) => d.value === debtType);
   const catBg = CATEGORY_COLORS[category] ?? 'rgba(59,130,246,0.1)';
   const dueFmt = dueDate && dueTime
     ? new Date(`${dueDate}T${dueTime}`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -50,14 +38,14 @@ function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtType,
       {/* Quest card preview */}
       <div className="rounded-xl p-4" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.2)' }}>
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: catBg }}>
-            {cat?.icon ?? '✦'}
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: catBg }}>
+            <CategoryIcon category={category} className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-navy-50 leading-snug">
-              {title || <span className="text-navy-500 italic">Quest title…</span>}
+              {title || <span className="text-slate-500 italic">Quest title…</span>}
             </p>
-            <p className="text-xs text-navy-400 mt-1">{dueFmt}</p>
+            <p className="text-xs text-slate-400 mt-1">{dueFmt}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -79,13 +67,13 @@ function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtType,
 
       {/* Debt breakdown preview */}
       <div>
-        <h4 className="text-xs font-semibold text-navy-400 uppercase tracking-wide mb-2">Debt Breakdown Preview</h4>
+        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Debt Breakdown Preview</h4>
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(239,68,68,0.2)' }}>
           {[1, 3, 7].map((days) => (
             <div key={days} className="flex items-center justify-between px-3 py-2" style={{ borderBottom: days < 7 ? '1px solid rgba(239,68,68,0.1)' : 'none', background: 'rgba(239,68,68,0.04)' }}>
-              <span className="text-xs text-navy-400">Day {days} overdue</span>
+              <span className="text-xs text-slate-400">Day {days} overdue</span>
               <span className="text-xs font-bold text-red-400">
-                {debtAmount * days} {debt?.unit}
+                {debtAmount * days} pts
               </span>
             </div>
           ))}
@@ -94,14 +82,14 @@ function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtType,
 
       {/* XP summary */}
       <div>
-        <h4 className="text-xs font-semibold text-navy-400 uppercase tracking-wide mb-2">XP Summary</h4>
+        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">XP Summary</h4>
         <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.15)' }}>
           <div className="flex justify-between text-xs">
-            <span className="text-navy-400">Base XP</span>
+            <span className="text-slate-400">Base XP</span>
             <span className="text-navy-200">{diff?.xp ?? 50}</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-navy-400">Difficulty Bonus</span>
+            <span className="text-slate-400">Difficulty Bonus</span>
             <span className="text-navy-200">0</span>
           </div>
           <div className="h-px" style={{ background: 'rgba(234,179,8,0.2)' }} />
@@ -122,13 +110,11 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
   const [recurrence, setRecurrence] = useState('none');
   const [category, setCategory] = useState('other');
   const [difficulty, setDifficulty] = useState('medium');
-  const [debtType, setDebtType] = useState('pushups');
   const [debtAmount, setDebtAmount] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const selectedDiff = DIFFICULTIES.find((d) => d.value === difficulty);
-  const selectedDebtType = DEBT_TYPES.find((d) => d.value === debtType);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -140,7 +126,7 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
       const [hours, minutes] = dueTime.split(':').map(Number);
       const dueDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
       const res = await createTask(title.trim(), dueDateTime.toISOString(), recurrence, {
-        category, difficulty, debtType, debtAmount: Number(debtAmount),
+        category, difficulty, debtType: 'custom', debtAmount: Number(debtAmount),
       });
       onTaskAdded(res.data.task);
       onClose();
@@ -161,9 +147,9 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(59,130,246,0.12)' }}>
           <div>
             <h2 className="text-lg font-bold text-navy-50">Create Quest</h2>
-            <p className="text-xs text-navy-400 mt-0.5">Set a challenge and define the debt if you miss it.</p>
+            <p className="text-xs text-slate-400 mt-0.5">Set a challenge and define the debt if you miss it.</p>
           </div>
-          <button onClick={onClose} className="text-navy-400 hover:text-navy-200 transition-colors p-1">
+          <button onClick={onClose} className="text-slate-400 hover:text-navy-200 transition-colors p-1">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -207,7 +193,7 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
                           color: active ? '#60a5fa' : '#64748b',
                         }}
                       >
-                        {cat.icon} {cat.label}
+                        <CategoryIcon category={cat.value} className="w-3.5 h-3.5" color="currentColor" /> {cat.label}
                       </button>
                     );
                   })}
@@ -276,27 +262,10 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
 
               {/* IF I FAIL */}
               <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-3">⚠ If I fail this quest, I owe…</p>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {DEBT_TYPES.map((dt) => {
-                    const active = debtType === dt.value;
-                    return (
-                      <button
-                        key={dt.value}
-                        type="button"
-                        onClick={() => setDebtType(dt.value)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
-                        style={{
-                          background: active ? 'rgba(239,68,68,0.2)' : 'rgba(13,31,56,0.6)',
-                          border: `1px solid ${active ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.1)'}`,
-                          color: active ? '#f87171' : '#64748b',
-                        }}
-                      >
-                        {dt.icon} {dt.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1"><Icon name="alert" className="w-3 h-3 inline -mt-0.5 mr-1" color="#f87171" />If I fail this quest, I owe…</p>
+                <p className="text-[11px] mb-3" style={{ color: '#64748b' }}>
+                  You can choose how to pay it off (pushups, study, walk, etc.) when paying your debt.
+                </p>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -306,8 +275,8 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
                     value={debtAmount}
                     onChange={(e) => setDebtAmount(e.target.value)}
                   />
-                  <span className="text-xs text-navy-300">
-                    {selectedDebtType?.unit || 'units'} per overdue day
+                  <span className="text-xs" style={{ color: '#94a3b8' }}>
+                    debt points per overdue day
                   </span>
                 </div>
               </div>
@@ -323,7 +292,7 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary flex-1" disabled={loading}>
-                  {loading ? 'Creating…' : '⚔️ Save Quest'}
+                  {loading ? 'Creating…' : <span className="flex items-center justify-center gap-2"><Icon name="swords" className="w-4 h-4" color="currentColor" /> Save Quest</span>}
                 </button>
               </div>
             </form>
@@ -338,7 +307,6 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
               difficulty={difficulty}
               dueDate={dueDate}
               dueTime={dueTime}
-              debtType={debtType}
               debtAmount={Number(debtAmount)}
             />
           </div>

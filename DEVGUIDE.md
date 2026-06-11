@@ -11,9 +11,10 @@ A deep dive into how the codebase is structured, how each file works, and how ev
 3. [Backend](#3-backend)
    - [Entry Point — index.js](#31-entry-point--indexjs)
    - [Auth Middleware](#32-auth-middleware)
-   - [Database Schema](#33-database-schema)
-   - [Routes](#34-routes)
-   - [Cron Job — dailyDebt.js](#35-cron-job--dailydebtjs)
+   - [Rate Limiter Middleware](#33-rate-limiter-middleware)
+   - [Database Schema](#34-database-schema)
+   - [Routes](#35-routes)
+   - [Cron Jobs](#36-cron-jobs)
 4. [Frontend](#4-frontend)
    - [API Client — api.js](#41-api-client--apijs)
    - [Auth Context](#42-auth-context)
@@ -31,28 +32,21 @@ PushupDebt is a full-stack web app with a clear separation between frontend and 
 
 - **Frontend** (Next.js) — runs in the user's browser, handles all UI, talks to the backend over HTTP
 - **Backend** (Node.js + Express) — handles all business logic, authentication, and database access
-- **Database** (PostgreSQL via Prisma) — stores users, tasks, debt records, and pushup sessions
+- **Database** (PostgreSQL via Prisma) — stores users, tasks, debt records, pushup sessions, friendships, challenges, and push subscriptions
 
 The two sides communicate exclusively through a REST API. The frontend never touches the database directly.
 
-The app has one background process: a **cron job** running inside the backend that fires at midnight every day to recalculate pushup debt for all users.
+The app has two background processes running inside the backend: a **debt cron job** at 00:01 UTC nightly and an **email reminder cron job** on its own schedule.
 
 ---
 
 ## 2. Monorepo Structure
 
-The repo is a monorepo — one Git repository containing both the frontend and backend as separate subdirectories.
-
-```
-pushup-debt/
-├── backend/          # Node.js + Express API
-├── frontend/         # Next.js app
-└── package.json      # Root scripts to run both together
-```
+The repo is a monorepo — one Git repository containing both the frontend and backend as separate subdirectories. See `README.md` for the full directory tree.
 
 ### Root `package.json`
 
-The root package.json exists only to make local development easier. It uses the `concurrently` package to run both servers at the same time with `npm run dev`.
+Exists only to make local development easier. Uses `concurrently` to run both servers with `npm run dev`.
 
 Key scripts:
 - `install:all` — runs `npm install` inside both `backend/` and `frontend/`
@@ -72,9 +66,9 @@ This root package.json is not deployed — Railway and Vercel each deploy their 
 This is the first file Node.js runs. It does four things in order:
 
 1. **Loads environment variables** from `.env` using `dotenv`
-2. **Sets up Express middleware** — CORS and JSON body parsing
+2. **Sets up Express middleware** — CORS, JSON body parsing, and rate limiters
 3. **Registers all route handlers** under their URL prefixes
-4. **Starts the cron job** and begins listening on the configured port
+4. **Starts the cron jobs** and begins listening on the configured port
 
 #### CORS
 
@@ -101,9 +95,16 @@ app.use('/api/debt',        require('./routes/debt'));
 app.use('/api/sessions',    require('./routes/sessions'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/streak',      require('./routes/streak'));
+app.use('/api/friends',     require('./routes/friends').router);
+app.use('/api/users',       require('./routes/users'));
+app.use('/api/challenges',  require('./routes/challenges'));
+app.use('/api/push',        require('./routes/push'));
+app.use('/api/shop',        require('./routes/shop'));
 ```
 
 Each `require('./routes/...')` loads a file that exports an Express Router. The prefix (`/api/tasks`) is prepended to every route defined inside that router. So `router.get('/')` in `tasks.js` becomes `GET /api/tasks/`.
+
+Note that `friends.js` exports `{ router, getFriendIds }` — the named export `getFriendIds` is reused by `leaderboard.js`, `challenges.js`, and `shop.js`.
 
 #### Health check
 
@@ -143,38 +144,83 @@ The JWT token is a signed string that encodes `{ userId: 123 }`. It cannot be fo
 
 ---
 
-### 3.3 Database Schema
+### 3.3 Rate Limiter Middleware
 
-**File:** `backend/prisma/schema.prisma`
+**File:** `backend/src/middleware/rateLimiter.js`
 
-Prisma uses this file to:
-- Generate the database tables (via migrations)
-- Generate the TypeScript/JS client used in route handlers
+Two limiters using `express-rate-limit`:
 
-There are four models:
+- **`authLimiter`** — applied to `/api/auth/login`, `/signup`, `/forgot-password`, `/reset-password`. Strict limit to prevent brute-force attacks.
+- **`generalLimiter`** — applied to all `/api/*` routes. Looser limit to prevent abuse without blocking normal use.
 
-#### User
-Stores account credentials. `username` is optional — users can sign up with just email and set a username later.
-
-#### Task
-Each task belongs to a user (`userId` foreign key). The `recurrence` field is a string (`"none"`, `"daily"`, `"weekly"`) — not an enum — for simplicity. `completedAt` is null until the task is completed.
-
-The `pushupDebt` relation is one-to-one: a task can have at most one debt record. When a task is deleted (`onDelete: Cascade`), its debt record is automatically deleted too.
-
-#### PushupDebt
-Created when a task goes overdue. Tracks:
-- `pushupsOwed` — the current number of pushups owed (Float because it compounds with 10% interest)
-- `daysOverdue` — how many days past due (used to recalculate on each cron run)
-- `resolved` — set to `true` when pushups are fully paid off
-
-One debt per task (`taskId @unique`). You can't have two debt records for the same task.
-
-#### PushupSession
-A log entry every time a user records pushups. Used for leaderboard totals and pushup history. Debt reduction happens in the sessions route handler, not stored here directly.
+Both are in-memory (no Redis), so limits reset when the backend process restarts.
 
 ---
 
-### 3.4 Routes
+### 3.4 Database Schema
+
+**File:** `backend/prisma/schema.prisma`
+
+Prisma uses this file to generate database tables (via migrations) and the JS client used in route handlers.
+
+#### User
+
+Stores account credentials and lifetime stats:
+
+| Field | Purpose |
+|---|---|
+| `email`, `username`, `password` | Identity. Username is optional — users can sign up with email only and set a username later |
+| `timezone` | IANA timezone string (e.g. `America/New_York`). Sent by the browser on signup and updated on login if changed. Used for timezone-aware debt calculation |
+| `totalTasksCompleted` | Lifetime counter incremented on `complete`, decremented on `uncomplete`. Persists through task deletion so the leaderboard always shows an accurate all-time count |
+| `maxStreak` | All-time best streak in days. Updated by `GET /api/streak` whenever the current streak exceeds it. Used for badge earning so badges aren't lost when a streak resets |
+| `emailReminders` | Boolean preference for opt-in email notifications |
+| `bio`, `avatar` | Profile customisation. `avatar` is stored as a base64 data URL (capped at 300 KB) |
+| `coins` | Coin balance earned from surplus pushups (1 coin per pushup done when debt = 0). Spent in the shop |
+
+#### Task
+
+Each task belongs to a user (`userId` foreign key). The `recurrence` field is a string (`"none"`, `"daily"`, `"weekly"`). `completedAt` is null until completed. `deletedAt` is null until soft-deleted.
+
+**Soft-delete**: tasks are never hard-deleted via the API. Instead `deletedAt` is set to the current timestamp. This keeps completed tasks in the database for 7 days so the leaderboard can count them in the `tasksCompleted7d` window. All queries that list tasks filter `deletedAt: null`. The nightly cron hard-deletes expired rows.
+
+The `pushupDebt` relation is one-to-one with `onDelete: SetNull` — deleting a task orphans its debt (sets `taskId = null`) rather than deleting it.
+
+#### PushupDebt
+
+Created when a task goes overdue. Tracks:
+- `pushupsOwed` — the current number of pushups owed (Float for precision during partial payoffs)
+- `daysOverdue` — how many days past due (used to recalculate on each cron run without double-charging)
+- `resolved` — set to `true` when pushups are fully paid off
+
+`taskId` is nullable — null means the task was deleted (or the debt was created by a shop item or deletion penalty). The debt breakdown groups all null-taskId debts into a single "Deleted tasks" row. Deleting an incomplete task always creates or adds to a null-taskId debt (5-pushup penalty). The shop's Debt Bomb also creates a null-taskId debt on the target user.
+
+#### PushupSession
+
+A log entry every time a user records pushups. Used for leaderboard totals and the pushup history chart. Debt reduction happens in the sessions route handler — this table is purely a log.
+
+#### Friendship
+
+Tracks friend relationships between users. `status` is `"pending"` until accepted, then `"accepted"`. A unique constraint on `[requesterId, receiverId]` prevents duplicate requests.
+
+When searching for users, pending relationships are now included in results (not filtered out) so the frontend can show the correct button state ("Request sent / Unsend") after navigating away and back.
+
+#### Challenge
+
+Records a competitive challenge between two users. Fields:
+- `type` — `"tasks"` (most tasks completed) or `"pushups"` (most pushups logged)
+- `durationDays` — 3, 7, 14, or 30
+- `status` — `"pending"` → `"active"` (on accept) → stays active until `endDate` passes
+- `startDate`, `endDate` — set when the challenged user accepts; scores are computed relative to this window
+
+Scores are computed live at query time in `challenges.js` using `computeScore()` — nothing is stored in the row.
+
+#### PushSubscription
+
+Stores web push subscription objects (endpoint, p256dh key, auth key) per user. Used by the push notification job. One user can have multiple subscriptions (multiple devices/browsers).
+
+---
+
+### 3.5 Routes
 
 Each route file creates an Express `Router`, defines handlers on it, and exports it. The router is mounted in `index.js`.
 
@@ -199,16 +245,26 @@ Handles user identity.
 1. Detects whether the identifier is an email (contains `@`) or username
 2. Finds the user by email or username
 3. Compares the submitted password against the stored hash using `bcrypt.compare`
-4. If valid, signs and returns a new JWT token
+4. If the detected timezone differs from what's stored, updates it (handles travel)
+5. Signs and returns a new JWT token
 
 **GET `/api/auth/me`** *(auth required)*
-Returns the current user's profile. Used by the frontend on page load to validate the stored token is still good.
+Returns the current user's full profile including `coins`, `totalTasksCompleted`, `maxStreak`, `timezone`, `bio`, `avatar`. Used by the frontend on page load to validate the stored token and hydrate the auth context.
 
 **PATCH `/api/auth/password`** *(auth required)*
-Verifies the old password before updating to the new one. Prevents someone who grabbed a logged-in session from changing the password.
+Verifies the old password before updating to the new one.
 
 **PATCH `/api/auth/username`** *(auth required)*
-Sets or updates the username. Checks for uniqueness against other users (but allows keeping the same username).
+Sets or updates the username. Checks for uniqueness against other users.
+
+**PATCH `/api/auth/profile`** *(auth required)*
+Updates `bio` (capped at 160 chars) and/or `avatar` (validated as a data URL, capped at 300 KB).
+
+**PATCH `/api/auth/notifications`** *(auth required)*
+Toggles the `emailReminders` boolean.
+
+**DELETE `/api/auth/account`** *(auth required)*
+Hard-deletes the user and all their associated data (debts, sessions, tasks, friendships, challenges) in dependency order.
 
 ---
 
@@ -223,34 +279,28 @@ Accepts two optional query params:
 
 The `upToDate` query is what the dashboard uses — it shows everything you need to act on today (incomplete tasks from the past and present) plus what you already finished today.
 
-Date filtering uses `gte`/`lt` to capture the full day in UTC (midnight to midnight).
-
 **POST `/api/tasks`**
-Creates a task. `dueDate` defaults to end of today if not provided. After creation, it immediately calls `calculateAndUpdateDebt()` from `dailyDebt.js` — so if you create a task with a past due date, debt is generated right away.
+Creates a task. Blocked if `totalOwed > 99` (debt guard). After creation, immediately calls `calculateAndUpdateDebt(userId)` — so if you create a task with a past due date, debt is generated right away.
 
 **PATCH `/:id/complete`**
-Marks a task complete and sets `completedAt` to now.
-
-For **recurring tasks**, this also:
-1. Resets `completed` back to `false`
-2. Advances `dueDate` by 1 day (daily) or 7 days (weekly) to the next occurrence
-3. Deletes any existing debt record for this task (it was paid by completing it)
+Marks a task complete and sets `completedAt` to now. Runs in a Prisma transaction that also increments `user.totalTasksCompleted`.
 
 **PATCH `/:id/uncomplete`**
-Reverses a completion — sets `completed: false`, clears `completedAt`. Lets users undo an accidental check.
+Reverses a completion. Runs in a transaction that decrements `user.totalTasksCompleted`.
 
 **DELETE `/:id`**
-Deletes the task. Because of `onDelete: Cascade` in the schema, this also deletes the associated `PushupDebt` record automatically.
+Soft-deletes the task by setting `deletedAt = now()`. If the task was incomplete, a 5-pushup penalty is applied:
+- If the task had existing debt: sets `taskId = null` on that debt and adds 5 to `pushupsOwed`
+- If no existing debt: creates a new `PushupDebt` with `taskId = null, pushupsOwed = 5`
+
+Completed tasks are soft-deleted with no penalty.
 
 ---
 
 #### `routes/debt.js`
 
 **GET `/api/debt`**
-Returns all unresolved debt records for the current user, each joined with its task title. Also calculates the total pushups owed across all records.
-
-**GET `/api/debt/summary`**
-Returns aggregate stats: total pushups owed, count of overdue tasks, and the maximum days any single task is overdue. Used by `DebtSummary` component.
+Returns all unresolved debt records for the current user, each joined with its task title, plus the total pushups owed.
 
 **POST `/api/debt/calculate`**
 Manually triggers debt recalculation for the current user. Called by the dashboard on mount so debt is always fresh when you open the app, without waiting for midnight.
@@ -267,11 +317,13 @@ The reduction logic:
 2. Iterates through them, subtracting from `pushupsOwed` until the submitted count runs out
 3. When a record reaches 0, marks it `resolved: true`
 4. Creates a `PushupSession` record to log the activity
+5. **If any pushups remain after all debt is cleared**, increments `user.coins` by the remainder (1 coin per surplus pushup)
+6. Returns `{ session, totalOwed, coinsEarned, pushupsApplied }`
 
-Paying oldest debt first is a design choice — it prevents debt from piling up indefinitely for old tasks.
+Paying oldest debt first is a design choice — it prevents debt from piling up indefinitely for old tasks. Coins are only earned from surplus — there's no reward for pushups that go toward debt.
 
 **GET `/api/sessions`**
-Returns the last 30 pushup sessions for the current user. Used on the verify-pushups page to show history.
+Returns the last 30 pushup sessions plus `allTimePushups` (a Prisma aggregate of all sessions ever). Used on the dashboard progress chart and verify-pushups page.
 
 ---
 
@@ -286,62 +338,128 @@ The algorithm:
 2. For each day, checks if every task due that day has `completed: true`
 3. Also checks if any unresolved debt existed (if debt was accrued that day, the streak breaks)
 4. Stops counting when it finds a day that fails either check
-5. Returns the count
 
-This is computed fresh on each request — there's no stored streak value in the database.
+Streak is computed fresh on each request. If the result exceeds `user.maxStreak`, it updates `maxStreak` via `updateMany` with a `lt` condition (efficient — only writes on a new best).
 
 ---
 
 #### `routes/leaderboard.js`
 
-**GET `/api/leaderboard`**
+**GET `/api/leaderboard?friends=true`**
 
-Fetches all users and for each one:
-- Sums their unresolved `pushupsOwed` across all debt records
-- Sums their total `pushupsCompleted` across all sessions
+Fetches all users (or only friends + self when `?friends=true`) and for each computes:
+- `totalDebt` — sum of unresolved `pushupsOwed`
+- `totalPushups` — sum of all `pushupsCompleted` across sessions
+- `tasksCompleted7d` — count of tasks completed in the last 7 days (soft-deleted completed tasks still count since their rows are preserved for 7 days)
+- `totalTasksCompleted` — from the `User` field (all-time lifetime counter)
+- `avatar` — for display in the leaderboard rows
 
-Sorts by lowest debt first. Tiebreaker is most total pushups completed (rewards effort). Returns a sanitized view — only `id`, `username` (or masked email), debt total, and pushup total. Passwords never leave the backend.
+Sort order: 1) most `tasksCompleted7d`, 2) clean (zero debt), 3) lowest debt, 4) most pushups.
 
 ---
 
-### 3.5 Cron Job — `dailyDebt.js`
+#### `routes/friends.js`
 
-**File:** `backend/src/jobs/dailyDebt.js`
+Exports both a `router` (mounted at `/api/friends`) and a `getFriendIds(userId)` helper used by other routes.
 
-This file exports two things:
-- `calculateAndUpdateDebt(userId)` — recalculates debt for one user
-- `startDebtCronJob()` — registers the midnight cron schedule
+**GET `/api/friends`**
+Returns accepted friends with stats: `username`, `avatar`, `totalDebt`, `totalPushups`, `maxStreak`, `totalTasksCompleted`.
 
-#### `calculateAndUpdateDebt(userId)`
+**GET `/api/friends/requests`**
+Returns pending incoming requests including the requester's `username` and `avatar`.
 
-Called in two places:
-1. From the cron job at midnight (for all users)
-2. From `POST /api/tasks` (immediately after task creation)
-3. From `POST /api/debt/calculate` (manual trigger from dashboard)
+**GET `/api/friends/feed`**
+Returns a merged, time-sorted activity feed of friends' completed tasks and pushup sessions from the last 7 days (up to 50 events).
 
-What it does:
+**GET `/api/friends/search?q=`**
+Searches users by username. Only excludes accepted friends (and self) — users with a pending relationship are included in results, annotated with `pendingStatus: 'sent' | 'received' | null` and `friendshipId`. This lets the frontend show the correct button state (Add Friend / Request sent + Unsend / Respond) even after navigating away and back.
 
-**Step 1 — Find overdue incomplete tasks**
-Queries all tasks where `completed: false` and `dueDate < now`.
+**POST `/api/friends/request`**
+Creates a pending `Friendship` row. Optionally sends a notification email to the target if they have `emailReminders` enabled (fire-and-forget, doesn't block the response).
 
-**Step 2 — Create or update debt records**
-For each overdue task:
-- If no debt record exists yet: creates one with `pushupsOwed = 5 × daysOverdue`
-- If a debt record already exists: recalculates `pushupsOwed = 5 × daysOverdue` (replaces, doesn't add — prevents double-counting)
+**PATCH `/:id/accept`** / **PATCH `/:id/decline`**
+Accept sets status to `"accepted"`. Decline deletes the row.
 
-**Step 3 — Reset completed recurring tasks**
-Finds tasks where `completed: true` and `recurrence !== 'none'`.
-- Daily: sets new `dueDate` to tomorrow at 23:59:59 UTC, resets `completed: false`, deletes debt
-- Weekly: sets new `dueDate` to 7 days from now at 23:59:59 UTC, same reset
+**DELETE `/:id`**
+Handles two cases: removing an accepted friend (either party can remove), or canceling a pending request you sent (only the requester can cancel).
 
-**Step 4 — Clean up completed non-recurring tasks**
-Deletes tasks where `completed: true`, `recurrence === 'none'`, and `completedAt` was before today. This keeps the dashboard clean — finished one-off tasks disappear the next day.
+---
 
-#### `startDebtCronJob()`
+#### `routes/challenges.js`
 
-Uses `node-cron` to schedule `calculateAndUpdateDebt` for every user at `0 1 0 * * *` (00:01:00 every day). The 1-second offset avoids exact midnight edge cases.
+**GET `/api/challenges`**
+Returns all non-declined challenges for the current user with live scores. For active challenges (and completed ones), `computeScore()` queries the DB to count tasks or sum pushups within the challenge's `startDate`–`endDate` window. The `winner` field is computed client-side from scores when `endDate` has passed and status is still `"active"`.
 
-The cron job runs **inside the same Node.js process** as the Express server. It's not a separate service or worker. This is why Railway was chosen over Render — Render's free tier spins down the process after 15 minutes of inactivity, which would kill this job.
+**POST `/api/challenges`**
+Creates a pending challenge. Validates that the target is an accepted friend (using `getFriendIds`), that `type` is `"tasks"` or `"pushups"`, and that `durationDays` is one of `[3, 7, 14, 30]`.
+
+**PATCH `/:id/accept`**
+Sets `status = "active"`, `startDate = now`, `endDate = now + durationDays`.
+
+**PATCH `/:id/decline`**
+Sets `status = "declined"` (row kept for history, filtered from GET results).
+
+---
+
+#### `routes/users.js`
+
+**GET `/api/users/:username`**
+Returns a public profile: username, bio, avatar, maxStreak, totalTasksCompleted, total pushups, and member since date. No private data (email, debt, etc.) is exposed. Auth required (must be logged in to view).
+
+---
+
+#### `routes/shop.js`
+
+**GET `/api/shop/items`**
+Returns the static list of available shop items. Currently:
+
+| id | name | cost | effect |
+|---|---|---|---|
+| `debt_bomb` | Debt Bomb 💣 | 50 coins | Adds 10 pushups to a friend's debt |
+
+**POST `/api/shop/buy`**
+Validates the purchase and applies the effect:
+1. Checks the buyer has enough `coins`
+2. For `debt_bomb`: verifies `targetUsername` exists and is an accepted friend
+3. Runs a Prisma `$transaction` — deducts coins from buyer and creates a `PushupDebt` record (`taskId: null, pushupsOwed: 10, daysOverdue: 1`) on the target atomically
+
+Using a transaction ensures coins are never deducted without the debt being created (and vice versa).
+
+---
+
+#### `routes/push.js`
+
+Manages web push subscriptions (VAPID-based).
+
+**GET `/api/push/vapid-public-key`** — returns the public key so the browser can create a push subscription.
+**POST `/api/push/subscribe`** — stores a subscription (endpoint + keys) in `PushSubscription`.
+**DELETE `/api/push/unsubscribe`** — removes a subscription by endpoint.
+
+---
+
+### 3.6 Cron Jobs
+
+#### `jobs/dailyDebt.js`
+
+Exports `calculateAndUpdateDebt(userId)` and `startDebtCronJob()`.
+
+`calculateAndUpdateDebt` is called in three contexts:
+1. **Nightly cron** at 00:01 UTC (for all users)
+2. **`POST /api/tasks`** — immediately after task creation
+3. **`POST /api/debt/calculate`** — manual trigger from the dashboard on mount
+
+**Steps (full nightly run only — steps 3 and 4 are skipped for per-user calls):**
+
+1. Find all incomplete, non-deleted tasks where `dueDate < now`
+2. For each overdue task: create a new `PushupDebt` (first time) or add `5 × newDays` (subsequent runs, only charges new overdue days to preserve partial payoffs)
+3. Reset completed recurring tasks: advance `dueDate` by one period, set `completed = false`, delete resolved debt
+4. Hard-delete expired task rows: completed non-recurring tasks older than 7 days, and soft-deleted incomplete tasks
+
+The daysOverdue calculation is timezone-aware — it uses `Intl.DateTimeFormat` to convert timestamps to the user's local calendar day before computing the difference, so midnight boundaries are counted in the user's local time, not UTC.
+
+#### `jobs/emailReminders.js`
+
+Sends opt-in reminder emails to users with upcoming or overdue tasks. Only sends to users with `emailReminders: true`. Uses Resend.
 
 ---
 
@@ -369,9 +487,7 @@ api.interceptors.request.use((config) => {
 });
 ```
 
-This means every component can call `api.get('/api/tasks')` without manually handling auth headers — the interceptor does it automatically.
-
-All backend endpoints are wrapped in named functions (`getTasks`, `createTask`, `logPushups`, etc.) so components import clean function names rather than raw Axios calls. If an API URL ever changes, it only needs updating in one place.
+All backend endpoints are wrapped in named functions so components import clean function names rather than raw Axios calls. Current groups: auth, tasks, debt, sessions, streak, leaderboard, friends, users, challenges, shop, push notifications.
 
 ---
 
@@ -379,27 +495,17 @@ All backend endpoints are wrapped in named functions (`getTasks`, `createTask`, 
 
 **File:** `frontend/contexts/AuthContext.js`
 
-React Context is used to share authentication state (the current user) across all pages and components without prop-drilling.
+React Context that shares authentication state across all pages and components without prop-drilling.
 
 The `AuthProvider` wraps the entire app in `_app.js`. It provides:
-- `user` — the current user object (`null` if not logged in)
+- `user` — the current user object (`null` if not logged in). Includes `coins`, `totalTasksCompleted`, `maxStreak`, `timezone`, `bio`, `avatar` from `/api/auth/me`
 - `loading` — `true` while validating the stored token on first load
 - `loginUser(token, userData)` — stores the token in localStorage and sets `user` state
-- `logoutUser()` — removes the token and clears `user` state
-- `updateUser(userData)` — updates `user` state in-place (used after changing username)
+- `logoutUser()` — removes the token, clears `user` state, redirects to `/welcome`
+- `updateUser(userData)` — merges a partial update into `user` state in-place (used after changing username, profile, or coin balance after a shop purchase)
 
 **Token validation on mount:**
 When the app first loads, AuthContext checks if a token exists in localStorage and calls `GET /api/auth/me` to verify it's still valid. If the token has expired or been tampered with, it clears it and the user is treated as logged out.
-
-**How pages use it:**
-```js
-const { user, loading } = useAuth();
-
-if (loading) return <LoadingSpinner />;
-if (!user) { router.push('/login'); return null; }
-```
-
-Protected pages redirect to `/login` if no user is found.
 
 ---
 
@@ -409,67 +515,77 @@ Next.js uses file-based routing — each file in `pages/` becomes a URL route.
 
 #### `pages/index.js` — Dashboard
 
-The main page after login. Layout is two columns:
-- **Left:** task list, task progress bar, and an "Add Task" button
-- **Right:** debt summary, formula explanation, and a link to verify pushups
+The main page after login. Layout is a 5-column grid (3 left + 2 right) on desktop, stacked on mobile.
 
-On mount, it:
-1. Calls `POST /api/debt/calculate` to refresh debt for the current user
-2. Fetches today's tasks via `GET /api/tasks?upToDate=today`
-3. Fetches debt summary via `GET /api/debt/summary`
+On mount:
+1. Calls `POST /api/debt/calculate` to refresh debt
+2. Fetches tasks (`upToDate=today`), debt, streak, sessions, and friends list in parallel
+3. `hasFriends` controls whether the ActivityFeed renders below the grid
 
-**Username prompt:** If `user.username` is null, a modal appears prompting the user to set one. This handles accounts created before the username feature was added.
+**Left column:** task list, progress bar, task stats row, "Today's Focus" card (shown when ≤ 2 tasks).
 
-**Debt block:** If total debt exceeds 99 pushups, a blocking modal appears over the dashboard. The user can't add new tasks until they reduce their debt below 99. This is an intentional design mechanic to discourage letting debt pile up.
+**Right column:** DebtSummary component, streak milestone card (progress bar toward next of 3/7/14/30/60/100 days with earned pills), "How It Works" card.
 
-**Task progress bar:** Calculates `completed / total` for today's tasks and shows a colored bar.
+**Progress section (full-width):** 14-day pushup bar chart (hand-rolled SVG), all-time stats row (pushups, tasks, streak, member since).
 
-#### `pages/login.js`
+**Username prompt:** If `user.username` is null, a banner prompts the user to set one.
 
-Simple form that calls `POST /api/auth/login`. On success, calls `loginUser()` from AuthContext and redirects to the dashboard. Redirects away immediately if already logged in.
+**Debt block modal:** If total debt exceeds 99 pushups, the Add Task button shows a blocking modal. This is an intentional mechanic.
 
-#### `pages/signup.js`
+#### `pages/login.js` / `pages/signup.js`
 
-Form with client-side validation before submitting to `POST /api/auth/signup`:
-- Username: 3–20 characters, only letters/numbers/underscores
-- Password: minimum 6 characters
-- Confirm password: must match
+Standard auth forms. Signup validates username format (3–20 chars, letters/numbers/underscores) and password length client-side before hitting the API. Both send the browser's detected timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) alongside credentials.
 
-Validation happens in the component before the API call — the backend also validates, but the frontend catches obvious mistakes instantly without a network round-trip.
+#### `pages/profile.js`
 
-#### `pages/settings.js`
+Accessible by clicking the username in the nav bar.
 
-Two independent forms on the same page:
-
-**Change username** — calls `PATCH /api/auth/username`. Updates the user context with `updateUser()` so the nav bar reflects the new name immediately.
-
-**Change password** — calls `PATCH /api/auth/password` with old + new + confirm. The old password is required server-side as a security measure.
-
-Each form has its own success/error state so they don't interfere with each other.
+Sections:
+- **Badges** — 6 streak milestone badges (3/7/14/30/60/100 days). Earned state based on `user.maxStreak` (all-time best), not current streak, so badges are permanently earned. Locked badges are dimmed.
+- **Account info** — email, username, timezone, live local clock
+- **Change username** / **Change password** — inline forms
+- **Notification preferences** — toggle email reminders
+- **Delete account** — confirmation modal
 
 #### `pages/leaderboard.js`
 
-Calls `GET /api/leaderboard` and renders a ranked list. The current user is highlighted. Users without a username are shown with a masked email (`s***@gmail.com`). This is handled backend-side.
+Two tabs: Global and Friends. Friends tab lazy-loads on first switch (`?friends=true`). Each row shows avatar (image or initial fallback), username linked to `/u/[username]`, debt/pushup stats, and a 7-day tasks badge. Current user's row is highlighted in amber.
 
-Debt is shown in red if above 0, with a green "Clean" checkmark if at 0.
+#### `pages/friends.js`
+
+Three tabs: Friends, Requests, Find.
+
+- **Friends** — lists accepted friends with avatar, stats, Challenge and Remove buttons. Also shows pending challenge requests and active challenges at the top.
+- **Requests** — incoming pending friend requests with Accept/Decline.
+- **Find** — debounced username search (300ms). Results show correct button state based on `pendingStatus` returned by the server: "Add Friend", "Request sent + Unsend", or "Respond" (switches to Requests tab). This state is server-derived — navigating away and back does not reset it.
+
+Challenge modal: pick type (tasks/pushups) and duration (3/7/14/30 days), then send.
+
+#### `pages/shop.js`
+
+Shows the user's coin balance prominently. Lists available items with affordability state (greyed out + "need X more coins" if insufficient). Clicking Buy opens a modal with a friend picker (shows avatar + current debt). Confirm deducts coins optimistically via `updateUser` and calls `POST /api/shop/buy`. The Debt Bomb creates 10 pushups of debt on the target immediately.
 
 #### `pages/verify-pushups.js`
 
-The most complex page. Uses **MediaPipe Pose** (a Google ML library loaded from CDN) to detect body landmarks in a webcam feed and count pushup repetitions.
+The most complex page. Uses **MediaPipe Pose** (loaded from CDN — not npm) to detect body landmarks in a webcam feed and count pushup repetitions.
 
 **How rep counting works:**
-
 1. MediaPipe identifies 33 body landmarks each frame (shoulders, elbows, wrists, hips, etc.)
-2. The elbow angle is calculated from three points: shoulder → elbow → wrist using the law of cosines
-3. A rep is counted when:
-   - Angle drops below **85°** (down position detected)
-   - Then rises above **160°** (up position detected — rep complete)
-4. Back angle is calculated from shoulder → hip. If this angle exceeds **40°** from horizontal, the back is not parallel to the ground and the rep is flagged as invalid form
+2. Elbow angle calculated from shoulder → elbow → wrist using `Math.atan2`
+3. A rep is counted when: angle drops below **90°** AND is held for ≥ **500ms** (anti-cheat — a `downSinceRef` timestamp tracks the hold; a "▼ HOLD…" badge with fill animation shows progress), then rises above **155°**
+4. Back angle (shoulder → hip vs horizontal) must be < **40°** for the rep to count
 
-**Gesture control:**
-If either wrist rises above the shoulder landmark for 1.5 continuous seconds, it toggles the counter on/off. This lets users start/stop counting without touching the screen while in pushup position.
+**Gesture control:** Either wrist held above the shoulder for 1.5 s toggles counting on/off — no need to touch the screen while in pushup position.
 
-**After counting:** The user enters the rep count (pre-filled from camera) and submits. This calls `POST /api/sessions` to log and apply the pushups to debt.
+**On submit:** Calls `POST /api/sessions`. The response includes `coinsEarned` — if surplus pushups earned coins, "🪙 +N coins earned!" is shown in the success card.
+
+#### `pages/u/[username].js`
+
+Public profile page. Fetches `GET /api/users/:username`. Shows avatar, bio, streak badges, and key stats. Accessible to any logged-in user.
+
+#### `pages/welcome.js`
+
+Landing page shown to logged-out users. Links to login and signup.
 
 ---
 
@@ -477,59 +593,36 @@ If either wrist rises above the shoulder landmark for 1.5 continuous seconds, it
 
 #### `Layout.js`
 
-Wraps every page. Renders the top navigation bar with:
-- App title (links to dashboard)
-- Current streak badge (fetched from `GET /api/streak`)
-- Links to leaderboard and settings
-- Username/email display and logout button
-
-The streak is fetched inside Layout so it's always fresh on every navigation.
+Wraps every page. Renders the sticky top navigation bar with:
+- **Logo** — links to dashboard
+- **Streak badge** — 🔥 + streak count received as a `streak` prop; each page fetches its own streak and passes it down
+- **Coin balance badge** — 🪙 + `user.coins` from AuthContext, displayed next to the streak badge
+- **Dashboard**, **Leaderboard**, **Friends**, **Shop** nav links — each highlighted when active; Friends shows a red dot badge if there are pending requests
+- **Username/email** — clickable link to `/profile`
+- **Logout** button
 
 #### `TaskList.js`
 
-Renders the list of tasks. Each task row shows:
-- Checkbox to toggle complete/incomplete
-- Task title
-- Due date
-- Recurrence badge (`Daily` / `Weekly`) if applicable
-- Debt badge if the task has outstanding debt
-- Delete button
+Renders the list of tasks. Each row shows checkbox, title, due date label, recurrence badge, debt badge, and delete button.
 
-**Color coding by urgency:**
-- Red — overdue (past due date, not complete)
-- Yellow — due today
-- Green — due in the future
+**Delete confirmation:** Clicking delete on an incomplete task opens an inline modal ("Deleting this task will cost you 5 pushups. Are you sure?"). Completed tasks delete immediately.
 
-Tasks are sorted: incomplete first (sorted by due date ascending), then completed tasks at the bottom.
+**Color coding:** Red = overdue, Yellow = due today, no highlight = future. Tasks sorted: incomplete first (by due date ascending), then completed.
 
 #### `DebtSummary.js`
 
-Shows the user's debt status. Broken into sections:
-
-- **Total owed** — large number, color shifts from green (0) → yellow → red (high debt)
-- **Debt breakdown** — each unresolved debt record listed with its task name and pushups owed
-- **At-risk tasks** — tasks due today that haven't been completed yet, with a projection of how much debt they'll generate if missed
-- **Log pushups button** — opens `LogPushupsModal`
-- **Verify with camera link** — goes to `/verify-pushups`
+Shows debt status:
+- **Total owed** — large number with debt level badge (Light Debt / Risky / Debt Spiral / Pushup Bankruptcy), flavor text, and a "Pay X to drop to Y" sub-goal
+- **Debt breakdown** — each unresolved debt record; null-taskId debts grouped as "Deleted tasks"
+- **At-risk tasks** — tasks due today not yet completed, with a live countdown (shared `useNow()` hook — one 1-second interval, not one per task) and debt projection
 
 #### `AddTaskModal.js`
 
-A modal dialog for creating tasks. Fields:
-- Title (required)
-- Due date (date picker, defaults to today)
-- Recurrence (dropdown: None / Daily / Weekly)
+Modal for creating tasks. Fields: title, due date (defaults to today), recurrence (None / Daily / Weekly). On submit calls `createTask()` then the parent's `onTaskAdded` callback.
 
-On submit, calls `createTask()` from `api.js` and calls the parent's `onTaskAdded` callback to refresh the task list.
+#### `ActivityFeed.js`
 
-#### `LogPushupsModal.js`
-
-A modal for manually logging pushups (without camera verification). Shows:
-- Current total debt
-- Quick-select buttons for common amounts (5, 10, 15, 20, 25, 30)
-- A number input for custom amounts
-- A live preview: "After logging X pushups, you'll have Y remaining"
-
-On submit, calls `POST /api/sessions` and triggers a debt refresh in the parent.
+Friend activity feed rendered on the dashboard when `hasFriends` is true. Fetches `GET /api/friends/feed`. Displays task completions and pushup sessions from the last 7 days in a time-sorted list.
 
 ---
 
@@ -537,19 +630,16 @@ On submit, calls `POST /api/sessions` and triggers a debt refresh in the parent.
 
 **File:** `frontend/styles/globals.css`
 
-The app uses **Tailwind CSS** utility classes for most styling. `globals.css` adds:
+The app uses **Tailwind CSS** utility classes. `globals.css` adds:
 
-- Tailwind base/components/utilities imports
-- A custom `navy` color palette (navy-50 through navy-800) used for the dark background theme
-- Reusable component classes using `@apply`:
-  - `.btn-primary` — blue filled button
+- A custom `navy` color palette (navy-50 through navy-800) for the dark background theme
+- Reusable component classes via `@apply`:
+  - `.btn-primary` — amber filled button
   - `.btn-secondary` — outlined button
   - `.btn-ghost` — transparent button
-  - `.card` — dark rounded container
+  - `.card` — dark rounded container with border
   - `.input` — dark styled text input
   - `.label` — form label styling
-
-These custom classes mean components write `className="btn-primary"` instead of repeating 8 Tailwind classes everywhere.
 
 ---
 
@@ -559,38 +649,58 @@ These custom classes mean components write `className="btn-primary"` instead of 
 
 1. User fills out `AddTaskModal` and clicks Submit
 2. Frontend calls `POST /api/tasks` with `{ title, dueDate, recurrence }`
-3. Backend validates and creates the task in the database
-4. Backend immediately calls `calculateAndUpdateDebt(userId)` — if the due date is already past, a `PushupDebt` record is created right away
-5. Frontend's `onTaskAdded` callback fires, which re-fetches tasks and debt summary
-6. Dashboard re-renders showing the new task and updated debt
+3. Backend validates (blocks if debt > 99), creates the task
+4. Backend immediately calls `calculateAndUpdateDebt(userId)` — if due date is already past, a `PushupDebt` record is created right away
+5. Frontend's `onTaskAdded` callback re-fetches tasks and debt
+6. Dashboard re-renders with the new task and updated debt
 
-### Paying off debt with the camera
+### Paying off debt and earning coins
 
 1. User opens `/verify-pushups`
 2. MediaPipe loads from CDN, webcam starts, pose detection begins
 3. User does pushups — each valid rep increments the counter
 4. User clicks "Log X Pushups"
 5. Frontend calls `POST /api/sessions` with `{ pushupsCompleted: X }`
-6. Backend applies pushups to oldest debt first, marks resolved records
-7. Frontend shows updated debt
+6. Backend drains oldest debt first; any surplus increments `user.coins`
+7. Response includes `coinsEarned` — shown as "🪙 +N coins earned!" in the success card
+8. Frontend shows updated debt
+
+### Using the shop (Debt Bomb)
+
+1. User navigates to `/shop`
+2. Sees coin balance and the Debt Bomb item (50 coins)
+3. Clicks Buy → modal opens with friend picker (shows avatars + current debt)
+4. Selects a friend, clicks Confirm
+5. Frontend calls `POST /api/shop/buy` with `{ itemId: 'debt_bomb', targetUsername }`
+6. Backend verifies friendship, runs a `$transaction`: deducts 50 coins from buyer, creates a `PushupDebt` of 10 on target
+7. Frontend optimistically updates `user.coins` via `updateUser`
+8. Target sees +10 pushups on their debt the next time they load the dashboard
+
+### Friend request flow
+
+1. User goes to Friends → Find tab, searches by username
+2. Search returns results with server-annotated `pendingStatus` and `friendshipId`
+3. User clicks "Add Friend" → `POST /api/friends/request` → result updated in-place with `pendingStatus: 'sent'`
+4. If user navigates away and back, search re-fetches — server returns `pendingStatus: 'sent'` again (state not lost)
+5. User can click "Unsend" → `DELETE /api/friends/:friendshipId` (backend now allows canceling pending sent requests)
+6. Receiver sees request in the Requests tab (with avatar) → Accept or Decline
 
 ### Midnight debt recalculation
 
-1. At 00:01 every night, `node-cron` fires inside the backend process
-2. Fetches all users from the database
-3. For each user, calls `calculateAndUpdateDebt(userId)`
-4. Overdue incomplete tasks get new/updated debt records
-5. Completed recurring tasks get their due dates advanced
-6. Stale completed non-recurring tasks are deleted
+1. At 00:01 UTC, `node-cron` fires inside the backend process
+2. Calls `calculateAndUpdateDebt()` for all users
+3. Overdue incomplete tasks get new/updated debt records (timezone-aware day counting)
+4. Completed recurring tasks get their due dates advanced and completion reset
+5. Stale completed non-recurring tasks and soft-deleted incomplete tasks are hard-deleted
 
 ### Login flow
 
-1. User submits credentials on `/login`
-2. Backend validates password hash, returns JWT token
+1. User submits credentials
+2. Backend validates password hash, updates timezone if changed, returns JWT token
 3. Frontend stores token in `localStorage` via `loginUser()`
 4. All subsequent `api.js` calls automatically include `Authorization: Bearer <token>`
 5. On any page load, `AuthContext` re-validates the token against `/api/auth/me`
-6. If the token is expired (>7 days), `/api/auth/me` returns 401, context clears the token, user is redirected to login
+6. If the token is expired (>7 days), `/api/auth/me` returns 401, context clears the token, user is redirected to `/welcome`
 
 ---
 
@@ -603,14 +713,41 @@ User action (click)
   → Component calls api.js function
     → Axios interceptor adds JWT header
       → HTTPS request to Railway backend
-        → Express router matches URL
-          → Auth middleware validates JWT, sets req.userId
-            → Route handler queries database via Prisma
-              → PostgreSQL returns data
-            → Route handler returns JSON
+        → Rate limiter middleware checks limits
+          → Express router matches URL
+            → Auth middleware validates JWT, sets req.userId
+              → Route handler queries database via Prisma
+                → PostgreSQL returns data
+              → Route handler returns JSON
       → Axios receives response
     → Component updates React state
   → UI re-renders
+```
+
+### Coin earning flow
+
+```
+User submits pushups (POST /api/sessions)
+  → Backend drains oldest debts first
+    → remaining = pushupsCompleted - total debt drained
+    → if remaining > 0:
+        → user.coins += remaining (Prisma increment)
+        → coinsEarned = remaining
+  → Response: { totalOwed, coinsEarned, pushupsApplied }
+  → Frontend: shows "🪙 +N coins earned!" if coinsEarned > 0
+```
+
+### Shop purchase (atomic)
+
+```
+POST /api/shop/buy { itemId: 'debt_bomb', targetUsername }
+  → Verify buyer.coins >= 50
+  → Verify target exists and is a friend
+  → prisma.$transaction([
+      user.update({ coins: { decrement: 50 } }),   // buyer loses coins
+      pushupDebt.create({ userId: target.id, pushupsOwed: 10 }) // target gains debt
+    ])
+  → Both succeed or both fail — no partial state
 ```
 
 ### Debt recalculation (nightly)
@@ -618,13 +755,12 @@ User action (click)
 ```
 00:01 UTC
   → node-cron fires inside Express process
-    → Fetch all users
-      → For each user:
-          → Find incomplete overdue tasks
-            → Upsert PushupDebt records
-          → Find completed recurring tasks
-            → Advance due date, reset completion, delete debt
-          → Delete old completed non-recurring tasks
+    → For each overdue incomplete task:
+        → Compute daysOverdue (timezone-aware calendar day diff)
+        → Create PushupDebt (first time) or add 5 × newDays (subsequent)
+    → For each completed recurring task:
+        → Advance dueDate, reset completed=false, delete resolved debt
+    → Hard-delete expired task rows
 ```
 
 ### Token lifecycle
@@ -640,11 +776,11 @@ Every API request
 
 App mount
   → AuthContext calls GET /api/auth/me
-  → If 200: user is set in context
-  → If 401: localStorage cleared, redirect to /login
+  → If 200: user (incl. coins) is set in context
+  → If 401: localStorage cleared, redirect to /welcome
 
 Logout
   → localStorage.removeItem('token')
   → user context set to null
-  → Redirect to /login
+  → Redirect to /welcome
 ```

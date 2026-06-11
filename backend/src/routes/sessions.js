@@ -4,13 +4,16 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// POST /api/sessions — log completed pushups and reduce debt
+const ACTIVITIES = ['fitness', 'focus', 'wellness', 'chores', 'custom'];
+
+// POST /api/sessions — log a debt payoff activity and reduce debt
 router.post('/', auth, async (req, res) => {
-  const { pushupsCompleted } = req.body;
+  const { pushupsCompleted, activity } = req.body;
 
   if (!pushupsCompleted || pushupsCompleted <= 0) {
     return res.status(400).json({ error: 'pushupsCompleted must be a positive number' });
   }
+  const activityType = ACTIVITIES.includes(activity) ? activity : 'fitness';
 
   try {
     const floored = Math.floor(pushupsCompleted);
@@ -23,6 +26,7 @@ router.post('/', auth, async (req, res) => {
     const session = await prisma.pushupSession.create({
       data: {
         pushupsCompleted: floored,
+        activity: activityType,
         userId: req.userId,
       },
     });

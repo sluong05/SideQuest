@@ -18,7 +18,7 @@ export default function ParticleBackground({
 
       // ── Scene ──────────────────────────────────────────────────────────────
       const scene = new THREE.Scene();
-      scene.fog = new THREE.FogExp2(0x0f1929, 0.0015);
+      scene.fog = new THREE.FogExp2(0x050A14, 0.0018);
 
       // ── Camera ─────────────────────────────────────────────────────────────
       const camera = new THREE.PerspectiveCamera(
@@ -37,16 +37,16 @@ export default function ParticleBackground({
       mountEl.appendChild(renderer.domElement);
 
       // ── Lighting ───────────────────────────────────────────────────────────
-      const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+      const ambient = new THREE.AmbientLight(0x1a2a4a, 0.4);
       scene.add(ambient);
 
-      const dirLight = new THREE.DirectionalLight(0x3b82f6, 2);
+      const dirLight = new THREE.DirectionalLight(0x2563eb, 1.2);
       dirLight.position.set(5, 3, 5);
       scene.add(dirLight);
 
       // ── Stars ──────────────────────────────────────────────────────────────
       const starVerts = [];
-      for (let i = 0; i < 1200; i++) {
+      for (let i = 0; i < 800; i++) {
         starVerts.push(
           THREE.MathUtils.randFloatSpread(500),
           THREE.MathUtils.randFloatSpread(500),
@@ -58,39 +58,35 @@ export default function ParticleBackground({
         'position',
         new THREE.Float32BufferAttribute(starVerts, 3)
       );
-      const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.55, sizeAttenuation: true });
+      const starMat = new THREE.PointsMaterial({ color: 0x93c5fd, size: 0.38, sizeAttenuation: true, transparent: true, opacity: 0.55 });
       scene.add(new THREE.Points(starGeo, starMat));
 
       // ── Icosahedron ────────────────────────────────────────────────────────
-      const ico = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(5, 0),
-        new THREE.MeshStandardMaterial({ color: 0x1d4ed8, wireframe: true })
-      );
+      const icoMat = new THREE.MeshStandardMaterial({ color: 0x1a3a6e, wireframe: true, transparent: true, opacity: 0.5 });
+      const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(5, 0), icoMat);
       ico.position.set(-38, -12, -15);
       scene.add(ico);
 
       // ── Octahedron ─────────────────────────────────────────────────────────
-      const oct = new THREE.Mesh(
-        new THREE.OctahedronGeometry(4, 0),
-        new THREE.MeshStandardMaterial({ color: 0x2563eb, wireframe: true })
-      );
+      const octMat = new THREE.MeshStandardMaterial({ color: 0x1e4080, wireframe: true, transparent: true, opacity: 0.45 });
+      const oct = new THREE.Mesh(new THREE.OctahedronGeometry(4, 0), octMat);
       oct.position.set(38, 12, -20);
       scene.add(oct);
 
       // ── Extra shapes ───────────────────────────────────────────────────────
       const shapes = [
-        // [geometry, color, x, y, z]
-        [new THREE.TetrahedronGeometry(3, 0),    0x3b82f6, 0,  14, -10],
-        [new THREE.DodecahedronGeometry(4.5, 0), 0x1e3a5f,  30, -14,  -8],
-        [new THREE.IcosahedronGeometry(7, 0),    0x1d4ed8, -50,   6, -30],
-        [new THREE.OctahedronGeometry(2.5, 0),   0x2563eb, 0,  -6,  -5],
-        [new THREE.TetrahedronGeometry(5, 0),    0x3b82f6,  42,  18, -28],
+        // [geometry, color, x, y, z, opacity]
+        [new THREE.TetrahedronGeometry(3, 0),    0x2a4f8e, 0,   14, -10, 0.4],
+        [new THREE.DodecahedronGeometry(4.5, 0), 0x0d2040, 30, -14,  -8, 0.3],
+        [new THREE.IcosahedronGeometry(7, 0),    0x152e60, -50,  6, -30, 0.3],
+        [new THREE.OctahedronGeometry(2.5, 0),   0x1e4080, 0,   -6,  -5, 0.45],
+        [new THREE.TetrahedronGeometry(5, 0),    0x2563eb, 42,  18, -28, 0.35],
       ];
 
-      const extraMeshes = shapes.map(([geo, color, x, y, z]) => {
+      const extraMeshes = shapes.map(([geo, color, x, y, z, opacity = 0.4]) => {
         const mesh = new THREE.Mesh(
           geo,
-          new THREE.MeshStandardMaterial({ color, wireframe: true })
+          new THREE.MeshStandardMaterial({ color, wireframe: true, transparent: true, opacity })
         );
         mesh.position.set(x, y, z);
         scene.add(mesh);

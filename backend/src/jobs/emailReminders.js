@@ -70,7 +70,7 @@ async function sendAtRiskReminders() {
             <ul style="padding-left:20px; margin:12px 0;">${taskRows}</ul>
             <a href="${process.env.FRONTEND_URL}" style="${BTN_STYLE}">Open Dashboard</a>
             <p style="color:#666; font-size:12px; margin-top:16px;">
-              You're receiving this because you have tasks due soon on PushupDebt.<br>
+              You're receiving this because you have quests due soon on SideQuest.<br>
               Miss the deadline and you'll owe 5 pushups — don't say we didn't warn you.
             </p>
           </div>
@@ -176,7 +176,7 @@ async function sendDailyDigest() {
             ${debtLine}
             <a href="${process.env.FRONTEND_URL}" style="${BTN_STYLE}">Go to Dashboard</a>
             <p style="color:#666; font-size:12px; margin-top:16px;">
-              Daily recap from PushupDebt — keeping you honest, one pushup at a time.
+              Daily recap from SideQuest — keeping you honest, one quest at a time.
             </p>
           </div>
         `,

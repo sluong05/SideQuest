@@ -6,14 +6,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile } from '../lib/api';
 import { useNow } from '../lib/hooks';
 import { usePush } from '../lib/usePush';
+import { Icon } from '../components/Icons';
 
 const BADGES = [
-  { days: 3,   label: 'First Steps',  icon: '🌱' },
-  { days: 7,   label: 'One Week',     icon: '⚡' },
+  { days: 3,   label: 'First Steps',  icon: <Icon name="sprout" className="w-6 h-6" color="#4ade80" /> },
+  { days: 7,   label: 'One Week',     icon: <Icon name="bolt" className="w-6 h-6" color="#fbbf24" /> },
   { days: 14,  label: 'Two Weeks',    icon: <img src="/Streak.svg" className="w-8 h-8" /> },
   { days: 30,  label: 'One Month',    icon: <img src="/Bicep.svg" className="w-8 h-8" /> },
-  { days: 60,  label: 'Two Months',   icon: '🏋️' },
-  { days: 100, label: 'Century',      icon: '👑' },
+  { days: 60,  label: 'Two Months',   icon: <Icon name="dumbbell" className="w-6 h-6" color="#60a5fa" /> },
+  { days: 100, label: 'Century',      icon: <Icon name="crown" className="w-6 h-6" color="#fbbf24" /> },
 ];
 
 export default function Profile() {
@@ -268,7 +269,7 @@ export default function Profile() {
                   maxLength={160}
                   onChange={(e) => { setBioInput(e.target.value); setProfileMsg(null); }}
                 />
-                <p className="text-xs text-navy-400 mt-1 text-right">{bioInput.length}/160</p>
+                <p className="text-xs text-slate-400 mt-1 text-right">{bioInput.length}/160</p>
               </div>
             </div>
 
@@ -291,7 +292,7 @@ export default function Profile() {
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs text-navy-200 uppercase tracking-wide font-medium">Streak Badges</p>
               {user.maxStreak > 0 && (
-                <span className="text-xs text-navy-400">Best streak: <span className="text-blue-400 font-semibold">{user.maxStreak} days</span></span>
+                <span className="text-xs text-slate-400">Best streak: <span className="text-blue-400 font-semibold">{user.maxStreak} days</span></span>
               )}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -306,11 +307,11 @@ export default function Profile() {
                         : 'bg-navy-700/40 border-navy-600 opacity-40'
                     }`}
                   >
-                    <span className={`text-2xl ${earned ? '' : 'grayscale'}`}>{badge.icon}</span>
-                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-blue-400' : 'text-navy-400'}`}>
+                    <span className={earned ? '' : 'grayscale opacity-60'}>{badge.icon}</span>
+                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-blue-400' : 'text-slate-400'}`}>
                       {badge.days}d
                     </span>
-                    <span className={`text-xs text-center leading-tight ${earned ? 'text-navy-200' : 'text-navy-500'}`}>
+                    <span className={`text-xs text-center leading-tight ${earned ? 'text-navy-200' : 'text-slate-500'}`}>
                       {badge.label}
                     </span>
                     {earned && (
@@ -321,12 +322,12 @@ export default function Profile() {
               })}
             </div>
             {(user.maxStreak ?? 0) === 0 && (
-              <p className="text-xs text-navy-400 mt-3 text-center">
+              <p className="text-xs text-slate-400 mt-3 text-center">
                 Complete all your tasks today to start earning badges.
               </p>
             )}
             {streak > 0 && (
-              <p className="text-xs text-navy-400 mt-3 text-center">
+              <p className="text-xs text-slate-400 mt-3 text-center">
                 Current streak: <span className="text-blue-400 font-semibold">{streak} days</span>
               </p>
             )}
@@ -342,7 +343,7 @@ export default function Profile() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-navy-300">Username</span>
-                <span className={user.username ? 'text-navy-100' : 'text-navy-400 italic'}>
+                <span className={user.username ? 'text-navy-100' : 'text-slate-400 italic'}>
                   {user.username || 'not set'}
                 </span>
               </div>
@@ -420,7 +421,7 @@ export default function Profile() {
               </div>
             )}
             {notifMsg && (
-              <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-navy-400'}`}>
+              <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-slate-400'}`}>
                 {notifMsg.text}
               </p>
             )}
@@ -536,7 +537,7 @@ export default function Profile() {
             onClick={() => !deleting && setShowDeleteModal(false)}
           />
           <div className="relative bg-navy-800 border border-navy-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <p className="text-2xl mb-3">⚠️</p>
+            <div className="mb-3"><Icon name="alert" className="w-6 h-6" color="#f87171" /></div>
             <h2 className="text-lg font-bold text-navy-50 mb-2">Delete your account?</h2>
             <p className="text-sm text-navy-300 mb-6">
               This will permanently delete your account, all tasks, pushup history, and debt records.

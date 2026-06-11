@@ -60,5 +60,5 @@ startDebtCronJob();
 startEmailReminderJobs();
 
 app.listen(PORT, () => {
-  console.log(`Pushup Debt API running on http://localhost:${PORT}`);
+  console.log(`SideQuest API running on http://localhost:${PORT}`);
 });

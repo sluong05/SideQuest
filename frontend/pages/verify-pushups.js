@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { logPushups, getDebt, getStreak } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 // ─── MediaPipe landmark indices ───────────────────────────────────────────────
 const IDX = {
@@ -609,10 +610,10 @@ if (streamRef.current) {
         <div className="flex items-start justify-between mb-6 gap-4">
           <div>
             <Link
-              href="/"
+              href="/pay"
               className="inline-flex items-center gap-1 text-sm text-navy-200 hover:text-navy-100 mb-2 transition-colors"
             >
-              ← Dashboard
+              ← Change payoff method
             </Link>
             <h1 className="text-2xl font-bold text-navy-50">Verify Pushups</h1>
             <p className="text-navy-200 text-sm mt-0.5">
@@ -678,7 +679,7 @@ if (streamRef.current) {
               {/* Start counting overlay — shown when camera is ready but not yet counting */}
               {!mpLoading && !camError && !counting && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] gap-4">
-                  <span className="text-5xl drop-shadow-lg">🤚</span>
+                  <Icon name="hand" className="w-12 h-12 drop-shadow-lg" color="#f8fafc" />
                   <div className="text-center">
                     <p className="text-white font-bold text-lg drop-shadow-md">
                       {reps > 0 ? 'Ready to resume' : 'Get in position'}
@@ -736,7 +737,7 @@ if (streamRef.current) {
 
                   {/* Raise-hand hint */}
                   <div className="absolute bottom-3 right-3 z-10">
-                    <span className="text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full">🤚 raise hand to stop</span>
+                    <span className="flex items-center gap-1 text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full"><Icon name="hand" className="w-3 h-3" color="currentColor" /> raise hand to stop</span>
                   </div>
                 </>
               )}
@@ -760,7 +761,7 @@ if (streamRef.current) {
                         {backAngle < 40 ? '✓ back ok' : '✗ too upright'}
                       </span>
                     ) : (
-                      <span className="text-xs text-navy-400">align body</span>
+                      <span className="text-xs text-slate-400">align body</span>
                     )}
                   </div>
 
@@ -928,7 +929,7 @@ if (streamRef.current) {
                 <p className="text-navy-200 text-sm mt-1">
                   {totalOwed > 0
                     ? `${totalOwed} pushups remaining`
-                    : '🎉 All debt cleared!'}
+                    : 'All debt cleared!'}
                 </p>
                 {coinsEarned > 0 && (
                   <p className="flex items-center justify-center gap-1.5 text-yellow-400 font-semibold text-sm mt-2">
@@ -962,7 +963,7 @@ if (streamRef.current) {
             {/* Debt cleared celebration */}
             {totalOwed === 0 && (
               <div className="card bg-green-900/10 border-green-800/30 text-center p-4">
-                <p className="text-2xl mb-1">🎉</p>
+                <div className="flex justify-center mb-1"><Icon name="partyPopper" className="w-6 h-6" color="#4ade80" /></div>
                 <p className="text-green-400 font-semibold text-sm">Debt Free!</p>
                 <p className="text-navy-300 text-xs mt-1">No pushup debt outstanding</p>
               </div>

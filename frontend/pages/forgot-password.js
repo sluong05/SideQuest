@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { forgotPassword } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -34,7 +35,7 @@ export default function ForgotPassword() {
         <div className="card">
           {submitted ? (
             <div className="text-center space-y-4">
-              <div className="text-4xl">📬</div>
+              <div className="flex justify-center"><Icon name="mail" className="w-9 h-9" color="#60a5fa" /></div>
               <h2 className="text-lg font-bold text-navy-50">Check your email</h2>
               <p className="text-navy-200 text-sm">
                 If an account exists for <span className="text-navy-50 font-medium">{email}</span>,

@@ -6,23 +6,9 @@ import AddTaskModal from '../components/AddTaskModal';
 import { useAuth } from '../contexts/AuthContext';
 import { getTasks, getDebt, getStreak, completeTask, uncompleteTask, deleteTask, recalculateDebt } from '../lib/api';
 import confetti from 'canvas-confetti';
-
-// ─── Constants ─────────────────────────────────────────────────────────────
-const CATEGORY_ICONS = {
-  fitness: '💪', learning: '📚', focus: '🎯',
-  productivity: '⚡', wellness: '🧘', chores: '🏠', other: '✦',
-};
-const CATEGORY_COLORS = {
-  fitness: 'rgba(59,130,246,0.2)', learning: 'rgba(168,85,247,0.2)', focus: 'rgba(16,185,129,0.2)',
-  productivity: 'rgba(234,179,8,0.2)', wellness: 'rgba(34,197,94,0.2)', chores: 'rgba(251,146,60,0.2)', other: 'rgba(59,130,246,0.15)',
-};
-const DIFF_STYLES = {
-  easy:   { label: 'Easy',   color: '#34d399', bg: 'rgba(16,185,129,0.15)',  border: 'rgba(16,185,129,0.35)' },
-  medium: { label: 'Medium', color: '#fbbf24', bg: 'rgba(234,179,8,0.15)',   border: 'rgba(234,179,8,0.35)' },
-  hard:   { label: 'Hard',   color: '#f87171', bg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.35)' },
-};
-const DEBT_UNITS = { pushups: 'reps', study: 'min', walk: 'min', clean: 'min', read: 'pages', custom: '' };
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+import { Icon, CategoryIcon } from '../components/Icons';
+import { CATEGORY_COLORS, DIFF_STYLES, DIFF_DURATION } from '../lib/questMeta';
+import { PANEL_STYLE, SELECT_STYLE, PanelHeader } from '../components/Panel';
 
 function formatDue(dateStr) {
   const date = new Date(dateStr);
@@ -32,130 +18,184 @@ function formatDue(dateStr) {
   const dayDiff = Math.round((taskDay - today) / 86400000);
   const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   if (date < now) {
-    return { label: dayDiff === 0 ? `Due Today · ${timeStr}` : `${Math.abs(dayDiff)}d overdue`, overdue: true };
+    return dayDiff === 0
+      ? { line1: 'Due Today', line2: `${timeStr} · past due`, overdue: true }
+      : { line1: 'Overdue', line2: `${Math.abs(dayDiff)} day${Math.abs(dayDiff) !== 1 ? 's' : ''} overdue`, overdue: true };
   }
-  if (dayDiff === 0) return { label: `Due Today · ${timeStr}`, overdue: false };
-  if (dayDiff === 1) return { label: `Tomorrow · ${timeStr}`, overdue: false };
-  if (dayDiff <= 7) return { label: `In ${dayDiff} days`, overdue: false };
-  return { label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), overdue: false };
+  if (dayDiff === 0) return { line1: 'Due Today', line2: `Today · ${timeStr}`, urgent: true };
+  if (dayDiff === 1) return { line1: 'Due Tomorrow', line2: 'Tomorrow' };
+  const dateLabel = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return { line1: `Due ${dateLabel}`, line2: `In ${dayDiff} days` };
 }
 
-// ─── Quest Card ─────────────────────────────────────────────────────────────
+// ─── Quest Row ──────────────────────────────────────────────────────────────
 function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const dueInfo = formatDue(task.dueDate);
-  const diff = DIFF_STYLES[task.difficulty] ?? DIFF_STYLES.medium;
-  const catIcon = CATEGORY_ICONS[task.category] ?? '✦';
-  const catBg = CATEGORY_COLORS[task.category] ?? 'rgba(59,130,246,0.15)';
-  const xp = task.xpReward ?? 50;
-  const debtAmt = task.debtAmount ?? 5;
-  const debtUnit = DEBT_UNITS[task.debtType] ?? 'reps';
-  const activeDebt = task.pushupDebt && !task.pushupDebt.resolved ? Math.ceil(task.pushupDebt.pushupsOwed) : null;
-  const loading = isActioning === task.id;
+  const [hovered, setHovered] = useState(false);
 
-  const accentColor = task.completed ? '#34d399' : dueInfo.overdue ? '#f87171' : '#3b82f6';
+  const dueInfo = formatDue(task.dueDate);
+  const diff    = DIFF_STYLES[task.difficulty] ?? DIFF_STYLES.medium;
+  const catBg   = CATEGORY_COLORS[task.category] ?? 'rgba(59,130,246,0.18)';
+  const xp      = task.xpReward ?? 50;
+  const debtAmt = task.debtAmount ?? 5;
+  const duration = task.duration ?? DIFF_DURATION[task.difficulty] ?? '~45 min';
+  const loading = isActioning === task.id;
+  const isOverdue = dueInfo.overdue && !task.completed;
+
+  const rowBg = task.completed
+    ? 'rgba(8,21,37,0.35)'
+    : isOverdue
+    ? 'rgba(239,68,68,0.05)'
+    : hovered
+    ? 'rgba(11,27,45,0.95)'
+    : 'rgba(8,21,37,0.65)';
+
+  const rowBorder = task.completed
+    ? 'rgba(34,197,94,0.1)'
+    : isOverdue
+    ? 'rgba(239,68,68,0.22)'
+    : hovered
+    ? 'rgba(37,99,235,0.38)'
+    : 'rgba(59,130,246,0.12)';
+
+  const rowShadow = isOverdue && !task.completed
+    ? '0 0 14px rgba(239,68,68,0.09), inset 0 0 28px rgba(239,68,68,0.03)'
+    : hovered && !task.completed
+    ? '0 0 18px rgba(37,99,235,0.13), inset 0 0 28px rgba(37,99,235,0.04)'
+    : 'none';
+
+  const miniLabel = { fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#334155' };
 
   return (
     <>
       <div
-        className={`rounded-xl transition-all ${task.completed ? 'opacity-55' : ''}`}
-        style={{
-          background: task.completed ? 'rgba(13,31,56,0.3)' : dueInfo.overdue ? 'rgba(239,68,68,0.04)' : 'rgba(13,31,56,0.55)',
-          border: `1px solid ${task.completed ? 'rgba(52,211,153,0.12)' : dueInfo.overdue ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.1)'}`,
-          borderLeft: `3px solid ${accentColor}`,
-        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`rounded-xl transition-all duration-200 ${task.completed ? 'opacity-50' : ''}`}
+        style={{ background: rowBg, border: `1px solid ${rowBorder}`, boxShadow: rowShadow }}
       >
-        <div className="flex items-center gap-3 px-4 py-3.5">
-          {/* Category icon */}
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0" style={{ background: catBg }}>
-            {catIcon}
+        <div className="flex items-center gap-3 px-4 py-3">
+          {/* Checkbox circle */}
+          <button
+            onClick={() => (task.completed ? onUncomplete(task.id) : onComplete(task.id))}
+            disabled={loading}
+            aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
+            className="w-[18px] h-[18px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150"
+            style={{
+              border: `1.5px solid ${task.completed ? 'rgba(34,197,94,0.7)' : hovered ? 'rgba(96,165,250,0.6)' : 'rgba(71,85,105,0.55)'}`,
+              background: task.completed ? 'rgba(34,197,94,0.18)' : 'transparent',
+            }}
+          >
+            {task.completed && (
+              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#4ade80" strokeWidth={3.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </button>
+
+          {/* Category icon — rounded square */}
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: catBg, border: `1px solid ${catBg.replace(/[\d.]+\)$/, '0.4)')}` }}
+          >
+            <CategoryIcon category={task.category} className="w-4 h-4" />
           </div>
 
-          {/* Title + meta */}
+          {/* Title + duration */}
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-semibold leading-tight ${task.completed ? 'line-through text-navy-400' : 'text-white'}`}>
+            <p className={`text-sm font-semibold leading-tight ${task.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>
               {task.title}
             </p>
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              {/* Due */}
-              <span className={`text-[11px] font-medium ${dueInfo.overdue && !task.completed ? 'text-red-400' : 'text-navy-400'}`}>
-                {dueInfo.label}
-              </span>
-              {/* Status badges */}
-              {task.completed && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}>
-                  Completed
-                </span>
-              )}
-              {dueInfo.overdue && !task.completed && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
-                  Overdue
-                </span>
-              )}
-              {/* Difficulty */}
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: diff.bg, border: `1px solid ${diff.border}`, color: diff.color }}>
-                {diff.label}
-              </span>
-              {/* Debt cost pill */}
-              {!task.completed && debtAmt > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#fb923c' }}>
-                  +{debtAmt} {debtUnit} if skipped
-                </span>
-              )}
-              {/* Active debt badge */}
-              {activeDebt !== null && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', color: '#f87171' }}>
-                  {activeDebt} owed
-                </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[11px]" style={{ color: '#475569' }}>{duration}</span>
+              {task.category && (
+                <>
+                  <span className="text-[11px]" style={{ color: '#334155' }}>·</span>
+                  <span className="text-[11px] capitalize" style={{ color: '#475569' }}>{task.category}</span>
+                </>
               )}
             </div>
           </div>
 
-          {/* Cost if skipped — desktop */}
-          {!task.completed && (
-            <div className="hidden xl:flex flex-col items-center text-center w-24 flex-shrink-0 gap-1">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                <span className="text-red-400 text-sm font-bold leading-none">×</span>
-              </div>
-              <span className="text-[10px] text-orange-400 font-semibold leading-tight">+{debtAmt} {debtUnit}</span>
-              <span className="text-[9px] text-navy-500 leading-tight">cost if skipped</span>
+          {/* Due date — two lines */}
+          <div className="hidden sm:flex flex-col w-28 flex-shrink-0">
+            <span className="text-xs font-semibold" style={{ color: task.completed ? '#475569' : isOverdue ? '#fb923c' : '#94a3b8' }}>
+              {task.completed ? 'Completed' : dueInfo.line1}
+            </span>
+            <span className="text-[11px] mt-0.5" style={{ color: isOverdue || dueInfo.urgent ? '#f87171' : '#475569' }}>
+              {task.completed ? '' : dueInfo.line2}
+            </span>
+          </div>
+
+          {/* Difficulty badge */}
+          <div className="hidden md:flex w-16 flex-shrink-0">
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: diff.bg, border: `1px solid ${diff.border}`, color: diff.color }}
+            >
+              {diff.label}
+            </span>
+          </div>
+
+          {/* Quest XP */}
+          <div className="hidden md:flex flex-col w-16 flex-shrink-0">
+            <span style={miniLabel}>Quest XP</span>
+            <span className="text-xs font-bold tabular-nums mt-0.5" style={{ color: '#60a5fa' }}>+{xp} XP</span>
+          </div>
+
+          {/* Debt if skipped */}
+          {!task.completed ? (
+            <div className="hidden lg:flex flex-col w-24 flex-shrink-0">
+              <span style={miniLabel}>Debt if skipped</span>
+              <span className="text-xs font-bold mt-0.5 flex items-center gap-1" style={{ color: isOverdue ? '#f87171' : '#fb923c' }}>
+                +{debtAmt} pts debt
+                {isOverdue && (
+                  <svg className="w-3 h-3" fill="#fb923c" viewBox="0 0 24 24">
+                    <path d="M12 2L1 21h22L12 2zm0 6l7.5 13h-15L12 8zm-1 4v4h2v-4h-2zm0 5v2h2v-2h-2z" />
+                  </svg>
+                )}
+              </span>
             </div>
+          ) : (
+            <div className="hidden lg:block w-24 flex-shrink-0" />
           )}
 
-          {/* XP */}
-          <div className="hidden md:flex flex-col items-center w-16 flex-shrink-0">
-            <span className="text-xs font-bold text-yellow-400">+{xp} XP</span>
-            {task.completed && <span className="text-[9px] text-navy-500 mt-0.5">earned</span>}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Actions — stacked */}
+          <div className="flex flex-col items-stretch gap-1 flex-shrink-0" style={{ width: 118 }}>
             {task.completed ? (
               <button
                 onClick={() => onUncomplete(task.id)}
                 disabled={loading}
-                className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
-                style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)', color: '#94a3b8' }}
+                className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all duration-150"
+                style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)', color: '#64748b' }}
               >
                 Undo
               </button>
             ) : (
               <>
                 <button
-                  onClick={() => setShowConfirm(true)}
-                  disabled={loading}
-                  className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all hidden sm:block"
-                  style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}
-                >
-                  Skip Quest
-                </button>
-                <button
                   onClick={() => onComplete(task.id)}
                   disabled={loading}
-                  className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all"
-                  style={{ background: loading ? 'rgba(37,99,235,0.4)' : '#2563eb', border: '1px solid rgba(59,130,246,0.4)', minWidth: 100 }}
+                  className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all duration-150"
+                  style={{
+                    background: loading ? 'rgba(37,99,235,0.4)' : 'rgba(37,99,235,0.88)',
+                    border: '1px solid rgba(59,130,246,0.5)',
+                    boxShadow: loading ? 'none' : '0 0 10px rgba(37,99,235,0.3)',
+                  }}
+                  onMouseEnter={(e) => { if (!loading) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.boxShadow = '0 0 18px rgba(37,99,235,0.55)'; } }}
+                  onMouseLeave={(e) => { if (!loading) { e.currentTarget.style.background = 'rgba(37,99,235,0.88)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(37,99,235,0.3)'; } }}
                 >
                   {loading ? '…' : 'Complete Quest'}
+                </button>
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  disabled={loading}
+                  className="text-[11px] px-3 py-1 rounded-lg font-medium transition-all duration-150"
+                  style={{ background: 'rgba(8,21,37,0.8)', border: '1px solid rgba(59,130,246,0.14)', color: '#64748b' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.14)'; }}
+                >
+                  Skip Quest
                 </button>
               </>
             )}
@@ -166,14 +206,16 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
       {showConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-sm text-center">
-            <p className="text-4xl mb-3">⚠️</p>
+            <div className="flex justify-center mb-3"><Icon name="alert" className="w-9 h-9" color="#fbbf24" /></div>
             <h2 className="text-base font-bold text-navy-50 mb-2">Skip This Quest?</h2>
-            <p className="text-navy-200 text-sm mb-5">Skipping adds <span className="text-red-400 font-bold">5 to your debt</span>.</p>
+            <p className="text-navy-200 text-sm mb-5">
+              Skipping adds <span className="text-red-400 font-bold">+{debtAmt} pts</span> to your debt.
+            </p>
             <div className="flex gap-3">
               <button onClick={() => setShowConfirm(false)} className="btn-secondary flex-1">Cancel</button>
               <button
                 onClick={() => { setShowConfirm(false); onSkip(task.id); }}
-                className="flex-1 py-2 px-4 rounded-lg font-semibold text-sm text-white"
+                className="flex-1 py-2 px-4 rounded-lg font-semibold text-sm text-white transition-all"
                 style={{ background: 'rgba(239,68,68,0.8)', border: '1px solid rgba(239,68,68,0.5)' }}
               >
                 Skip anyway
@@ -186,79 +228,102 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
   );
 }
 
-// ─── Right sidebar panels ───────────────────────────────────────────────────
-function DueTodayPanel({ tasks, todayCount, pendingAll, completedAll, overdueAll, todayStart, todayEnd }) {
-  const todayTasks = tasks.filter((t) => {
-    const d = new Date(t.dueDate);
-    return !t.completed && d >= todayStart && d <= todayEnd;
-  });
+// ─── Quest list column header ────────────────────────────────────────────────
+function QuestListHeader() {
+  const h = { fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#334155' };
   return (
-    <div className="rounded-2xl p-4" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.12)' }}>
-      <p className="text-[10px] font-bold text-navy-400 uppercase tracking-widest mb-3">Quests Due Today</p>
-      <div className="flex items-baseline gap-1.5 mb-3">
-        <span className="text-3xl font-bold text-white">{todayCount}</span>
-        <span className="text-sm text-navy-400">quests</span>
-      </div>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {[
-          { label: `${pendingAll} To Do`,     bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa',  border: 'rgba(59,130,246,0.25)' },
-          { label: `${completedAll} Done`,    bg: 'rgba(52,211,153,0.15)',  color: '#34d399',  border: 'rgba(52,211,153,0.25)' },
-          { label: `${overdueAll} Overdue`,   bg: 'rgba(239,68,68,0.15)',   color: '#f87171',  border: 'rgba(239,68,68,0.25)' },
-        ].map(({ label, bg, color, border }) => (
-          <span key={label} className="text-[10px] font-bold px-2 py-1 rounded-full" style={{ background: bg, color, border: `1px solid ${border}` }}>
-            {label}
+    <div
+      className="flex items-center gap-3 px-4 py-2 rounded-lg mb-1.5"
+      style={{ background: 'rgba(8,21,37,0.4)', border: '1px solid rgba(59,130,246,0.06)' }}
+    >
+      <div className="w-[18px] flex-shrink-0" />
+      <div className="w-9 flex-shrink-0" />
+      <div className="flex-1" style={h}>Quest</div>
+      <div className="hidden sm:block w-28 flex-shrink-0" style={h}>Due Date</div>
+      <div className="hidden md:block w-16 flex-shrink-0" style={h}>Diff.</div>
+      <div className="hidden md:block w-16 flex-shrink-0" style={h}>XP</div>
+      <div className="hidden lg:block w-24 flex-shrink-0" style={h}>Debt</div>
+      <div className="text-center flex-shrink-0" style={{ ...h, width: 118 }}>Actions</div>
+    </div>
+  );
+}
+
+// ─── Right sidebar panels ───────────────────────────────────────────────────
+function DueTodayPanel({ todayCount, pendingAll, completedAll, overdueAll }) {
+  const rows = [
+    { label: 'To Do',     n: pendingAll,   color: '#60a5fa' },
+    { label: 'Completed', n: completedAll, color: '#4ade80' },
+    { label: 'Overdue',   n: overdueAll,   color: '#f87171' },
+  ];
+  return (
+    <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+      <PanelHeader icon={<Icon name="calendar" className="w-3 h-3" color="currentColor" />}>Quests Due Today</PanelHeader>
+      <div className="flex items-center gap-5">
+        <div className="flex flex-col items-center flex-shrink-0">
+          <span
+            className="text-5xl font-bold tabular-nums leading-none"
+            style={{ color: '#60a5fa', textShadow: '0 0 28px rgba(59,130,246,0.6)' }}
+          >
+            {todayCount}
           </span>
-        ))}
-      </div>
-      {todayTasks.length > 0 && (
-        <div className="space-y-2">
-          {todayTasks.slice(0, 4).map((t) => (
-            <div key={t.id} className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#3b82f6' }} />
-              <span className="text-xs text-navy-200 truncate">{t.title}</span>
-            </div>
-          ))}
-          {todayTasks.length > 4 && (
-            <p className="text-[10px] text-navy-500">+{todayTasks.length - 4} more</p>
+          {overdueAll > 0 && (
+            <span className="text-[11px] font-bold mt-1.5" style={{ color: '#f87171' }}>{overdueAll} overdue!</span>
           )}
         </div>
-      )}
+        <div className="flex-1 space-y-2">
+          {rows.map(({ label, n, color }) => (
+            <div key={label} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color, boxShadow: `0 0 5px ${color}` }} />
+                <span className="text-[11px]" style={{ color: '#64748b' }}>{label}</span>
+              </div>
+              <span className="text-xs font-bold tabular-nums" style={{ color }}>{n}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 function CompletionRatePanel({ completionRate, completedAll, totalCount }) {
-  const r = 32, cx = 44, cy = 44;
+  const r = 30, cx = 38, cy = 38;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - Math.min(completionRate / 100, 1));
   return (
-    <div className="rounded-2xl p-4" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.12)' }}>
-      <p className="text-[10px] font-bold text-navy-400 uppercase tracking-widest mb-3">Completion Rate</p>
+    <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+      <PanelHeader icon="◔">Completion Rate</PanelHeader>
       <div className="flex items-center gap-4">
-        <div className="relative flex-shrink-0">
-          <svg width="88" height="88" viewBox="0 0 88 88">
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(59,130,246,0.1)" strokeWidth={8} />
-            <circle
-              cx={cx} cy={cy} r={r}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth={8}
-              strokeDasharray={circ}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              transform={`rotate(-90 ${cx} ${cy})`}
-              style={{ filter: 'drop-shadow(0 0 6px rgba(59,130,246,0.5))', transition: 'stroke-dashoffset 0.6s ease' }}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold text-white">{completionRate}%</span>
+        <div className="flex flex-col items-center flex-shrink-0">
+          <div className="relative">
+            <svg width="76" height="76" viewBox="0 0 76 76">
+              <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(37,99,235,0.1)" strokeWidth={7} />
+              <circle
+                cx={cx} cy={cy} r={r}
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth={7}
+                strokeDasharray={circ}
+                strokeDashoffset={offset}
+                strokeLinecap="round"
+                transform={`rotate(-90 ${cx} ${cy})`}
+                style={{ filter: 'drop-shadow(0 0 8px rgba(37,99,235,0.65))', transition: 'stroke-dashoffset 0.6s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-base font-bold" style={{ color: '#f8fafc' }}>{completionRate}%</span>
+            </div>
           </div>
+          <span className="text-[9px] mt-1" style={{ color: '#334155' }}>This Week</span>
         </div>
-        <div>
-          <p className="text-2xl font-bold text-white">{completionRate}%</p>
-          <p className="text-xs text-navy-400 mt-0.5">{completedAll} of {totalCount} quests</p>
-          <div className="w-full h-1 rounded-full mt-2" style={{ background: 'rgba(59,130,246,0.1)', width: 80 }}>
-            <div className="h-1 rounded-full" style={{ width: `${completionRate}%`, background: 'linear-gradient(90deg,#2563eb,#60a5fa)' }} />
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#4ade80', boxShadow: '0 0 5px #4ade80' }} />
+            <span className="text-[11px]" style={{ color: '#64748b' }}><span className="font-bold" style={{ color: '#94a3b8' }}>{completedAll}</span> completed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#475569' }} />
+            <span className="text-[11px]" style={{ color: '#64748b' }}><span className="font-bold" style={{ color: '#94a3b8' }}>{totalCount}</span> total</span>
           </div>
         </div>
       </div>
@@ -266,68 +331,149 @@ function CompletionRatePanel({ completionRate, completedAll, totalCount }) {
   );
 }
 
-function XPThisWeekPanel({ tasks, userXP, userLevel }) {
+function XPThisWeekPanel({ tasks, userLevel }) {
+  const weeklyGoal = 200;
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const recent = tasks
     .filter((t) => t.completed && t.completedAt && new Date(t.completedAt) >= sevenDaysAgo)
     .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
   const weekXP = recent.reduce((s, t) => s + (t.xpReward ?? 50), 0);
+  const pct = Math.min((weekXP / weeklyGoal) * 100, 100);
 
   return (
-    <div className="rounded-2xl p-4" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.12)' }}>
-      <p className="text-[10px] font-bold text-navy-400 uppercase tracking-widest mb-1">XP This Week</p>
-      <p className="text-3xl font-bold text-yellow-400 mb-0.5">{weekXP}</p>
-      <p className="text-[10px] text-navy-500 mb-3">Total: {userXP ?? 0} XP · Lv {userLevel ?? 1}</p>
+    <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+      <PanelHeader icon={<Icon name="bolt" className="w-3 h-3" color="currentColor" />}>XP This Week</PanelHeader>
+      <div className="flex items-end justify-between mb-2">
+        <div>
+          <p className="text-4xl font-bold tabular-nums leading-none" style={{ color: '#f8fafc', textShadow: '0 0 24px rgba(59,130,246,0.35)' }}>
+            {weekXP} <span className="text-lg font-bold" style={{ color: '#60a5fa' }}>XP</span>
+          </p>
+          <p className="text-[10px] mt-1.5" style={{ color: '#475569' }}>Total XP Earned · Lv {userLevel ?? 1}</p>
+        </div>
+        <div className="text-right flex-shrink-0">
+          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: '#334155' }}>Weekly Goal</p>
+          <p className="text-xs font-bold" style={{ color: '#60a5fa' }}>{weeklyGoal} XP</p>
+        </div>
+      </div>
+      <div className="w-full h-1.5 rounded-full overflow-hidden mb-3" style={{ background: 'rgba(37,99,235,0.1)' }}>
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#1d4ed8,#60a5fa)', boxShadow: '0 0 8px rgba(59,130,246,0.5)' }} />
+      </div>
       {recent.length > 0 ? (
-        <div className="space-y-2">
-          {recent.slice(0, 4).map((t) => (
+        <div className="space-y-1.5">
+          {recent.slice(0, 2).map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm flex-shrink-0">{CATEGORY_ICONS[t.category] ?? '✦'}</span>
-                <span className="text-xs text-navy-200 truncate">{t.title}</span>
+                <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: '#475569' }} />
+                <span className="text-[11px] truncate" style={{ color: '#64748b' }}>{t.title}</span>
               </div>
-              <span className="text-xs font-bold text-yellow-400 flex-shrink-0">+{t.xpReward ?? 50} XP</span>
+              <span className="text-[11px] font-bold flex-shrink-0" style={{ color: '#60a5fa' }}>+{t.xpReward ?? 50}</span>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-xs text-navy-500">Complete quests to earn XP this week.</p>
+        <p className="text-[11px]" style={{ color: '#334155' }}>Complete quests to earn XP this week.</p>
       )}
     </div>
   );
 }
 
 function StreakPanel({ streak }) {
-  const today = new Date().getDay();
-  const activeDays = Array.from({ length: 7 }, (_, i) => {
-    const dayIdx = (i + 1) % 7;
-    return streak > 0 && dayIdx <= (today === 0 ? 7 : today);
-  });
+  const r = 30, cx = 38, cy = 38;
+  const circ = 2 * Math.PI * r;
+  const arc = streak > 0 ? 0.78 : 0;
   return (
-    <div className="rounded-2xl p-4" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.12)' }}>
-      <p className="text-[10px] font-bold text-navy-400 uppercase tracking-widest mb-3">Quest Streak</p>
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-2xl">🔥</span>
-        <span className="text-3xl font-bold text-orange-400 tabular-nums">{streak}</span>
-        <span className="text-sm text-navy-300">days</span>
-      </div>
-      <div className="flex items-center gap-1 mb-3">
-        {DAY_LABELS.map((d, i) => (
-          <div key={i} className="flex flex-col items-center gap-1 flex-1">
-            <div
-              className="w-5 h-5 rounded-full"
-              style={{
-                background: activeDays[i] && streak > 0 ? 'linear-gradient(135deg,#f97316,#fb923c)' : 'rgba(13,31,56,0.8)',
-                border: `1px solid ${activeDays[i] && streak > 0 ? 'rgba(249,115,22,0.5)' : 'rgba(59,130,246,0.1)'}`,
-                boxShadow: activeDays[i] && streak > 0 ? '0 0 6px rgba(249,115,22,0.4)' : 'none',
-              }}
+    <div className="rounded-2xl p-4" style={PANEL_STYLE}>
+      <PanelHeader icon={<Icon name="flame" className="w-3 h-3" color="currentColor" />} color="#fb923c">Quest Streak</PanelHeader>
+      <div className="flex items-center gap-4">
+        <div className="relative flex-shrink-0">
+          <svg width="76" height="76" viewBox="0 0 76 76">
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(249,115,22,0.12)" strokeWidth={5} />
+            <circle
+              cx={cx} cy={cy} r={r}
+              fill="none"
+              stroke="#fb923c"
+              strokeWidth={5}
+              strokeDasharray={circ}
+              strokeDashoffset={circ * (1 - arc)}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${cx} ${cy})`}
+              style={{ filter: 'drop-shadow(0 0 7px rgba(249,115,22,0.6))' }}
             />
-            <span className="text-[9px] text-navy-600">{d}</span>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-xl font-bold tabular-nums leading-none" style={{ color: '#f8fafc' }}>{streak}</span>
+            <span className="text-[9px]" style={{ color: '#64748b' }}>days</span>
           </div>
-        ))}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold" style={{ color: '#f8fafc' }}>Keep it going!</p>
+          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: '#64748b' }}>
+            {streak > 0
+              ? 'Complete a quest tomorrow to extend your streak.'
+              : 'Complete a quest today to start your streak!'}
+          </p>
+        </div>
       </div>
-      <p className="text-[11px] text-navy-400">
-        {streak > 0 ? 'Keep going! Complete a quest today to keep your streak.' : 'Complete a quest today to start your streak!'}
+    </div>
+  );
+}
+
+function CoinStatusPanel({ totalOwed, userCoins }) {
+  const locked = totalOwed > 0;
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{
+        background: locked ? 'rgba(239,68,68,0.04)' : 'rgba(234,179,8,0.05)',
+        border: `1px solid ${locked ? 'rgba(239,68,68,0.18)' : 'rgba(234,179,8,0.22)'}`,
+      }}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#475569' }}>Coin Earnings</p>
+      {locked ? (
+        <>
+          <div className="flex items-center gap-2 mb-1.5">
+            <Icon name="lock" className="w-4 h-4" color="#f87171" />
+            <p className="text-sm font-bold text-red-400">Locked</p>
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
+            Pay off <span className="font-bold text-red-400">{totalOwed} pts</span> to earn coins on quest completion.
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 mb-1.5">
+            <img src="/Pcoin.svg" alt="" className="w-4 h-4" />
+            <p className="text-sm font-bold text-yellow-400">Active</p>
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
+            You're debt-free! Earn coins on every quest you complete.
+          </p>
+          {userCoins !== undefined && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <img src="/Pcoin.svg" alt="" className="w-3.5 h-3.5" />
+              <span className="text-sm font-bold text-yellow-400">{userCoins}</span>
+              <span className="text-xs" style={{ color: '#64748b' }}>in wallet</span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TipCard() {
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{ background: 'rgba(37,99,235,0.05)', border: '1px solid rgba(59,130,246,0.18)' }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Icon name="lightbulb" className="w-4 h-4" color="#3b82f6" />
+        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#3b82f6' }}>Pro Tip</p>
+      </div>
+      <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
+        <span className="font-bold" style={{ color: '#94a3b8' }}>Skipping quests adds debt.</span>{' '}
+        Complete your quests to stay debt-free and maintain your streak!
       </p>
     </div>
   );
@@ -338,15 +484,15 @@ export default function Quests() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [tasks, setTasks] = useState([]);
-  const [debts, setDebts] = useState([]);
-  const [streak, setStreak] = useState(0);
-  const [totalOwed, setTotalOwed] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('All');
+  const [tasks, setTasks]           = useState([]);
+  const [debts, setDebts]           = useState([]);
+  const [streak, setStreak]         = useState(0);
+  const [totalOwed, setTotalOwed]   = useState(0);
+  const [loading, setLoading]       = useState(true);
+  const [filter, setFilter]         = useState('All');
   const [diffFilter, setDiffFilter] = useState('All');
-  const [sortBy, setSortBy] = useState('dueDate');
-  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy]         = useState('dueDate');
+  const [search, setSearch]         = useState('');
   const [showAddTask, setShowAddTask] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
@@ -375,7 +521,7 @@ export default function Quests() {
     setActionLoading(taskId);
     try {
       await completeTask(taskId);
-      confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 }, colors: ['#3b82f6', '#60a5fa', '#34d399', '#fbbf24'] });
+      confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 }, colors: ['#2563eb', '#60a5fa', '#22c55e', '#fbbf24'] });
       loadData();
     } catch (err) { console.error(err); }
     finally { setActionLoading(null); }
@@ -393,19 +539,21 @@ export default function Quests() {
     finally { setActionLoading(null); }
   }
 
-  const now = new Date();
+  const now        = new Date();
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
-  const todayCount  = tasks.filter((t) => { const d = new Date(t.dueDate); return !t.completed && d >= todayStart && d <= todayEnd; }).length;
+  const todayCount   = tasks.filter((t) => { const d = new Date(t.dueDate); return !t.completed && d >= todayStart && d <= todayEnd; }).length;
   const completedAll = tasks.filter((t) => t.completed).length;
-  const overdueAll  = tasks.filter((t) => !t.completed && new Date(t.dueDate) < now).length;
-  const pendingAll  = tasks.filter((t) => !t.completed).length;
+  const overdueAll   = tasks.filter((t) => !t.completed && new Date(t.dueDate) < now).length;
+  const pendingAll   = tasks.filter((t) => !t.completed).length;
+  const activeCount  = tasks.filter((t) => !t.completed && !t.deletedAt).length;
   const completionRate = tasks.length > 0 ? Math.round((completedAll / tasks.length) * 100) : 0;
 
   const TABS = [
     { key: 'All',       label: 'All',       count: null },
     { key: 'Today',     label: 'Today',     count: todayCount },
+    { key: 'Active',    label: 'Active',    count: activeCount },
     { key: 'Upcoming',  label: 'Upcoming',  count: null },
     { key: 'Completed', label: 'Completed', count: completedAll },
     { key: 'Overdue',   label: 'Overdue',   count: overdueAll },
@@ -418,13 +566,14 @@ export default function Quests() {
       if (diffFilter !== 'All' && (t.difficulty ?? 'medium') !== diffFilter.toLowerCase()) return false;
       if (filter === 'All')       return !t.deletedAt;
       if (filter === 'Today')     return !t.completed && due >= todayStart && due <= todayEnd;
+      if (filter === 'Active')    return !t.completed && !t.deletedAt;
       if (filter === 'Upcoming')  return !t.completed && due > now;
       if (filter === 'Completed') return t.completed;
       if (filter === 'Overdue')   return !t.completed && due < now;
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === 'dueDate')   return new Date(a.dueDate) - new Date(b.dueDate);
+      if (sortBy === 'dueDate')    return new Date(a.dueDate) - new Date(b.dueDate);
       if (sortBy === 'difficulty') {
         const o = { easy: 0, medium: 1, hard: 2 };
         return (o[a.difficulty] ?? 1) - (o[b.difficulty] ?? 1);
@@ -435,52 +584,100 @@ export default function Quests() {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-navy-600 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#050A14' }}>
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  const selectStyle = {
-    background: 'rgba(13,31,56,0.8)',
-    border: '1px solid rgba(59,130,246,0.2)',
-    color: '#94a3b8',
-    borderRadius: 8,
-    padding: '6px 28px 6px 10px',
-    fontSize: 12,
-    outline: 'none',
-    appearance: 'none',
-    WebkitAppearance: 'none',
-    cursor: 'pointer',
-  };
-
   return (
     <Layout streak={streak}>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+      <div className="flex gap-6 items-start">
 
-        {/* ── Main content ────────────────────────────────── */}
-        <div className="lg:col-span-3">
+        {/* ── Main content (flex-1) ───────────────────────────── */}
+        <div className="flex-1 min-w-0">
 
-          {/* Header */}
-          <div className="flex items-start justify-between mb-5 gap-3 flex-wrap">
-            <div>
-              <h1 className="text-2xl font-bold text-navy-50">All Quests</h1>
-              <p className="text-navy-400 text-sm mt-0.5">Browse and manage your quests. Complete them to earn XP and avoid debt.</p>
+          {/* Hero header band with nebula glow */}
+          <div
+            className="relative rounded-2xl overflow-hidden mb-4 px-5 py-5"
+            style={{
+              background: 'linear-gradient(180deg, rgba(8,18,34,0.92) 0%, rgba(5,10,20,0.96) 100%)',
+              border: '1px solid rgba(59,130,246,0.14)',
+            }}
+          >
+            {/* Nebula glow layers */}
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: [
+                  'radial-gradient(ellipse 460px 110px at 58% 88%, rgba(37,99,235,0.4), transparent 70%)',
+                  'radial-gradient(ellipse 240px 70px at 42% 100%, rgba(125,211,252,0.22), transparent 70%)',
+                  'radial-gradient(ellipse 600px 180px at 78% 120%, rgba(29,78,216,0.32), transparent 70%)',
+                  'radial-gradient(ellipse 300px 140px at 12% 0%, rgba(37,99,235,0.14), transparent 70%)',
+                ].join(', '),
+                filter: 'blur(1px)',
+              }}
+            />
+            <div className="relative flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight" style={{ color: '#f8fafc' }}>All Quests</h1>
+                <p className="text-sm mt-1" style={{ color: '#64748b' }}>
+                  Browse and manage all your quests. Complete them to earn XP and avoid debt.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                <div className="relative hidden sm:block">
+                  <input
+                    type="text"
+                    className="rounded-lg pl-3.5 pr-9 py-2 text-sm focus:outline-none transition-all duration-150"
+                    style={{
+                      width: 220,
+                      background: 'rgba(4,10,20,0.85)',
+                      border: '1px solid rgba(59,130,246,0.2)',
+                      color: '#f8fafc',
+                    }}
+                    placeholder="Search quests…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.6)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.12)'; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.2)'; e.currentTarget.style.boxShadow = 'none'; }}
+                  />
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                    style={{ color: '#475569' }}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <button
+                  onClick={() => totalOwed > 249 ? alert('Pay off debt first.') : setShowAddTask(true)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all duration-150 flex-shrink-0"
+                  style={{
+                    background: 'rgba(37,99,235,0.88)',
+                    border: '1px solid rgba(59,130,246,0.5)',
+                    boxShadow: '0 0 12px rgba(37,99,235,0.3)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.boxShadow = '0 0 20px rgba(37,99,235,0.55)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.88)'; e.currentTarget.style.boxShadow = '0 0 12px rgba(37,99,235,0.3)'; }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create Quest
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => totalOwed > 249 ? alert('Pay off debt first.') : setShowAddTask(true)}
-              className="btn-primary flex items-center gap-1.5 text-sm flex-shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Create Quest
-            </button>
           </div>
 
-          {/* Search bar */}
-          <div className="relative mb-3">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-navy-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {/* Mobile search */}
+          <div className="relative mb-3 sm:hidden">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+              style={{ color: '#334155' }}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -492,57 +689,65 @@ export default function Quests() {
             />
           </div>
 
-          {/* Filter tabs + dropdowns */}
+          {/* Filter toolbar */}
           <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-xl overflow-x-auto flex-shrink-0" style={{ background: 'rgba(13,31,56,0.6)', border: '1px solid rgba(59,130,246,0.1)' }}>
-              {TABS.map(({ key, label, count }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
-                  style={{
-                    background: filter === key ? 'rgba(59,130,246,0.2)' : 'transparent',
-                    color: filter === key ? '#60a5fa' : '#475569',
-                    border: filter === key ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent',
-                  }}
-                >
-                  {label}
-                  {count !== null && (
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
-                      style={{
-                        background: filter === key ? 'rgba(59,130,246,0.35)' : 'rgba(59,130,246,0.12)',
-                        color: filter === key ? '#93c5fd' : '#64748b',
-                      }}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </button>
-              ))}
+            {/* Pill tabs */}
+            <div
+              className="flex gap-1 p-1 rounded-xl overflow-x-auto flex-shrink-0"
+              style={{ background: 'rgba(8,21,37,0.7)', border: '1px solid rgba(59,130,246,0.1)' }}
+            >
+              {TABS.map(({ key, label, count }) => {
+                const active = filter === key;
+                const isOverdueTab = key === 'Overdue' && count > 0;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150"
+                    style={{
+                      background: active ? (isOverdueTab ? 'rgba(239,68,68,0.18)' : 'rgba(37,99,235,0.85)') : 'transparent',
+                      color: active ? '#ffffff' : isOverdueTab ? '#fb923c' : '#475569',
+                      border: active ? `1px solid ${isOverdueTab ? 'rgba(239,68,68,0.4)' : 'rgba(59,130,246,0.5)'}` : '1px solid transparent',
+                      boxShadow: active ? (isOverdueTab ? '0 0 10px rgba(239,68,68,0.2)' : '0 0 12px rgba(37,99,235,0.35)') : 'none',
+                    }}
+                  >
+                    {label}
+                    {count !== null && (
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
+                        style={{
+                          background: active ? 'rgba(255,255,255,0.18)' : isOverdueTab ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.1)',
+                          color: active ? '#ffffff' : isOverdueTab ? '#fb923c' : '#475569',
+                        }}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Dropdowns */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="relative">
-                <select value={diffFilter} onChange={(e) => setDiffFilter(e.target.value)} style={selectStyle}>
+                <select value={diffFilter} onChange={(e) => setDiffFilter(e.target.value)} style={SELECT_STYLE}>
                   <option value="All">All Difficulties</option>
                   <option value="Easy">Easy</option>
                   <option value="Medium">Medium</option>
                   <option value="Hard">Hard</option>
                 </select>
-                <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-navy-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: '#475569' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
               <div className="relative">
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={selectStyle}>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={SELECT_STYLE}>
                   <option value="dueDate">Sort: Due Date</option>
                   <option value="difficulty">Sort: Difficulty</option>
                   <option value="xp">Sort: XP</option>
                 </select>
-                <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-navy-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" style={{ color: '#475569' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
@@ -555,61 +760,84 @@ export default function Quests() {
               <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-2xl text-center py-14" style={{ background: 'rgba(13,31,56,0.5)', border: '1px solid rgba(59,130,246,0.1)' }}>
-              <p className="text-3xl mb-3">🎯</p>
-              <p className="text-navy-200 font-medium text-sm">No quests found</p>
-              <p className="text-navy-500 text-xs mt-1">
+            <div
+              className="rounded-2xl text-center py-14"
+              style={{ background: 'rgba(8,21,37,0.6)', border: '1px solid rgba(59,130,246,0.1)' }}
+            >
+              <div className="flex justify-center mb-3"><Icon name="target" className="w-8 h-8" color="#475569" /></div>
+              <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>No quests found</p>
+              <p className="text-xs mt-1" style={{ color: '#475569' }}>
                 {filter !== 'All' || diffFilter !== 'All' ? 'Try changing the filters.' : 'Create your first quest to get started.'}
               </p>
               {filter === 'All' && diffFilter === 'All' && (
-                <button onClick={() => setShowAddTask(true)} className="btn-primary mt-5 text-sm py-2 px-5">+ Create Quest</button>
+                <button onClick={() => setShowAddTask(true)} className="btn-primary mt-5 text-sm py-2 px-5">
+                  + Create Quest
+                </button>
               )}
             </div>
           ) : (
-            <div className="space-y-2">
-              {filtered.map((task) => (
-                <QuestCard
-                  key={task.id}
-                  task={task}
-                  onComplete={handleComplete}
-                  onUncomplete={handleUncomplete}
-                  onSkip={handleSkip}
-                  isActioning={actionLoading}
-                />
-              ))}
+            <div>
+              <QuestListHeader />
+              <div className="space-y-1.5">
+                {filtered.map((task) => (
+                  <QuestCard
+                    key={task.id}
+                    task={task}
+                    onComplete={handleComplete}
+                    onUncomplete={handleUncomplete}
+                    onSkip={handleSkip}
+                    isActioning={actionLoading}
+                  />
+                ))}
+              </div>
+              {filter !== 'Completed' && completedAll > 0 && (
+                <button
+                  onClick={() => setFilter('Completed')}
+                  className="w-full text-center text-xs font-medium py-3.5 transition-colors duration-150"
+                  style={{ color: '#3b82f6' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#60a5fa'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#3b82f6'; }}
+                >
+                  View completed quests →
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {/* ── Right sidebar ─────────────────────────────── */}
-        <div className="lg:col-span-1 space-y-4">
+        {/* ── Right sidebar (fixed width) ────────────────────── */}
+        <div className="hidden lg:flex flex-col gap-4 flex-shrink-0" style={{ width: 288 }}>
           <DueTodayPanel
-            tasks={tasks}
             todayCount={todayCount}
             pendingAll={pendingAll}
             completedAll={completedAll}
             overdueAll={overdueAll}
-            todayStart={todayStart}
-            todayEnd={todayEnd}
           />
           <CompletionRatePanel
             completionRate={completionRate}
             completedAll={completedAll}
             totalCount={tasks.length}
           />
-          <XPThisWeekPanel tasks={tasks} userXP={user?.xp} userLevel={user?.level} />
+          <XPThisWeekPanel tasks={tasks} userLevel={user?.level} />
           <StreakPanel streak={streak} />
 
           {totalOwed > 0 && (
-            <div className="rounded-2xl p-4" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
-              <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2">Active Debt</p>
-              <p className="text-3xl font-bold text-red-400 mb-0.5">{totalOwed}</p>
-              <p className="text-xs text-navy-400 mb-3">{debts.length} overdue quest{debts.length !== 1 ? 's' : ''}</p>
-              <Link href="/verify-pushups" className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-xs font-bold text-white" style={{ background: 'rgba(239,68,68,0.7)', border: '1px solid rgba(239,68,68,0.4)' }}>
-                ⚔ Pay Debt
+            <div className="rounded-2xl p-4" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.22)' }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'rgba(248,113,113,0.8)' }}>Active Debt</p>
+              <p className="text-3xl font-bold mb-0.5" style={{ color: '#f87171' }}>{totalOwed}</p>
+              <p className="text-xs mb-3" style={{ color: '#64748b' }}>{debts.length} overdue quest{debts.length !== 1 ? 's' : ''}</p>
+              <Link
+                href="/pay"
+                className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-xs font-bold text-white transition-all"
+                style={{ background: 'rgba(239,68,68,0.7)', border: '1px solid rgba(239,68,68,0.4)' }}
+              >
+                <Icon name="swords" className="w-3.5 h-3.5" color="currentColor" /> Pay Debt
               </Link>
             </div>
           )}
+
+          <CoinStatusPanel totalOwed={totalOwed} userCoins={user?.coins} />
+          <TipCard />
         </div>
       </div>
 

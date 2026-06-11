@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { verifyEmail } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 export default function VerifyEmail() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function VerifyEmail() {
 
         {status === 'success' && (
           <div className="card py-10">
-            <p className="text-4xl mb-4">✅</p>
+            <div className="flex justify-center mb-4"><Icon name="checkCircle" className="w-9 h-9" color="#4ade80" /></div>
             <h1 className="text-xl font-bold text-navy-50 mb-2">Email verified!</h1>
             <p className="text-navy-300 text-sm mb-6">You're all set. Your account is fully verified.</p>
             <Link href="/" className="btn-primary text-sm py-2.5 px-8">
@@ -52,7 +53,7 @@ export default function VerifyEmail() {
 
         {status === 'error' && (
           <div className="card py-10">
-            <p className="text-4xl mb-4">❌</p>
+            <div className="flex justify-center mb-4"><Icon name="xCircle" className="w-9 h-9" color="#f87171" /></div>
             <h1 className="text-xl font-bold text-navy-50 mb-2">Verification failed</h1>
             <p className="text-navy-300 text-sm mb-6">{message}</p>
             <Link href="/" className="btn-primary text-sm py-2.5 px-8">

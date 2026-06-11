@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPublicProfile, sendFriendRequest, getFriends, createChallenge, getStreak } from '../../lib/api';
+import { Icon } from '../../components/Icons';
 
 const CHALLENGE_TYPES = [
   { value: 'tasks', label: 'Most tasks completed' },
@@ -110,7 +111,7 @@ export default function PublicProfile() {
 
         {error && (
           <div className="card text-center py-12">
-            <p className="text-3xl mb-3">🔒</p>
+            <div className="flex justify-center mb-3"><Icon name="lock" className="w-8 h-8" color="#475569" /></div>
             <p className="text-navy-200 font-medium">{error}</p>
           </div>
         )}
@@ -136,14 +137,14 @@ export default function PublicProfile() {
                   {profile.bio && (
                     <p className="text-sm text-navy-300 mt-0.5 leading-relaxed">{profile.bio}</p>
                   )}
-                  <p className="text-xs text-navy-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Member since{' '}
                     {new Date(profile.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </p>
                   <div className="flex gap-2 mt-3">
                     {isFriend ? (
                       <button onClick={() => { setShowChallenge(true); setChallengeMsg(null); }} className="btn-primary text-sm py-2 px-4">
-                        ⚔️ Challenge
+                        <span className="inline-flex items-center gap-1.5"><Icon name="swords" className="w-4 h-4" color="currentColor" /> Challenge</span>
                       </button>
                     ) : requestSent ? (
                       <button disabled className="btn-secondary text-sm py-2 px-4 opacity-60 cursor-not-allowed">

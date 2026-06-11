@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import ParticleBackground from './ParticleBackground';
+import { Icon } from './Icons';
 import { getFriendRequests, resendVerification } from '../lib/api';
 
 function SideQuestLogo() {
@@ -67,7 +68,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
   useEffect(() => { setMoreOpen(false); }, [router.pathname]);
 
   return (
-    <div className="min-h-screen bg-navy-600 relative">
+    <div className="min-h-screen relative" style={{ background: 'var(--bg-page)' }}>
       <ParticleBackground showIdleModel={showIdleModel} />
 
       {/* Top nav */}
@@ -115,7 +116,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                   className="flex items-center gap-1 px-2.5 py-1 rounded-full text-sm"
                   style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.25)' }}
                 >
-                  <span className="text-xs">🔥</span>
+                  <Icon name="flame" className="w-3.5 h-3.5" color="#fb923c" />
                   <span className="font-bold text-orange-400 text-xs">{streak}</span>
                 </div>
 
@@ -135,7 +136,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                     style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)' }}
                   >
                     <span className="text-xs font-bold text-blue-400">Lv {user.level ?? 1}</span>
-                    <span className="text-[11px] text-navy-400">{user.xp ?? 0} XP</span>
+                    <span className="text-[11px] text-slate-400">{user.xp ?? 0} XP</span>
                   </div>
                 )}
 
@@ -208,7 +209,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                       <div style={{ borderTop: '1px solid rgba(59,130,246,0.1)' }} />
                       <button
                         onClick={logoutUser}
-                        className="w-full text-left px-4 py-2.5 text-sm text-navy-400 hover:text-red-400 transition-colors"
+                        className="w-full text-left px-4 py-2.5 text-sm text-slate-400 hover:text-red-400 transition-colors"
                       >
                         Logout
                       </button>
@@ -240,7 +241,7 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
                 {resendState === 'sent' && '✓ Sent!'}
                 {resendState === 'error' && 'Failed — try again'}
               </button>
-              <button onClick={() => setBannerDismissed(true)} className="text-navy-400 hover:text-navy-200 transition-colors" aria-label="Dismiss">
+              <button onClick={() => setBannerDismissed(true)} className="text-slate-400 hover:text-navy-200 transition-colors" aria-label="Dismiss">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>

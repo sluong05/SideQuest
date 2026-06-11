@@ -21,7 +21,7 @@ export default function Terms() {
 
         <main className="max-w-3xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-navy-50 mb-2">Terms of Service</h1>
-          <p className="text-navy-400 text-sm mb-10">Last updated: May 13, 2025</p>
+          <p className="text-slate-400 text-sm mb-10">Last updated: May 13, 2025</p>
 
           <Section title="1. Acceptance of Terms">
             <p>By accessing or using SideQuest ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service. The Service is operated by Steven Luong, an individual based in Washington, United States.</p>
@@ -76,7 +76,7 @@ export default function Terms() {
           </Section>
 
           <Section title="11. Disclaimer of Warranties">
-            <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. PUSHUP DEBT DOES NOT WARRANT THAT THE SERVICE WILL BE SECURE, ERROR-FREE, OR FREE OF VIRUSES.</p>
+            <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SIDEQUEST DOES NOT WARRANT THAT THE SERVICE WILL BE SECURE, ERROR-FREE, OR FREE OF VIRUSES.</p>
           </Section>
 
           <Section title="12. Limitation of Liability">
@@ -99,7 +99,7 @@ export default function Terms() {
             <p>Questions about these Terms? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
-          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-navy-400">
+          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-slate-400">
             <Link href="/privacy" className="hover:text-navy-200 transition-colors">Privacy Policy</Link>
             <Link href="/welcome" className="hover:text-navy-200 transition-colors">Back to Home</Link>
           </div>

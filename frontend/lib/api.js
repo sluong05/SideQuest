@@ -71,9 +71,9 @@ export const deleteTask = (taskId) => api.delete(`/api/tasks/${taskId}`);
 export const getDebt = () => api.get('/api/debt');
 export const recalculateDebt = () => api.post('/api/debt/calculate');
 
-// Pushup sessions
-export const logPushups = (pushupsCompleted) =>
-  api.post('/api/sessions', { pushupsCompleted });
+// Payoff sessions — activity: fitness | focus | wellness | chores | custom
+export const logPushups = (pushupsCompleted, activity = 'fitness') =>
+  api.post('/api/sessions', { pushupsCompleted, activity });
 
 export const getSessions = () => api.get('/api/sessions');
 

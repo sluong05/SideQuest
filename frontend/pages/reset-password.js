@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { resetPassword } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -57,7 +58,7 @@ export default function ResetPassword() {
         <div className="card">
           {success ? (
             <div className="text-center space-y-4">
-              <div className="text-4xl">✅</div>
+              <div className="flex justify-center"><Icon name="checkCircle" className="w-9 h-9" color="#4ade80" /></div>
               <h2 className="text-lg font-bold text-navy-50">Password updated</h2>
               <p className="text-navy-200 text-sm">You can now sign in with your new password.</p>
               <Link href="/login" className="btn-primary block w-full py-3 text-center">

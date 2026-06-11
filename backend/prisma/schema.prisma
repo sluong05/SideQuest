@@ -113,6 +113,7 @@ model PushupDebt {
 model PushupSession {
   id               Int      @id @default(autoincrement())
   pushupsCompleted Int
+  activity         String   @default("fitness") // fitness | focus | wellness | chores | custom
   date             DateTime @default(now())
   userId           Int
 
