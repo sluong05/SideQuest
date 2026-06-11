@@ -1,7 +1,7 @@
 {
-  "name": "Pushup Debt",
-  "short_name": "PushupDebt",
-  "description": "Turn missed deadlines into pushup debt. Pay it back on camera.",
+  "name": "SideQuest",
+  "short_name": "SideQuest",
+  "description": "Turn missed deadlines into debt. Pay it back with real action.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

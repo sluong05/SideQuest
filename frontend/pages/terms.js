@@ -5,15 +5,15 @@ export default function Terms() {
   return (
     <>
       <Head>
-        <title>Terms of Service — Pushup Debt</title>
+        <title>Terms of Service — SideQuest</title>
       </Head>
       <div className="min-h-screen bg-navy-600 text-navy-50">
-        <header className="border-b border-amber-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
+        <header className="border-b border-blue-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link href="/welcome">
-              <img src="/logo.png" alt="Pushup Debt" className="h-8 w-auto" />
+              <img src="/logo.png" alt="SideQuest" className="h-8 w-auto" />
             </Link>
-            <Link href="/signup" className="text-sm text-amber-400 hover:text-amber-300 font-semibold transition-colors">
+            <Link href="/signup" className="text-sm text-blue-400 hover:text-blue-300 font-semibold transition-colors">
               Sign Up
             </Link>
           </div>
@@ -21,18 +21,18 @@ export default function Terms() {
 
         <main className="max-w-3xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-navy-50 mb-2">Terms of Service</h1>
-          <p className="text-navy-400 text-sm mb-10">Last updated: May 13, 2025</p>
+          <p className="text-slate-400 text-sm mb-10">Last updated: May 13, 2025</p>
 
           <Section title="1. Acceptance of Terms">
-            <p>By accessing or using Pushup Debt ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service. The Service is operated by Steven Luong, an individual based in Washington, United States.</p>
+            <p>By accessing or using SideQuest ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service. The Service is operated by Steven Luong, an individual based in Washington, United States.</p>
           </Section>
 
           <Section title="2. Description of Service">
-            <p>Pushup Debt is a free productivity app that lets users set tasks with due dates, tracks missed deadlines as "pushup debt," and verifies pushup repayment through your device camera. Features include task management, leaderboards, friend connections, streaks, and a coin-based shop. The Service is provided free of charge.</p>
+            <p>SideQuest is a free productivity app that lets users set tasks with due dates, tracks missed deadlines as "pushup debt," and verifies pushup repayment through your device camera. Features include task management, leaderboards, friend connections, streaks, and a coin-based shop. The Service is provided free of charge.</p>
           </Section>
 
           <Section title="3. Eligibility">
-            <p>You must be at least 13 years old to use Pushup Debt. By creating an account, you confirm that you meet this requirement. We reserve the right to terminate accounts found to belong to users under 13.</p>
+            <p>You must be at least 13 years old to use SideQuest. By creating an account, you confirm that you meet this requirement. We reserve the right to terminate accounts found to belong to users under 13.</p>
           </Section>
 
           <Section title="4. Your Account">
@@ -76,7 +76,7 @@ export default function Terms() {
           </Section>
 
           <Section title="11. Disclaimer of Warranties">
-            <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. PUSHUP DEBT DOES NOT WARRANT THAT THE SERVICE WILL BE SECURE, ERROR-FREE, OR FREE OF VIRUSES.</p>
+            <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SIDEQUEST DOES NOT WARRANT THAT THE SERVICE WILL BE SECURE, ERROR-FREE, OR FREE OF VIRUSES.</p>
           </Section>
 
           <Section title="12. Limitation of Liability">
@@ -84,7 +84,7 @@ export default function Terms() {
           </Section>
 
           <Section title="13. Physical Activity Disclaimer">
-            <p>Pushup Debt encourages physical exercise. By using the Service, you acknowledge that you are responsible for assessing your own physical fitness before performing pushups or any other exercise. We are not liable for any injury resulting from physical activity performed in connection with the Service. If you have any health conditions, consult a medical professional before starting an exercise program.</p>
+            <p>SideQuest encourages physical exercise. By using the Service, you acknowledge that you are responsible for assessing your own physical fitness before performing pushups or any other exercise. We are not liable for any injury resulting from physical activity performed in connection with the Service. If you have any health conditions, consult a medical professional before starting an exercise program.</p>
           </Section>
 
           <Section title="14. Governing Law">
@@ -96,10 +96,10 @@ export default function Terms() {
           </Section>
 
           <Section title="16. Contact">
-            <p>Questions about these Terms? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-amber-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>Questions about these Terms? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
-          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-navy-400">
+          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-slate-400">
             <Link href="/privacy" className="hover:text-navy-200 transition-colors">Privacy Policy</Link>
             <Link href="/welcome" className="hover:text-navy-200 transition-colors">Back to Home</Link>
           </div>

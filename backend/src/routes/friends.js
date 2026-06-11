@@ -220,11 +220,11 @@ router.post('/request', auth, async (req, res) => {
       resend.emails.send({
         from: 'noreply@pushupdebt.com',
         to: target.email,
-        subject: `${senderName} sent you a friend request on PushupDebt`,
+        subject: `${senderName} sent you a friend request on SideQuest`,
         html: `
           <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a2e;">
             <h2 style="color: #1a1a2e;">You have a new friend request 👋</h2>
-            <p><strong>${senderName}</strong> wants to be friends on PushupDebt.</p>
+            <p><strong>${senderName}</strong> wants to be friends on SideQuest.</p>
             <p>Accept their request to see each other on the leaderboard, view their stats, and challenge each other.</p>
             <a href="${process.env.FRONTEND_URL}/friends" style="display:inline-block; background:#f59e0b; color:#1a1a2e; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; margin:16px 0;">
               View Request

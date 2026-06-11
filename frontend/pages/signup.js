@@ -69,7 +69,7 @@ export default function Signup() {
       <div className="relative z-10 w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Pushup Debt" className="w-full h-auto mx-auto mb-3" />
+          <div className="flex items-center justify-center gap-2 mb-3"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2L17.5 9.5L26 10.5L20 16.5L21.5 25L14 21L6.5 25L8 16.5L2 10.5L10.5 9.5L14 2Z" fill="#3B82F6" opacity="0.9"/><circle cx="14" cy="13" r="3" fill="white" opacity="0.9"/></svg><span style={{fontSize:"1.1rem",fontWeight:"bold",letterSpacing:"0.05em",color:"#F8FAFC"}}>SIDEQUEST</span></div>
           <p className="text-navy-200 text-sm mt-1">Turn procrastination into gains</p>
         </div>
 
@@ -143,12 +143,12 @@ export default function Signup() {
 
           <p className="text-center text-navy-200 text-sm mt-6">
             Already have an account?{' '}
-            <Link href="/login" className="text-amber-400 hover:text-amber-300 font-medium">
+            <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
               Sign in
             </Link>
           </p>
 
-          <p className="text-center text-navy-400 text-xs mt-4">
+          <p className="text-center text-slate-400 text-xs mt-4">
             By signing up you agree to our{' '}
             <Link href="/terms" className="hover:text-navy-200 underline">Terms of Service</Link>
             {' '}and{' '}

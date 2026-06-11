@@ -6,14 +6,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile } from '../lib/api';
 import { useNow } from '../lib/hooks';
 import { usePush } from '../lib/usePush';
+import { Icon } from '../components/Icons';
 
 const BADGES = [
-  { days: 3,   label: 'First Steps',  icon: '🌱' },
-  { days: 7,   label: 'One Week',     icon: '⚡' },
+  { days: 3,   label: 'First Steps',  icon: <Icon name="sprout" className="w-6 h-6" color="#4ade80" /> },
+  { days: 7,   label: 'One Week',     icon: <Icon name="bolt" className="w-6 h-6" color="#fbbf24" /> },
   { days: 14,  label: 'Two Weeks',    icon: <img src="/Streak.svg" className="w-8 h-8" /> },
   { days: 30,  label: 'One Month',    icon: <img src="/Bicep.svg" className="w-8 h-8" /> },
-  { days: 60,  label: 'Two Months',   icon: '🏋️' },
-  { days: 100, label: 'Century',      icon: '👑' },
+  { days: 60,  label: 'Two Months',   icon: <Icon name="dumbbell" className="w-6 h-6" color="#60a5fa" /> },
+  { days: 100, label: 'Century',      icon: <Icon name="crown" className="w-6 h-6" color="#fbbf24" /> },
 ];
 
 export default function Profile() {
@@ -200,7 +201,7 @@ export default function Profile() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -213,8 +214,8 @@ export default function Profile() {
             ← Dashboard
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-amber-400">
+            <div className="w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
+              <span className="text-xl font-bold text-blue-400">
                 {(user.username || user.email)[0].toUpperCase()}
               </span>
             </div>
@@ -235,12 +236,12 @@ export default function Profile() {
             <div className="flex items-start gap-5">
               {/* Avatar upload */}
               <label className="flex-shrink-0 cursor-pointer group relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-navy-600 group-hover:border-amber-500/60 transition-colors">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-navy-600 group-hover:border-blue-500/60 transition-colors">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-amber-500/20 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-amber-400">
+                    <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-blue-400">
                         {(user.username || user.email)[0].toUpperCase()}
                       </span>
                     </div>
@@ -268,7 +269,7 @@ export default function Profile() {
                   maxLength={160}
                   onChange={(e) => { setBioInput(e.target.value); setProfileMsg(null); }}
                 />
-                <p className="text-xs text-navy-400 mt-1 text-right">{bioInput.length}/160</p>
+                <p className="text-xs text-slate-400 mt-1 text-right">{bioInput.length}/160</p>
               </div>
             </div>
 
@@ -291,7 +292,7 @@ export default function Profile() {
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs text-navy-200 uppercase tracking-wide font-medium">Streak Badges</p>
               {user.maxStreak > 0 && (
-                <span className="text-xs text-navy-400">Best streak: <span className="text-amber-400 font-semibold">{user.maxStreak} days</span></span>
+                <span className="text-xs text-slate-400">Best streak: <span className="text-blue-400 font-semibold">{user.maxStreak} days</span></span>
               )}
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -302,15 +303,15 @@ export default function Profile() {
                     key={badge.days}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
                       earned
-                        ? 'bg-amber-500/10 border-amber-500/40'
+                        ? 'bg-blue-600/10 border-blue-500/40'
                         : 'bg-navy-700/40 border-navy-600 opacity-40'
                     }`}
                   >
-                    <span className={`text-2xl ${earned ? '' : 'grayscale'}`}>{badge.icon}</span>
-                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-amber-400' : 'text-navy-400'}`}>
+                    <span className={earned ? '' : 'grayscale opacity-60'}>{badge.icon}</span>
+                    <span className={`text-xs font-bold tabular-nums ${earned ? 'text-blue-400' : 'text-slate-400'}`}>
                       {badge.days}d
                     </span>
-                    <span className={`text-xs text-center leading-tight ${earned ? 'text-navy-200' : 'text-navy-500'}`}>
+                    <span className={`text-xs text-center leading-tight ${earned ? 'text-navy-200' : 'text-slate-500'}`}>
                       {badge.label}
                     </span>
                     {earned && (
@@ -321,13 +322,13 @@ export default function Profile() {
               })}
             </div>
             {(user.maxStreak ?? 0) === 0 && (
-              <p className="text-xs text-navy-400 mt-3 text-center">
+              <p className="text-xs text-slate-400 mt-3 text-center">
                 Complete all your tasks today to start earning badges.
               </p>
             )}
             {streak > 0 && (
-              <p className="text-xs text-navy-400 mt-3 text-center">
-                Current streak: <span className="text-amber-400 font-semibold">{streak} days</span>
+              <p className="text-xs text-slate-400 mt-3 text-center">
+                Current streak: <span className="text-blue-400 font-semibold">{streak} days</span>
               </p>
             )}
           </div>
@@ -342,7 +343,7 @@ export default function Profile() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-navy-300">Username</span>
-                <span className={user.username ? 'text-navy-100' : 'text-navy-400 italic'}>
+                <span className={user.username ? 'text-navy-100' : 'text-slate-400 italic'}>
                   {user.username || 'not set'}
                 </span>
               </div>
@@ -382,7 +383,7 @@ export default function Profile() {
                 onClick={handleToggleReminders}
                 disabled={notifSaving}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                  emailReminders ? 'bg-amber-500' : 'bg-navy-600 border border-navy-500'
+                  emailReminders ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
                 } ${notifSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <span
@@ -408,7 +409,7 @@ export default function Profile() {
                   onClick={push.subscribed ? push.unsubscribe : push.subscribe}
                   disabled={push.loading}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                    push.subscribed ? 'bg-amber-500' : 'bg-navy-600 border border-navy-500'
+                    push.subscribed ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
                   } ${push.loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   <span
@@ -420,7 +421,7 @@ export default function Profile() {
               </div>
             )}
             {notifMsg && (
-              <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-navy-400'}`}>
+              <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-slate-400'}`}>
                 {notifMsg.text}
               </p>
             )}
@@ -536,7 +537,7 @@ export default function Profile() {
             onClick={() => !deleting && setShowDeleteModal(false)}
           />
           <div className="relative bg-navy-800 border border-navy-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <p className="text-2xl mb-3">⚠️</p>
+            <div className="mb-3"><Icon name="alert" className="w-6 h-6" color="#f87171" /></div>
             <h2 className="text-lg font-bold text-navy-50 mb-2">Delete your account?</h2>
             <p className="text-sm text-navy-300 mb-6">
               This will permanently delete your account, all tasks, pushup history, and debt records.

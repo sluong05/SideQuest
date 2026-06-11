@@ -15,7 +15,7 @@ const USER_SELECT = {
   emailReminders: true, bio: true, avatar: true, coins: true,
   streakShieldActive: true, debtFreezeUntil: true,
   pushupMultiplierActive: true, profileFlair: true,
-  emailVerified: true,
+  emailVerified: true, xp: true, level: true,
 };
 
 function validatePassword(password) {

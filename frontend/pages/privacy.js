@@ -5,15 +5,15 @@ export default function Privacy() {
   return (
     <>
       <Head>
-        <title>Privacy Policy — Pushup Debt</title>
+        <title>Privacy Policy — SideQuest</title>
       </Head>
       <div className="min-h-screen bg-navy-600 text-navy-50">
-        <header className="border-b border-amber-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
+        <header className="border-b border-blue-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link href="/welcome">
-              <img src="/logo.png" alt="Pushup Debt" className="h-8 w-auto" />
+              <img src="/logo.png" alt="SideQuest" className="h-8 w-auto" />
             </Link>
-            <Link href="/signup" className="text-sm text-amber-400 hover:text-amber-300 font-semibold transition-colors">
+            <Link href="/signup" className="text-sm text-blue-400 hover:text-blue-300 font-semibold transition-colors">
               Sign Up
             </Link>
           </div>
@@ -21,14 +21,14 @@ export default function Privacy() {
 
         <main className="max-w-3xl mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-navy-50 mb-2">Privacy Policy</h1>
-          <p className="text-navy-400 text-sm mb-10">Last updated: May 13, 2025</p>
+          <p className="text-slate-400 text-sm mb-10">Last updated: May 13, 2025</p>
 
           <Section title="1. Who We Are">
-            <p>Pushup Debt is operated by Steven Luong ("we," "us," or "our"), an individual based in Washington, United States. You can reach us at <a href="mailto:stevenluong05@gmail.com" className="text-amber-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>SideQuest is operated by Steven Luong ("we," "us," or "our"), an individual based in Washington, United States. You can reach us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
           <Section title="2. What We Collect">
-            <p className="mb-3">We collect the following information when you use Pushup Debt:</p>
+            <p className="mb-3">We collect the following information when you use SideQuest:</p>
             <ul className="list-disc list-inside space-y-1.5 text-navy-200">
               <li><strong className="text-navy-50">Account information</strong> — email address, username, and password (stored as a one-way hash; we never see your plaintext password).</li>
               <li><strong className="text-navy-50">Profile information</strong> — optional profile photo and bio that you choose to provide.</li>
@@ -45,7 +45,7 @@ export default function Privacy() {
 
           <Section title="4. How We Use Your Information">
             <ul className="list-disc list-inside space-y-1.5 text-navy-200">
-              <li>To provide and operate the Pushup Debt service.</li>
+              <li>To provide and operate the SideQuest service.</li>
               <li>To send password reset emails when requested.</li>
               <li>To send optional email reminders about overdue tasks (only if you enable this in your settings).</li>
               <li>To show your progress and rank on the leaderboard.</li>
@@ -54,7 +54,7 @@ export default function Privacy() {
           </Section>
 
           <Section title="5. Third-Party Services">
-            <p className="mb-3">We use the following third-party services to operate Pushup Debt:</p>
+            <p className="mb-3">We use the following third-party services to operate SideQuest:</p>
             <ul className="list-disc list-inside space-y-1.5 text-navy-200">
               <li><strong className="text-navy-50">Resend</strong> — used to deliver transactional emails (password reset, reminders). Your email address is passed to Resend solely for this purpose.</li>
               <li><strong className="text-navy-50">Railway</strong> — our backend server and database are hosted on Railway. Your data is stored on Railway's infrastructure.</li>
@@ -68,7 +68,7 @@ export default function Privacy() {
           </Section>
 
           <Section title="7. Children's Privacy">
-            <p>Pushup Debt is not directed at children under 13. If we become aware that a child under 13 has created an account, we will delete it promptly. If you believe a child under 13 is using this service, please contact us at <a href="mailto:stevenluong05@gmail.com" className="text-amber-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>SideQuest is not directed at children under 13. If we become aware that a child under 13 has created an account, we will delete it promptly. If you believe a child under 13 is using this service, please contact us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
           <Section title="8. Your Rights">
@@ -79,7 +79,7 @@ export default function Privacy() {
               <li>Delete your account and all associated data at any time from your profile settings.</li>
               <li>Opt out of email reminders at any time in your notification settings.</li>
             </ul>
-            <p className="mt-3">To make any other data request, email us at <a href="mailto:stevenluong05@gmail.com" className="text-amber-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p className="mt-3">To make any other data request, email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
           <Section title="9. Security">
@@ -91,10 +91,10 @@ export default function Privacy() {
           </Section>
 
           <Section title="11. Contact">
-            <p>Questions about this policy? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-amber-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>Questions about this policy? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
           </Section>
 
-          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-navy-400">
+          <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-slate-400">
             <Link href="/terms" className="hover:text-navy-200 transition-colors">Terms of Service</Link>
             <Link href="/welcome" className="hover:text-navy-200 transition-colors">Back to Home</Link>
           </div>

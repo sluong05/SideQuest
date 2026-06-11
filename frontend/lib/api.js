@@ -52,13 +52,12 @@ export const resendVerification = () =>
 export const updateProfile = (bio, avatar) =>
   api.patch('/api/auth/profile', { bio, avatar });
 
-// Tasks
-// Pass { date } for exact-day filter, { upToDate } for overdue+today view
+// Quests (backed by /api/tasks)
 export const getTasks = (params = {}) =>
   api.get('/api/tasks', { params });
 
-export const createTask = (title, dueDate, recurrence = 'none') =>
-  api.post('/api/tasks', { title, dueDate, recurrence });
+export const createTask = (title, dueDate, recurrence = 'none', questMeta = {}) =>
+  api.post('/api/tasks', { title, dueDate, recurrence, ...questMeta });
 
 export const completeTask = (taskId) =>
   api.patch(`/api/tasks/${taskId}/complete`);
@@ -72,9 +71,9 @@ export const deleteTask = (taskId) => api.delete(`/api/tasks/${taskId}`);
 export const getDebt = () => api.get('/api/debt');
 export const recalculateDebt = () => api.post('/api/debt/calculate');
 
-// Pushup sessions
-export const logPushups = (pushupsCompleted) =>
-  api.post('/api/sessions', { pushupsCompleted });
+// Payoff sessions — activity: fitness | focus | wellness | chores | custom
+export const logPushups = (pushupsCompleted, activity = 'fitness') =>
+  api.post('/api/sessions', { pushupsCompleted, activity });
 
 export const getSessions = () => api.get('/api/sessions');
 

@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { Icon } from './Icons';
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -19,7 +20,7 @@ export default class ErrorBoundary extends Component {
       return (
         <div className="min-h-screen bg-navy-700 flex items-center justify-center p-4">
           <div className="text-center max-w-sm">
-            <p className="text-5xl mb-4">💀</p>
+            <div className="flex justify-center mb-4"><Icon name="skull" className="w-12 h-12" color="#94a3b8" /></div>
             <h1 className="text-xl font-bold text-navy-50 mb-2">Something went wrong</h1>
             <p className="text-navy-300 text-sm mb-6">
               The page hit an unexpected error. Your data is safe — just reload.

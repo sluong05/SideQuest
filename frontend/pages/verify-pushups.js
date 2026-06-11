@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { logPushups, getDebt, getStreak } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 // ─── MediaPipe landmark indices ───────────────────────────────────────────────
 const IDX = {
@@ -539,7 +540,7 @@ if (streamRef.current) {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -557,7 +558,7 @@ if (streamRef.current) {
                 Camera Position Reference
               </p>
               <p className="text-sm text-navy-300 mb-3">
-                Place your camera to the <span className="text-amber-400 font-semibold">side</span> so you look like the photos below — your full body should be visible in profile.
+                Place your camera to the <span className="text-blue-400 font-semibold">side</span> so you look like the photos below — your full body should be visible in profile.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col items-center gap-1.5">
@@ -578,7 +579,7 @@ if (streamRef.current) {
                       className="w-full object-contain"
                     />
                   </div>
-                  <span className="text-xs text-amber-400 font-medium">▼ Down position</span>
+                  <span className="text-xs text-blue-400 font-medium">▼ Down position</span>
                 </div>
               </div>
             </div>
@@ -589,7 +590,7 @@ if (streamRef.current) {
                 Keep your arms fully visible. Good lighting improves accuracy.
               </p>
               <p className="text-sm text-navy-300">
-                <span className="text-amber-400 font-medium">Gesture shortcut:</span> Raise one hand above your shoulder and hold for 1.5 s to start or stop counting — no button needed.
+                <span className="text-blue-400 font-medium">Gesture shortcut:</span> Raise one hand above your shoulder and hold for 1.5 s to start or stop counting — no button needed.
               </p>
             </div>
 
@@ -609,10 +610,10 @@ if (streamRef.current) {
         <div className="flex items-start justify-between mb-6 gap-4">
           <div>
             <Link
-              href="/"
+              href="/pay"
               className="inline-flex items-center gap-1 text-sm text-navy-200 hover:text-navy-100 mb-2 transition-colors"
             >
-              ← Dashboard
+              ← Change payoff method
             </Link>
             <h1 className="text-2xl font-bold text-navy-50">Verify Pushups</h1>
             <p className="text-navy-200 text-sm mt-0.5">
@@ -639,7 +640,7 @@ if (streamRef.current) {
               {/* Loading overlay */}
               {mpLoading && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700">
-                  <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
+                  <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
                   <p className="text-navy-100 font-medium">Loading pose detection…</p>
                   <p className="text-navy-300 text-xs mt-1">Downloading MediaPipe model (~10 MB)</p>
                 </div>
@@ -678,14 +679,14 @@ if (streamRef.current) {
               {/* Start counting overlay — shown when camera is ready but not yet counting */}
               {!mpLoading && !camError && !counting && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] gap-4">
-                  <span className="text-5xl drop-shadow-lg">🤚</span>
+                  <Icon name="hand" className="w-12 h-12 drop-shadow-lg" color="#f8fafc" />
                   <div className="text-center">
                     <p className="text-white font-bold text-lg drop-shadow-md">
                       {reps > 0 ? 'Ready to resume' : 'Get in position'}
                     </p>
                     <p className="text-navy-100 text-sm drop-shadow-md mt-1">
                       Raise your hand above your shoulder<br />
-                      and hold for <span className="text-amber-400 font-semibold">1.5 s</span> to start
+                      and hold for <span className="text-blue-400 font-semibold">1.5 s</span> to start
                     </p>
                   </div>
                 </div>
@@ -698,18 +699,18 @@ if (streamRef.current) {
                   <div className="absolute top-5 inset-x-0 flex justify-center z-10 pointer-events-none">
                     {stage === 'down' ? (
                       <span
-                        className="text-3xl font-black px-8 py-3 rounded-full bg-amber-500 text-white"
+                        className="text-3xl font-black px-8 py-3 rounded-full bg-blue-600 text-white"
                         style={{ textShadow: '0 2px 10px rgba(0,0,0,0.6)', boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
                       >
                         ▼ DOWN
                       </span>
                     ) : downHoldProgress > 0 ? (
                       <div
-                        className="relative overflow-hidden text-3xl font-black px-8 py-3 rounded-full bg-navy-800/90 text-amber-400 border-2 border-amber-500/60"
+                        className="relative overflow-hidden text-3xl font-black px-8 py-3 rounded-full bg-navy-800/90 text-blue-400 border-2 border-blue-500/60"
                         style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
                       >
                         <div
-                          className="absolute inset-0 bg-amber-500/30 rounded-full"
+                          className="absolute inset-0 bg-blue-600/30 rounded-full"
                           style={{ width: `${downHoldProgress * 100}%` }}
                         />
                         <span className="relative">▼ HOLD…</span>
@@ -727,7 +728,7 @@ if (streamRef.current) {
                   {/* Rep count — centered on video */}
                   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                     <p
-                      className="text-9xl font-black tabular-nums text-amber-400 select-none"
+                      className="text-9xl font-black tabular-nums text-blue-400 select-none"
                       style={{ textShadow: '0 0 40px rgba(0,0,0,0.95), 0 4px 24px rgba(0,0,0,0.9)' }}
                     >
                       {reps}
@@ -736,7 +737,7 @@ if (streamRef.current) {
 
                   {/* Raise-hand hint */}
                   <div className="absolute bottom-3 right-3 z-10">
-                    <span className="text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full">🤚 raise hand to stop</span>
+                    <span className="flex items-center gap-1 text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full"><Icon name="hand" className="w-3 h-3" color="currentColor" /> raise hand to stop</span>
                   </div>
                 </>
               )}
@@ -746,8 +747,8 @@ if (streamRef.current) {
                 <div className="absolute bottom-0 left-0 right-0 z-10 lg:hidden bg-black/60 backdrop-blur-sm px-4 py-2 flex items-center justify-between gap-3">
                   {/* Rep count */}
                   <div className="flex items-center gap-2">
-                    {counting && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />}
-                    <span className={`text-3xl font-bold tabular-nums ${counting ? 'text-amber-400' : reps > 0 ? 'text-white' : 'text-navy-300'}`}>
+                    {counting && <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse flex-shrink-0" />}
+                    <span className={`text-3xl font-bold tabular-nums ${counting ? 'text-blue-400' : reps > 0 ? 'text-white' : 'text-navy-300'}`}>
                       {reps}
                     </span>
                     <span className="text-xs text-navy-300">reps</span>
@@ -760,7 +761,7 @@ if (streamRef.current) {
                         {backAngle < 40 ? '✓ back ok' : '✗ too upright'}
                       </span>
                     ) : (
-                      <span className="text-xs text-navy-400">align body</span>
+                      <span className="text-xs text-slate-400">align body</span>
                     )}
                   </div>
 
@@ -781,13 +782,13 @@ if (streamRef.current) {
             {/* Angle threshold guide */}
             <div className="grid grid-cols-2 gap-3">
               <div className="card bg-navy-700/60 p-3 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-amber-400 text-sm font-bold">▼</span>
+                <div className="w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-blue-400 text-sm font-bold">▼</span>
                 </div>
                 <div>
                   <p className="text-xs text-navy-200 font-medium uppercase tracking-wide">Down</p>
                   <p className="text-navy-100 text-sm">
-                    Angle <span className="text-amber-400 font-bold">&lt; 90°</span>
+                    Angle <span className="text-blue-400 font-bold">&lt; 90°</span>
                   </p>
                 </div>
               </div>
@@ -817,10 +818,10 @@ if (streamRef.current) {
           <div className="space-y-4 lg:block">
 
             {/* Rep counter */}
-            <div className={`card text-center py-8 transition-colors duration-200 ${counting ? 'border-amber-500/40 bg-orange-950/10' : ''}`}>
+            <div className={`card text-center py-8 transition-colors duration-200 ${counting ? 'border-blue-500/40 bg-orange-950/10' : ''}`}>
               <div className="flex items-center justify-center gap-2 mb-3">
                 {counting && (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                 )}
                 <p className="text-xs text-navy-200 uppercase tracking-wider font-medium">
                   {counting ? 'Counting…' : 'Reps This Set'}
@@ -828,7 +829,7 @@ if (streamRef.current) {
               </div>
               <p
                 className={`text-8xl font-bold tabular-nums transition-all duration-200 ${
-                  counting ? 'text-amber-400' : reps > 0 ? 'text-navy-50' : 'text-navy-300'
+                  counting ? 'text-blue-400' : reps > 0 ? 'text-navy-50' : 'text-navy-300'
                 }`}
               >
                 {reps}
@@ -873,7 +874,7 @@ if (streamRef.current) {
                   <p
                     className={`text-4xl font-bold tabular-nums text-center transition-colors duration-150 ${
                       angle < 90
-                        ? 'text-amber-400'
+                        ? 'text-blue-400'
                         : angle > 155
                         ? 'text-green-400'
                         : 'text-navy-50'
@@ -888,7 +889,7 @@ if (streamRef.current) {
                       <div
                         className={`h-2.5 rounded-full transition-all duration-100 ${
                           angle < 90
-                            ? 'bg-amber-500'
+                            ? 'bg-blue-600'
                             : angle > 155
                             ? 'bg-green-500'
                             : 'bg-zinc-500'
@@ -898,7 +899,7 @@ if (streamRef.current) {
                     </div>
                     {/* Threshold markers */}
                     <div
-                      className="absolute top-0 h-2.5 w-0.5 bg-amber-500/60"
+                      className="absolute top-0 h-2.5 w-0.5 bg-blue-600/60"
                       style={{ left: `${(90 / 180) * 100}%` }}
                     />
                     <div
@@ -928,7 +929,7 @@ if (streamRef.current) {
                 <p className="text-navy-200 text-sm mt-1">
                   {totalOwed > 0
                     ? `${totalOwed} pushups remaining`
-                    : '🎉 All debt cleared!'}
+                    : 'All debt cleared!'}
                 </p>
                 {coinsEarned > 0 && (
                   <p className="flex items-center justify-center gap-1.5 text-yellow-400 font-semibold text-sm mt-2">
@@ -962,7 +963,7 @@ if (streamRef.current) {
             {/* Debt cleared celebration */}
             {totalOwed === 0 && (
               <div className="card bg-green-900/10 border-green-800/30 text-center p-4">
-                <p className="text-2xl mb-1">🎉</p>
+                <div className="flex justify-center mb-1"><Icon name="partyPopper" className="w-6 h-6" color="#4ade80" /></div>
                 <p className="text-green-400 font-semibold text-sm">Debt Free!</p>
                 <p className="text-navy-300 text-xs mt-1">No pushup debt outstanding</p>
               </div>

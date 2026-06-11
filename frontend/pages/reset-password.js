@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { resetPassword } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -50,14 +51,14 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-navy-700 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Pushup Debt" className="w-full h-auto mx-auto mb-3" />
+          <div className="flex items-center justify-center gap-2 mb-3"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2L17.5 9.5L26 10.5L20 16.5L21.5 25L14 21L6.5 25L8 16.5L2 10.5L10.5 9.5L14 2Z" fill="#3B82F6" opacity="0.9"/><circle cx="14" cy="13" r="3" fill="white" opacity="0.9"/></svg><span style={{fontSize:"1.1rem",fontWeight:"bold",letterSpacing:"0.05em",color:"#F8FAFC"}}>SIDEQUEST</span></div>
           <p className="text-navy-200 text-sm mt-1">Set a new password</p>
         </div>
 
         <div className="card">
           {success ? (
             <div className="text-center space-y-4">
-              <div className="text-4xl">✅</div>
+              <div className="flex justify-center"><Icon name="checkCircle" className="w-9 h-9" color="#4ade80" /></div>
               <h2 className="text-lg font-bold text-navy-50">Password updated</h2>
               <p className="text-navy-200 text-sm">You can now sign in with your new password.</p>
               <Link href="/login" className="btn-primary block w-full py-3 text-center">
@@ -110,7 +111,7 @@ export default function ResetPassword() {
               </form>
 
               <p className="text-center text-navy-200 text-sm mt-6">
-                <Link href="/forgot-password" className="text-amber-400 hover:text-amber-300 font-medium">
+                <Link href="/forgot-password" className="text-blue-400 hover:text-blue-300 font-medium">
                   Request a new link
                 </Link>
               </p>

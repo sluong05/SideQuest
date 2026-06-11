@@ -48,9 +48,17 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST /api/tasks — create a new task
+// POST /api/tasks — create a new quest
 router.post('/', auth, async (req, res) => {
-  const { title, dueDate, recurrence = 'none' } = req.body;
+  const {
+    title,
+    dueDate,
+    recurrence = 'none',
+    category = 'other',
+    difficulty = 'medium',
+    debtType = 'pushups',
+    debtAmount = 5,
+  } = req.body;
 
   if (!title || title.trim() === '') {
     return res.status(400).json({ error: 'Title is required' });
@@ -61,6 +69,9 @@ router.post('/', auth, async (req, res) => {
     return res.status(400).json({ error: 'Invalid recurrence value' });
   }
 
+  const xpByDifficulty = { easy: 25, medium: 50, hard: 100 };
+  const xpReward = xpByDifficulty[difficulty] ?? 50;
+
   try {
     const due = dueDate ? new Date(dueDate) : new Date();
 
@@ -70,11 +81,15 @@ router.post('/', auth, async (req, res) => {
         dueDate: due,
         recurrence,
         userId: req.userId,
+        category,
+        difficulty,
+        xpReward,
+        debtType,
+        debtAmount: Number(debtAmount),
       },
       include: { pushupDebt: true },
     });
 
-    // If the due date is already in the past, calculate debt immediately
     if (due < new Date()) {
       await calculateAndUpdateDebt(req.userId);
       const taskWithDebt = await prisma.task.findUnique({
@@ -91,7 +106,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/tasks/:id/complete — mark task as complete
+// PATCH /api/tasks/:id/complete — mark quest as complete, award XP
 router.patch('/:id/complete', auth, async (req, res) => {
   const taskId = parseInt(req.params.id, 10);
 
@@ -102,7 +117,9 @@ router.patch('/:id/complete', auth, async (req, res) => {
     if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
     if (task.completed) return res.status(400).json({ error: 'Task already completed' });
 
-    const [updated] = await prisma.$transaction([
+    const xpReward = task.xpReward ?? 50;
+
+    const [updated, updatedUser] = await prisma.$transaction([
       prisma.task.update({
         where: { id: taskId },
         data: { completed: true, completedAt: new Date() },
@@ -110,11 +127,23 @@ router.patch('/:id/complete', auth, async (req, res) => {
       }),
       prisma.user.update({
         where: { id: req.userId },
-        data: { totalTasksCompleted: { increment: 1 } },
+        data: {
+          totalTasksCompleted: { increment: 1 },
+          xp: { increment: xpReward },
+        },
       }),
     ]);
 
-    return res.json({ task: updated });
+    // Recalculate level: every 500 XP = 1 level
+    const newLevel = Math.floor(updatedUser.xp / 500) + 1;
+    if (newLevel !== updatedUser.level) {
+      await prisma.user.update({
+        where: { id: req.userId },
+        data: { level: newLevel },
+      });
+    }
+
+    return res.json({ task: updated, xpEarned: xpReward });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

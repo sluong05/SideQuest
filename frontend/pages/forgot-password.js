@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { forgotPassword } from '../lib/api';
+import { Icon } from '../components/Icons';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -27,14 +28,14 @@ export default function ForgotPassword() {
     <div className="min-h-screen bg-navy-700 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Pushup Debt" className="w-full h-auto mx-auto mb-3" />
+          <div className="flex items-center justify-center gap-2 mb-3"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2L17.5 9.5L26 10.5L20 16.5L21.5 25L14 21L6.5 25L8 16.5L2 10.5L10.5 9.5L14 2Z" fill="#3B82F6" opacity="0.9"/><circle cx="14" cy="13" r="3" fill="white" opacity="0.9"/></svg><span style={{fontSize:"1.1rem",fontWeight:"bold",letterSpacing:"0.05em",color:"#F8FAFC"}}>SIDEQUEST</span></div>
           <p className="text-navy-200 text-sm mt-1">Reset your password</p>
         </div>
 
         <div className="card">
           {submitted ? (
             <div className="text-center space-y-4">
-              <div className="text-4xl">📬</div>
+              <div className="flex justify-center"><Icon name="mail" className="w-9 h-9" color="#60a5fa" /></div>
               <h2 className="text-lg font-bold text-navy-50">Check your email</h2>
               <p className="text-navy-200 text-sm">
                 If an account exists for <span className="text-navy-50 font-medium">{email}</span>,
@@ -43,7 +44,7 @@ export default function ForgotPassword() {
               <p className="text-navy-300 text-xs">
                 Don't see it? Check your spam or junk folder.
               </p>
-              <Link href="/login" className="text-amber-400 hover:text-amber-300 text-sm font-medium">
+              <Link href="/login" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
                 Back to sign in
               </Link>
             </div>
@@ -80,7 +81,7 @@ export default function ForgotPassword() {
               </form>
 
               <p className="text-center text-navy-200 text-sm mt-6">
-                <Link href="/login" className="text-amber-400 hover:text-amber-300 font-medium">
+                <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
                   Back to sign in
                 </Link>
               </p>

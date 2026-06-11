@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPublicProfile, sendFriendRequest, getFriends, createChallenge, getStreak } from '../../lib/api';
+import { Icon } from '../../components/Icons';
 
 const CHALLENGE_TYPES = [
   { value: 'tasks', label: 'Most tasks completed' },
@@ -90,7 +91,7 @@ export default function PublicProfile() {
   if (authLoading || (!user && !authLoading)) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -104,13 +105,13 @@ export default function PublicProfile() {
 
         {loading && (
           <div className="flex justify-center py-24">
-            <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
         {error && (
           <div className="card text-center py-12">
-            <p className="text-3xl mb-3">🔒</p>
+            <div className="flex justify-center mb-3"><Icon name="lock" className="w-8 h-8" color="#475569" /></div>
             <p className="text-navy-200 font-medium">{error}</p>
           </div>
         )}
@@ -124,8 +125,8 @@ export default function PublicProfile() {
                   {profile.avatar ? (
                     <img src={profile.avatar} alt={profile.username} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-amber-500/20 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-amber-400">
+                    <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-400">
                         {profile.username[0].toUpperCase()}
                       </span>
                     </div>
@@ -136,14 +137,14 @@ export default function PublicProfile() {
                   {profile.bio && (
                     <p className="text-sm text-navy-300 mt-0.5 leading-relaxed">{profile.bio}</p>
                   )}
-                  <p className="text-xs text-navy-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Member since{' '}
                     {new Date(profile.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </p>
                   <div className="flex gap-2 mt-3">
                     {isFriend ? (
                       <button onClick={() => { setShowChallenge(true); setChallengeMsg(null); }} className="btn-primary text-sm py-2 px-4">
-                        ⚔️ Challenge
+                        <span className="inline-flex items-center gap-1.5"><Icon name="swords" className="w-4 h-4" color="currentColor" /> Challenge</span>
                       </button>
                     ) : requestSent ? (
                       <button disabled className="btn-secondary text-sm py-2 px-4 opacity-60 cursor-not-allowed">
@@ -168,7 +169,7 @@ export default function PublicProfile() {
                 <p className="text-xs text-navy-300 mt-1">pushups owed</p>
               </div>
               <div className="card py-4 text-center">
-                <p className="text-2xl font-bold text-amber-400 tabular-nums">{profile.maxStreak}</p>
+                <p className="text-2xl font-bold text-blue-400 tabular-nums">{profile.maxStreak}</p>
                 <p className="text-xs text-navy-300 mt-1">best streak</p>
               </div>
               <div className="card py-4 text-center">
@@ -200,7 +201,7 @@ export default function PublicProfile() {
                     <button key={ct.value} onClick={() => setChallengeType(ct.value)}
                       className={`text-sm py-2 px-3 rounded-lg border font-medium transition-colors ${
                         challengeType === ct.value
-                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
+                          ? 'bg-blue-500/20 border-blue-500/60 text-blue-400'
                           : 'bg-navy-700 border-navy-600 text-navy-300'
                       }`}
                     >
@@ -216,7 +217,7 @@ export default function PublicProfile() {
                     <button key={d} onClick={() => setChallengeDuration(d)}
                       className={`text-sm py-2 rounded-lg border font-medium transition-colors ${
                         challengeDuration === d
-                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
+                          ? 'bg-blue-500/20 border-blue-500/60 text-blue-400'
                           : 'bg-navy-700 border-navy-600 text-navy-300'
                       }`}
                     >
