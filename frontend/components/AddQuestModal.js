@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createTask } from '../lib/api';
+import { createQuest } from '../lib/api';
 import { Icon, CategoryIcon } from './Icons';
 import { CATEGORY_COLORS } from '../lib/questMeta';
 
@@ -103,7 +103,7 @@ function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtAmoun
   );
 }
 
-export default function AddTaskModal({ onClose, onTaskAdded }) {
+export default function AddQuestModal({ onClose, onQuestAdded }) {
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState(todayString());
   const [dueTime, setDueTime] = useState('23:59');
@@ -125,10 +125,10 @@ export default function AddTaskModal({ onClose, onTaskAdded }) {
       const [year, month, day] = dueDate.split('-').map(Number);
       const [hours, minutes] = dueTime.split(':').map(Number);
       const dueDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-      const res = await createTask(title.trim(), dueDateTime.toISOString(), recurrence, {
+      const res = await createQuest(title.trim(), dueDateTime.toISOString(), recurrence, {
         category, difficulty, debtType: 'custom', debtAmount: Number(debtAmount),
       });
-      onTaskAdded(res.data.task);
+      onQuestAdded(res.data.quest);
       onClose();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create quest');

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { logPushups, getDebt, getStreak } from '../lib/api';
+import { logPayoff, getDebt, getStreak } from '../lib/api';
 import { Icon } from '../components/Icons';
 
 // ─── MediaPipe landmark indices ───────────────────────────────────────────────
@@ -517,7 +517,7 @@ if (streamRef.current) {
     stopCounting();
     setSubmitting(true);
     try {
-      const res = await logPushups(reps);
+      const res = await logPayoff(reps);
       setTotalOwed(res.data.totalOwed);
       const earned = res.data.coinsEarned ?? 0;
       setCoinsEarned(earned);
@@ -965,7 +965,7 @@ if (streamRef.current) {
               <div className="card bg-green-900/10 border-green-800/30 text-center p-4">
                 <div className="flex justify-center mb-1"><Icon name="partyPopper" className="w-6 h-6" color="#4ade80" /></div>
                 <p className="text-green-400 font-semibold text-sm">Debt Free!</p>
-                <p className="text-navy-300 text-xs mt-1">No pushup debt outstanding</p>
+                <p className="text-navy-300 text-xs mt-1">No debt outstanding</p>
               </div>
             )}
           </div>

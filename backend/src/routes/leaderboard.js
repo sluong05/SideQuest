@@ -12,7 +12,7 @@ function maskEmail(email) {
 }
 
 // GET /api/leaderboard?friends=true
-// Ranked by: 1) most tasks completed in last 7 days  2) clean (no debt)  3) lowest debt  4) most pushups done
+// Ranked by: 1) most quests completed in last 7 days  2) clean (no debt)  3) lowest debt  4) most debt paid
 router.get('/', auth, async (req, res) => {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -31,20 +31,20 @@ router.get('/', auth, async (req, res) => {
         email: true,
         username: true,
         createdAt: true,
-        totalTasksCompleted: true,
+        totalQuestsCompleted: true,
         avatar: true,
         xp: true,
         level: true,
         maxStreak: true,
         coins: true,
-        pushupDebts: {
+        debts: {
           where: { resolved: false },
-          select: { pushupsOwed: true },
+          select: { amountOwed: true },
         },
-        pushupSessions: {
-          select: { pushupsCompleted: true },
+        payoffSessions: {
+          select: { amount: true },
         },
-        tasks: {
+        quests: {
           where: { completed: true, completedAt: { gte: sevenDaysAgo } },
           select: { id: true },
         },
@@ -52,17 +52,17 @@ router.get('/', auth, async (req, res) => {
     });
 
     const leaderboard = users.map((user) => {
-      const totalDebt = user.pushupDebts.reduce((sum, d) => sum + d.pushupsOwed, 0);
-      const totalPushups = user.pushupSessions.reduce((sum, s) => sum + s.pushupsCompleted, 0);
-      const tasksCompleted7d = user.tasks.length;
+      const totalDebt = user.debts.reduce((sum, d) => sum + d.amountOwed, 0);
+      const totalPaid = user.payoffSessions.reduce((sum, s) => sum + s.amount, 0);
+      const questsCompleted7d = user.quests.length;
 
       return {
         id: user.id,
         username: user.username || maskEmail(user.email),
         totalDebt: Math.ceil(totalDebt),
-        totalPushups,
-        tasksCompleted7d,
-        totalTasksCompleted: user.totalTasksCompleted,
+        totalPaid,
+        questsCompleted7d,
+        totalQuestsCompleted: user.totalQuestsCompleted,
         memberSince: user.createdAt,
         avatar: user.avatar || null,
         xp: user.xp ?? 0,
@@ -73,16 +73,16 @@ router.get('/', auth, async (req, res) => {
     });
 
     leaderboard.sort((a, b) => {
-      // 1. Most tasks completed in last 7 days
-      if (a.tasksCompleted7d !== b.tasksCompleted7d) return b.tasksCompleted7d - a.tasksCompleted7d;
+      // 1. Most quests completed in last 7 days
+      if (a.questsCompleted7d !== b.questsCompleted7d) return b.questsCompleted7d - a.questsCompleted7d;
       // 2. Clean (zero debt) comes first
       const aClean = a.totalDebt === 0 ? 0 : 1;
       const bClean = b.totalDebt === 0 ? 0 : 1;
       if (aClean !== bClean) return aClean - bClean;
       // 3. Lower debt is better
       if (a.totalDebt !== b.totalDebt) return a.totalDebt - b.totalDebt;
-      // 4. More pushups done is better
-      return b.totalPushups - a.totalPushups;
+      // 4. More debt paid is better
+      return b.totalPaid - a.totalPaid;
     });
 
     return res.json({ leaderboard });

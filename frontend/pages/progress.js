@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { getSessions, getStreak, getTasks } from '../lib/api';
+import { getSessions, getStreak, getQuests } from '../lib/api';
 import { CategoryIcon } from '../components/Icons';
 
 const MILESTONES = [3, 7, 14, 30, 60, 100];
@@ -388,15 +388,15 @@ function WeeklyActivity({ activityByDay }) {
 
 /* ── quests by category ───────────────────────────────────────────────────── */
 
-function QuestsByCategory({ tasks }) {
+function QuestsByCategory({ quests }) {
   const rows = Object.keys(CATEGORY_META)
     .map((cat) => {
-      const catTasks = tasks.filter((t) => (t.category ?? 'other') === cat);
-      if (catTasks.length === 0) return null;
-      const completed = catTasks.filter((t) => t.completed).length;
-      const rate = Math.round((completed / catTasks.length) * 100);
-      const xp = catTasks.filter((t) => t.completed).reduce((s, t) => s + (t.xpReward ?? 50), 0);
-      return { cat, total: catTasks.length, completed, rate, xp };
+      const catQuests = quests.filter((t) => (t.category ?? 'other') === cat);
+      if (catQuests.length === 0) return null;
+      const completed = catQuests.filter((t) => t.completed).length;
+      const rate = Math.round((completed / catQuests.length) * 100);
+      const xp = catQuests.filter((t) => t.completed).reduce((s, t) => s + (t.xpReward ?? 50), 0);
+      return { cat, total: catQuests.length, completed, rate, xp };
     })
     .filter(Boolean)
     .sort((a, b) => b.xp - a.xp);
@@ -546,7 +546,7 @@ function ProgressOverTime({ weekData }) {
 
 /* ── recent achievements ──────────────────────────────────────────────────── */
 
-function buildAchievements({ maxStreak, allTimePaid, totalCompleted, tasks }) {
+function buildAchievements({ maxStreak, allTimePaid, totalCompleted, quests }) {
   const list = [];
 
   [...MILESTONES].reverse().forEach((m) => {
@@ -565,7 +565,7 @@ function buildAchievements({ maxStreak, allTimePaid, totalCompleted, tasks }) {
     });
   }
 
-  const focusDone = tasks.filter((t) => t.category === 'focus' && t.completed).length;
+  const focusDone = quests.filter((t) => t.category === 'focus' && t.completed).length;
   if (focusDone >= 5) {
     list.push({
       id: 'focus-hero', icon: 'target', color: '#60a5fa', bg: 'rgba(37,99,235,0.14)', border: 'rgba(59,130,246,0.35)',
@@ -623,7 +623,7 @@ export default function Progress() {
   const [sessions, setSessions] = useState([]);
   const [allTimePaid, setAllTimePaid] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [tasks, setTasks] = useState([]);
+  const [quests, setQuests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -632,12 +632,12 @@ export default function Progress() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([getSessions(), getStreak(), getTasks()])
+    Promise.all([getSessions(), getStreak(), getQuests()])
       .then(([sRes, stRes, tRes]) => {
         setSessions(sRes.data.sessions);
-        setAllTimePaid(sRes.data.allTimePushups ?? 0);
+        setAllTimePaid(sRes.data.allTimePaid ?? 0);
         setStreak(stRes.data.streak);
-        setTasks(tRes.data.tasks ?? []);
+        setQuests(tRes.data.quests ?? []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -656,32 +656,32 @@ export default function Progress() {
   const level = user.level ?? 1;
   const xpIntoLevel = xp % XP_PER_LEVEL;
   const maxStreak = user.maxStreak ?? 0;
-  const totalCompleted = user.totalTasksCompleted ?? 0;
+  const totalCompleted = user.totalQuestsCompleted ?? 0;
 
   const now = new Date();
   const weekStart = startOfWeek(now);
   const lastWeekStart = new Date(weekStart); lastWeekStart.setDate(weekStart.getDate() - 7);
 
-  const completedThisWeek = tasks.filter((t) => t.completedAt && new Date(t.completedAt) >= weekStart);
-  const completedLastWeek = tasks.filter((t) => t.completedAt && new Date(t.completedAt) >= lastWeekStart && new Date(t.completedAt) < weekStart);
+  const completedThisWeek = quests.filter((t) => t.completedAt && new Date(t.completedAt) >= weekStart);
+  const completedLastWeek = quests.filter((t) => t.completedAt && new Date(t.completedAt) >= lastWeekStart && new Date(t.completedAt) < weekStart);
   const xpThisWeek = completedThisWeek.reduce((s, t) => s + (t.xpReward ?? 50), 0);
   const questsDelta = completedThisWeek.length - completedLastWeek.length;
 
-  const paidThisWeek = sessions.filter((s) => new Date(s.date) >= weekStart).reduce((s, x2) => s + x2.pushupsCompleted, 0);
-  const paidLastWeek = sessions.filter((s) => new Date(s.date) >= lastWeekStart && new Date(s.date) < weekStart).reduce((s, x2) => s + x2.pushupsCompleted, 0);
+  const paidThisWeek = sessions.filter((s) => new Date(s.date) >= weekStart).reduce((s, x2) => s + x2.amount, 0);
+  const paidLastWeek = sessions.filter((s) => new Date(s.date) >= lastWeekStart && new Date(s.date) < weekStart).reduce((s, x2) => s + x2.amount, 0);
 
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const completionRate = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const completedCount = quests.filter((t) => t.completed).length;
+  const completionRate = quests.length > 0 ? Math.round((completedCount / quests.length) * 100) : 0;
 
   /* activity map: quests completed + workout sessions per day */
   const activityByDay = new Map();
-  for (const t of tasks) {
+  for (const t of quests) {
     if (!t.completedAt) continue;
     const k = dayKey(t.completedAt);
     activityByDay.set(k, (activityByDay.get(k) ?? 0) + 1);
   }
   for (const s of sessions) {
-    if (s.pushupsCompleted > 0) {
+    if (s.amount > 0) {
       const k = dayKey(s.date);
       activityByDay.set(k, (activityByDay.get(k) ?? 0) + 1);
     }
@@ -692,12 +692,12 @@ export default function Progress() {
   const weekData = dayLabels.map((label, i) => {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
     const k = dayKey(d);
-    const dayTasks = completedThisWeek.filter((t) => dayKey(t.completedAt) === k);
-    const debt = sessions.filter((s) => dayKey(s.date) === k).reduce((s, x2) => s + x2.pushupsCompleted, 0);
-    return { label, xp: dayTasks.reduce((s, t) => s + (t.xpReward ?? 50), 0), quests: dayTasks.length, debt };
+    const dayQuests = completedThisWeek.filter((t) => dayKey(t.completedAt) === k);
+    const debt = sessions.filter((s) => dayKey(s.date) === k).reduce((s, x2) => s + x2.amount, 0);
+    return { label, xp: dayQuests.reduce((s, t) => s + (t.xpReward ?? 50), 0), quests: dayQuests.length, debt };
   });
 
-  const achievements = buildAchievements({ maxStreak, allTimePaid, totalCompleted, tasks });
+  const achievements = buildAchievements({ maxStreak, allTimePaid, totalCompleted, quests });
 
   return (
     <Layout streak={streak}>
@@ -759,7 +759,7 @@ export default function Progress() {
               <CompletionRing pct={completionRate} />
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Completion Rate</p>
-                <p className="text-[11px] text-slate-500 mt-1.5">{completedCount} of {tasks.length} quests</p>
+                <p className="text-[11px] text-slate-500 mt-1.5">{completedCount} of {quests.length} quests</p>
               </div>
             </div>
           </div>
@@ -773,7 +773,7 @@ export default function Progress() {
 
           {/* ── Row 3: categories / chart / achievements ── */}
           <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.35fr_1fr] gap-4">
-            <QuestsByCategory tasks={tasks} />
+            <QuestsByCategory quests={quests} />
             <ProgressOverTime weekData={weekData} />
             <RecentAchievements achievements={achievements} />
           </div>

@@ -1,7 +1,7 @@
 {
-  "name": "pushup-debt-frontend",
+  "name": "sidequest-frontend",
   "version": "1.0.0",
-  "description": "Pushup Debt frontend",
+  "description": "SideQuest frontend",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

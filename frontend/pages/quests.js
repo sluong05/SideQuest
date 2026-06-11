@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
-import AddTaskModal from '../components/AddTaskModal';
+import AddQuestModal from '../components/AddQuestModal';
 import { useAuth } from '../contexts/AuthContext';
-import { getTasks, getDebt, getStreak, completeTask, uncompleteTask, deleteTask, recalculateDebt } from '../lib/api';
+import { getQuests, getDebt, getStreak, completeQuest, uncompleteQuest, deleteQuest, recalculateDebt } from '../lib/api';
 import confetti from 'canvas-confetti';
 import { Icon, CategoryIcon } from '../components/Icons';
 import { CATEGORY_COLORS, DIFF_STYLES, DIFF_DURATION } from '../lib/questMeta';
@@ -14,8 +14,8 @@ function formatDue(dateStr) {
   const date = new Date(dateStr);
   const now = new Date();
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const taskDay = new Date(date); taskDay.setHours(0, 0, 0, 0);
-  const dayDiff = Math.round((taskDay - today) / 86400000);
+  const questDay = new Date(date); questDay.setHours(0, 0, 0, 0);
+  const dayDiff = Math.round((questDay - today) / 86400000);
   const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   if (date < now) {
     return dayDiff === 0
@@ -29,20 +29,20 @@ function formatDue(dateStr) {
 }
 
 // ─── Quest Row ──────────────────────────────────────────────────────────────
-function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
+function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [hovered, setHovered] = useState(false);
 
-  const dueInfo = formatDue(task.dueDate);
-  const diff    = DIFF_STYLES[task.difficulty] ?? DIFF_STYLES.medium;
-  const catBg   = CATEGORY_COLORS[task.category] ?? 'rgba(59,130,246,0.18)';
-  const xp      = task.xpReward ?? 50;
-  const debtAmt = task.debtAmount ?? 5;
-  const duration = task.duration ?? DIFF_DURATION[task.difficulty] ?? '~45 min';
-  const loading = isActioning === task.id;
-  const isOverdue = dueInfo.overdue && !task.completed;
+  const dueInfo = formatDue(quest.dueDate);
+  const diff    = DIFF_STYLES[quest.difficulty] ?? DIFF_STYLES.medium;
+  const catBg   = CATEGORY_COLORS[quest.category] ?? 'rgba(59,130,246,0.18)';
+  const xp      = quest.xpReward ?? 50;
+  const debtAmt = quest.debtAmount ?? 5;
+  const duration = quest.duration ?? DIFF_DURATION[quest.difficulty] ?? '~45 min';
+  const loading = isActioning === quest.id;
+  const isOverdue = dueInfo.overdue && !quest.completed;
 
-  const rowBg = task.completed
+  const rowBg = quest.completed
     ? 'rgba(8,21,37,0.35)'
     : isOverdue
     ? 'rgba(239,68,68,0.05)'
@@ -50,7 +50,7 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
     ? 'rgba(11,27,45,0.95)'
     : 'rgba(8,21,37,0.65)';
 
-  const rowBorder = task.completed
+  const rowBorder = quest.completed
     ? 'rgba(34,197,94,0.1)'
     : isOverdue
     ? 'rgba(239,68,68,0.22)'
@@ -58,9 +58,9 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
     ? 'rgba(37,99,235,0.38)'
     : 'rgba(59,130,246,0.12)';
 
-  const rowShadow = isOverdue && !task.completed
+  const rowShadow = isOverdue && !quest.completed
     ? '0 0 14px rgba(239,68,68,0.09), inset 0 0 28px rgba(239,68,68,0.03)'
-    : hovered && !task.completed
+    : hovered && !quest.completed
     ? '0 0 18px rgba(37,99,235,0.13), inset 0 0 28px rgba(37,99,235,0.04)'
     : 'none';
 
@@ -71,22 +71,22 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
       <div
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className={`rounded-xl transition-all duration-200 ${task.completed ? 'opacity-50' : ''}`}
+        className={`rounded-xl transition-all duration-200 ${quest.completed ? 'opacity-50' : ''}`}
         style={{ background: rowBg, border: `1px solid ${rowBorder}`, boxShadow: rowShadow }}
       >
         <div className="flex items-center gap-3 px-4 py-3">
           {/* Checkbox circle */}
           <button
-            onClick={() => (task.completed ? onUncomplete(task.id) : onComplete(task.id))}
+            onClick={() => (quest.completed ? onUncomplete(quest.id) : onComplete(quest.id))}
             disabled={loading}
-            aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
+            aria-label={quest.completed ? 'Mark incomplete' : 'Mark complete'}
             className="w-[18px] h-[18px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150"
             style={{
-              border: `1.5px solid ${task.completed ? 'rgba(34,197,94,0.7)' : hovered ? 'rgba(96,165,250,0.6)' : 'rgba(71,85,105,0.55)'}`,
-              background: task.completed ? 'rgba(34,197,94,0.18)' : 'transparent',
+              border: `1.5px solid ${quest.completed ? 'rgba(34,197,94,0.7)' : hovered ? 'rgba(96,165,250,0.6)' : 'rgba(71,85,105,0.55)'}`,
+              background: quest.completed ? 'rgba(34,197,94,0.18)' : 'transparent',
             }}
           >
-            {task.completed && (
+            {quest.completed && (
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#4ade80" strokeWidth={3.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
@@ -98,20 +98,20 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
             className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ background: catBg, border: `1px solid ${catBg.replace(/[\d.]+\)$/, '0.4)')}` }}
           >
-            <CategoryIcon category={task.category} className="w-4 h-4" />
+            <CategoryIcon category={quest.category} className="w-4 h-4" />
           </div>
 
           {/* Title + duration */}
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-semibold leading-tight ${task.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>
-              {task.title}
+            <p className={`text-sm font-semibold leading-tight ${quest.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+              {quest.title}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-[11px]" style={{ color: '#475569' }}>{duration}</span>
-              {task.category && (
+              {quest.category && (
                 <>
                   <span className="text-[11px]" style={{ color: '#334155' }}>·</span>
-                  <span className="text-[11px] capitalize" style={{ color: '#475569' }}>{task.category}</span>
+                  <span className="text-[11px] capitalize" style={{ color: '#475569' }}>{quest.category}</span>
                 </>
               )}
             </div>
@@ -119,11 +119,11 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
 
           {/* Due date — two lines */}
           <div className="hidden sm:flex flex-col w-28 flex-shrink-0">
-            <span className="text-xs font-semibold" style={{ color: task.completed ? '#475569' : isOverdue ? '#fb923c' : '#94a3b8' }}>
-              {task.completed ? 'Completed' : dueInfo.line1}
+            <span className="text-xs font-semibold" style={{ color: quest.completed ? '#475569' : isOverdue ? '#fb923c' : '#94a3b8' }}>
+              {quest.completed ? 'Completed' : dueInfo.line1}
             </span>
             <span className="text-[11px] mt-0.5" style={{ color: isOverdue || dueInfo.urgent ? '#f87171' : '#475569' }}>
-              {task.completed ? '' : dueInfo.line2}
+              {quest.completed ? '' : dueInfo.line2}
             </span>
           </div>
 
@@ -144,7 +144,7 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
           </div>
 
           {/* Debt if skipped */}
-          {!task.completed ? (
+          {!quest.completed ? (
             <div className="hidden lg:flex flex-col w-24 flex-shrink-0">
               <span style={miniLabel}>Debt if skipped</span>
               <span className="text-xs font-bold mt-0.5 flex items-center gap-1" style={{ color: isOverdue ? '#f87171' : '#fb923c' }}>
@@ -162,9 +162,9 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
 
           {/* Actions — stacked */}
           <div className="flex flex-col items-stretch gap-1 flex-shrink-0" style={{ width: 118 }}>
-            {task.completed ? (
+            {quest.completed ? (
               <button
-                onClick={() => onUncomplete(task.id)}
+                onClick={() => onUncomplete(quest.id)}
                 disabled={loading}
                 className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all duration-150"
                 style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)', color: '#64748b' }}
@@ -174,7 +174,7 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
             ) : (
               <>
                 <button
-                  onClick={() => onComplete(task.id)}
+                  onClick={() => onComplete(quest.id)}
                   disabled={loading}
                   className="text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-all duration-150"
                   style={{
@@ -214,7 +214,7 @@ function QuestCard({ task, onComplete, onUncomplete, onSkip, isActioning }) {
             <div className="flex gap-3">
               <button onClick={() => setShowConfirm(false)} className="btn-secondary flex-1">Cancel</button>
               <button
-                onClick={() => { setShowConfirm(false); onSkip(task.id); }}
+                onClick={() => { setShowConfirm(false); onSkip(quest.id); }}
                 className="flex-1 py-2 px-4 rounded-lg font-semibold text-sm text-white transition-all"
                 style={{ background: 'rgba(239,68,68,0.8)', border: '1px solid rgba(239,68,68,0.5)' }}
               >
@@ -331,10 +331,10 @@ function CompletionRatePanel({ completionRate, completedAll, totalCount }) {
   );
 }
 
-function XPThisWeekPanel({ tasks, userLevel }) {
+function XPThisWeekPanel({ quests, userLevel }) {
   const weeklyGoal = 200;
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const recent = tasks
+  const recent = quests
     .filter((t) => t.completed && t.completedAt && new Date(t.completedAt) >= sevenDaysAgo)
     .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
   const weekXP = recent.reduce((s, t) => s + (t.xpReward ?? 50), 0);
@@ -484,7 +484,7 @@ export default function Quests() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [tasks, setTasks]           = useState([]);
+  const [quests, setQuests]           = useState([]);
   const [debts, setDebts]           = useState([]);
   const [streak, setStreak]         = useState(0);
   const [totalOwed, setTotalOwed]   = useState(0);
@@ -493,7 +493,7 @@ export default function Quests() {
   const [diffFilter, setDiffFilter] = useState('All');
   const [sortBy, setSortBy]         = useState('dueDate');
   const [search, setSearch]         = useState('');
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [showAddQuest, setShowAddQuest] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
@@ -503,8 +503,8 @@ export default function Quests() {
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      const [tasksRes, debtRes, streakRes] = await Promise.all([getTasks(), getDebt(), getStreak()]);
-      setTasks(tasksRes.data.tasks);
+      const [questsRes, debtRes, streakRes] = await Promise.all([getQuests(), getDebt(), getStreak()]);
+      setQuests(questsRes.data.quests);
       setDebts(debtRes.data.debts);
       setTotalOwed(debtRes.data.totalOwed);
       setStreak(streakRes.data.streak);
@@ -517,24 +517,24 @@ export default function Quests() {
     recalculateDebt().catch(() => {}).finally(() => loadData());
   }, [user]);
 
-  async function handleComplete(taskId) {
-    setActionLoading(taskId);
+  async function handleComplete(questId) {
+    setActionLoading(questId);
     try {
-      await completeTask(taskId);
+      await completeQuest(questId);
       confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 }, colors: ['#2563eb', '#60a5fa', '#22c55e', '#fbbf24'] });
       loadData();
     } catch (err) { console.error(err); }
     finally { setActionLoading(null); }
   }
-  async function handleUncomplete(taskId) {
-    setActionLoading(taskId);
-    try { await uncompleteTask(taskId); loadData(); }
+  async function handleUncomplete(questId) {
+    setActionLoading(questId);
+    try { await uncompleteQuest(questId); loadData(); }
     catch (err) { console.error(err); }
     finally { setActionLoading(null); }
   }
-  async function handleSkip(taskId) {
-    setActionLoading(taskId);
-    try { await deleteTask(taskId); loadData(); }
+  async function handleSkip(questId) {
+    setActionLoading(questId);
+    try { await deleteQuest(questId); loadData(); }
     catch (err) { console.error(err); }
     finally { setActionLoading(null); }
   }
@@ -543,12 +543,12 @@ export default function Quests() {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
-  const todayCount   = tasks.filter((t) => { const d = new Date(t.dueDate); return !t.completed && d >= todayStart && d <= todayEnd; }).length;
-  const completedAll = tasks.filter((t) => t.completed).length;
-  const overdueAll   = tasks.filter((t) => !t.completed && new Date(t.dueDate) < now).length;
-  const pendingAll   = tasks.filter((t) => !t.completed).length;
-  const activeCount  = tasks.filter((t) => !t.completed && !t.deletedAt).length;
-  const completionRate = tasks.length > 0 ? Math.round((completedAll / tasks.length) * 100) : 0;
+  const todayCount   = quests.filter((t) => { const d = new Date(t.dueDate); return !t.completed && d >= todayStart && d <= todayEnd; }).length;
+  const completedAll = quests.filter((t) => t.completed).length;
+  const overdueAll   = quests.filter((t) => !t.completed && new Date(t.dueDate) < now).length;
+  const pendingAll   = quests.filter((t) => !t.completed).length;
+  const activeCount  = quests.filter((t) => !t.completed && !t.deletedAt).length;
+  const completionRate = quests.length > 0 ? Math.round((completedAll / quests.length) * 100) : 0;
 
   const TABS = [
     { key: 'All',       label: 'All',       count: null },
@@ -559,7 +559,7 @@ export default function Quests() {
     { key: 'Overdue',   label: 'Overdue',   count: overdueAll },
   ];
 
-  const filtered = tasks
+  const filtered = quests
     .filter((t) => {
       const due = new Date(t.dueDate);
       if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
@@ -652,7 +652,7 @@ export default function Quests() {
                   </svg>
                 </div>
                 <button
-                  onClick={() => totalOwed > 249 ? alert('Pay off debt first.') : setShowAddTask(true)}
+                  onClick={() => totalOwed > 249 ? alert('Pay off debt first.') : setShowAddQuest(true)}
                   className="flex items-center gap-1.5 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-all duration-150 flex-shrink-0"
                   style={{
                     background: 'rgba(37,99,235,0.88)',
@@ -770,7 +770,7 @@ export default function Quests() {
                 {filter !== 'All' || diffFilter !== 'All' ? 'Try changing the filters.' : 'Create your first quest to get started.'}
               </p>
               {filter === 'All' && diffFilter === 'All' && (
-                <button onClick={() => setShowAddTask(true)} className="btn-primary mt-5 text-sm py-2 px-5">
+                <button onClick={() => setShowAddQuest(true)} className="btn-primary mt-5 text-sm py-2 px-5">
                   + Create Quest
                 </button>
               )}
@@ -779,10 +779,10 @@ export default function Quests() {
             <div>
               <QuestListHeader />
               <div className="space-y-1.5">
-                {filtered.map((task) => (
+                {filtered.map((quest) => (
                   <QuestCard
-                    key={task.id}
-                    task={task}
+                    key={quest.id}
+                    quest={quest}
                     onComplete={handleComplete}
                     onUncomplete={handleUncomplete}
                     onSkip={handleSkip}
@@ -816,9 +816,9 @@ export default function Quests() {
           <CompletionRatePanel
             completionRate={completionRate}
             completedAll={completedAll}
-            totalCount={tasks.length}
+            totalCount={quests.length}
           />
-          <XPThisWeekPanel tasks={tasks} userLevel={user?.level} />
+          <XPThisWeekPanel quests={quests} userLevel={user?.level} />
           <StreakPanel streak={streak} />
 
           {totalOwed > 0 && (
@@ -841,10 +841,10 @@ export default function Quests() {
         </div>
       </div>
 
-      {showAddTask && (
-        <AddTaskModal
-          onClose={() => setShowAddTask(false)}
-          onTaskAdded={() => { recalculateDebt().catch(() => {}); loadData(); }}
+      {showAddQuest && (
+        <AddQuestModal
+          onClose={() => setShowAddQuest(false)}
+          onQuestAdded={() => { recalculateDebt().catch(() => {}); loadData(); }}
         />
       )}
     </Layout>

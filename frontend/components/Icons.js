@@ -354,7 +354,7 @@ export function Icon({ name, className = 'w-4 h-4', color = '#60a5fa', strokeWid
 }
 
 // Icon name per quest category — shared by the dashboard, quests page,
-// task list, progress page, and AddTaskModal.
+// quest list, progress page, and AddQuestModal.
 export const CATEGORY_ICON_NAMES = {
   fitness: 'biceps',
   learning: 'book',

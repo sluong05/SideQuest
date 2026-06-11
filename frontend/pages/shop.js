@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { getFriends, getTasks, buyShopItem, getInventory, useItem, getStreak } from '../lib/api';
+import { getFriends, getQuests, buyShopItem, getInventory, useItem, getStreak } from '../lib/api';
 import { Icon } from '../components/Icons';
 import { timeAgo } from '../lib/questMeta';
 import { PANEL_STYLE, SELECT_STYLE, PanelHeader } from '../components/Panel';
@@ -12,19 +12,19 @@ const SHOP_ITEMS = [
   {
     id: 'debt_bomb',
     name: 'Debt Bomb',
-    description: "Add 10 pushups to a friend's debt. Evil. Necessary.",
+    description: "Add 10 pts to a friend's debt. Evil. Necessary.",
     cost: 50,
     icon: 'bomb',
     iconColor: '#f87171',
     type: 'instant',
     category: 'chaos',
     requiresFriend: true,
-    successMsg: (target) => `Debt Bomb dropped on ${target}! They now owe 10 more pushups.`,
+    successMsg: (target) => `Debt Bomb dropped on ${target}! They now owe 10 more pts.`,
   },
   {
     id: 'taunt',
     name: 'Taunt',
-    description: "Send a push notification to a friend to remind them they owe pushups.",
+    description: "Send a push notification to a friend to remind them they owe debt.",
     cost: 10,
     icon: 'megaphone',
     iconColor: '#fb923c',
@@ -47,13 +47,13 @@ const SHOP_ITEMS = [
   {
     id: 'deadline_ext',
     name: 'Deadline Extension',
-    description: "Push a task's due date forward by 24 hours. No questions asked.",
+    description: "Push a quest's due date forward by 24 hours. No questions asked.",
     cost: 25,
     icon: 'clock',
     iconColor: '#60a5fa',
     type: 'inventory',
     category: 'utility',
-    requiresTask: true,
+    requiresQuest: true,
   },
   {
     id: 'debt_freeze',
@@ -67,8 +67,8 @@ const SHOP_ITEMS = [
   },
   {
     id: 'pushup_multiplier',
-    name: 'Pushup Multiplier',
-    description: "Your next pushup session drains debt at 2× rate.",
+    name: 'Payoff Multiplier',
+    description: "Your next payoff session drains debt at 2× rate.",
     cost: 35,
     icon: 'bolt',
     iconColor: '#fbbf24',
@@ -127,7 +127,7 @@ export default function Shop() {
 
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
-  const [tasks, setTasks] = useState([]);
+  const [quests, setQuests] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [streak, setStreak] = useState(0);
   const [category, setCategory] = useState('All');
@@ -142,7 +142,7 @@ export default function Shop() {
 
   // Use modal state
   const [useItemEntry, setUseItemEntry] = useState(null); // { itemId, quantity }
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedQuest, setSelectedQuest] = useState(null);
   const [using, setUsing] = useState(false);
   const [useResult, setUseResult] = useState(null);
 
@@ -161,13 +161,13 @@ export default function Shop() {
     Promise.all([
       getFriends(),
       getInventory(),
-      getTasks({ upToDate: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })() }),
+      getQuests({ upToDate: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })() }),
       getStreak(),
     ])
       .then(([fr, inv, tk, sr]) => {
         setFriends(fr.data.friends);
         setInventory(inv.data.inventory);
-        setTasks((tk.data.tasks || []).filter((t) => !t.completed));
+        setQuests((tk.data.quests || []).filter((t) => !t.completed));
         setStreak(sr.data.streak);
       })
       .catch(() => {})
@@ -228,40 +228,40 @@ export default function Shop() {
 
   function openUse(entry) {
     setUseItemEntry(entry);
-    setSelectedTask(null);
+    setSelectedQuest(null);
     setUseResult(null);
   }
 
   function closeUse() {
     setUseItemEntry(null);
-    setSelectedTask(null);
+    setSelectedQuest(null);
     setUseResult(null);
   }
 
   async function handleUse() {
     if (!useItemEntry || using) return;
     const itemDef = ITEM_MAP[useItemEntry.itemId];
-    if (itemDef?.requiresTask && !selectedTask) return;
+    if (itemDef?.requiresQuest && !selectedQuest) return;
     setUsing(true);
     setUseResult(null);
     try {
-      const resp = await useItem(useItemEntry.itemId, selectedTask?.id);
+      const resp = await useItem(useItemEntry.itemId, selectedQuest?.id);
       setInventory((prev) => {
         if (useItemEntry.quantity <= 1) return prev.filter((e) => e.itemId !== useItemEntry.itemId);
         return prev.map((e) =>
           e.itemId === useItemEntry.itemId ? { ...e, quantity: e.quantity - 1 } : e
         );
       });
-      // Update task list if deadline was extended
-      if (useItemEntry.itemId === 'deadline_ext' && selectedTask) {
-        setTasks((prev) => prev.map((t) =>
-          t.id === selectedTask.id
+      // Update quest list if deadline was extended
+      if (useItemEntry.itemId === 'deadline_ext' && selectedQuest) {
+        setQuests((prev) => prev.map((t) =>
+          t.id === selectedQuest.id
             ? { ...t, dueDate: new Date(new Date(t.dueDate).getTime() + 24 * 60 * 60 * 1000).toISOString() }
             : t
         ));
       }
       setUseResult({ type: 'success', message: resp.data.message });
-      setSelectedTask(null);
+      setSelectedQuest(null);
     } catch (err) {
       setUseResult({ type: 'error', message: err.response?.data?.error || 'Failed to use item' });
     } finally {
@@ -752,21 +752,21 @@ export default function Shop() {
             </div>
             <p className="text-sm text-navy-300 mb-5">{def.description}</p>
 
-            {def.requiresTask && (
+            {def.requiresQuest && (
               <div className="mb-5">
-                <label className="label mb-2 block">Choose a task to extend</label>
-                {tasks.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-2">No incomplete tasks.</p>
+                <label className="label mb-2 block">Choose a quest to extend</label>
+                {quests.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-2">No incomplete quests.</p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {tasks.map((t) => (
+                    {quests.map((t) => (
                       <button
                         key={t.id}
-                        onClick={() => setSelectedTask(t)}
+                        onClick={() => setSelectedQuest(t)}
                         className="w-full text-left px-3 py-2.5 rounded-lg border transition-colors"
                         style={{
-                          background: selectedTask?.id === t.id ? 'rgba(37,99,235,0.1)' : 'rgba(8,21,37,0.6)',
-                          borderColor: selectedTask?.id === t.id ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.12)',
+                          background: selectedQuest?.id === t.id ? 'rgba(37,99,235,0.1)' : 'rgba(8,21,37,0.6)',
+                          borderColor: selectedQuest?.id === t.id ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.12)',
                         }}
                       >
                         <p className="text-sm font-semibold text-navy-100">{t.title}</p>
@@ -786,7 +786,7 @@ export default function Shop() {
               <button onClick={closeUse} className="btn-secondary flex-1 py-2.5 text-sm">Cancel</button>
               <button
                 onClick={handleUse}
-                disabled={using || (def.requiresTask && !selectedTask) || useResult?.type === 'success'}
+                disabled={using || (def.requiresQuest && !selectedQuest) || useResult?.type === 'success'}
                 className="btn-primary flex-1 py-2.5 text-sm"
               >
                 {using ? 'Applying…' : 'Use Item'}
@@ -835,7 +835,7 @@ function FriendOption({ friend, selected, onSelect }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-navy-100">{friend.username}</p>
         <p className="text-xs text-slate-400">
-          {friend.totalDebt > 0 ? `${friend.totalDebt} pushups owed` : 'Debt free'}
+          {friend.totalDebt > 0 ? `${friend.totalDebt} pts owed` : 'Debt free'}
         </p>
       </div>
       {selected && <span className="text-blue-400 text-sm flex-shrink-0">✓</span>}

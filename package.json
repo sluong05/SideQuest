@@ -1,7 +1,7 @@
 {
-  "name": "pushup-debt",
+  "name": "sidequest",
   "version": "1.0.0",
-  "description": "Pushup Debt — monorepo root",
+  "description": "SideQuest — monorepo root",
   "scripts": {
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "setup": "npm run install:all && cd backend && cp .env.example .env && npm run db:migrate && npm run db:generate",

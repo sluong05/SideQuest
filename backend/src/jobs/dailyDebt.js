@@ -18,8 +18,8 @@ function localCalendarDay(date, timezone) {
 }
 
 /**
- * Calculate pushup debt for a specific user (or all users if userId is null).
- * Debt = 5 pushups on first overdue moment, +5 per local midnight that passes after.
+ * Calculate quest debt for a specific user (or all users if userId is null).
+ * Debt = 5 pts on first overdue moment, +5 per local midnight that passes after.
  */
 async function calculateAndUpdateDebt(userId = null) {
   const now = new Date();
@@ -34,41 +34,41 @@ async function calculateAndUpdateDebt(userId = null) {
     whereClause.userId = userId;
   }
 
-  const overdueTasks = await prisma.task.findMany({
+  const overdueQuests = await prisma.quest.findMany({
     where: whereClause,
-    include: { pushupDebt: true, user: { select: { timezone: true, debtFreezeUntil: true } } },
+    include: { debt: true, user: { select: { timezone: true, debtFreezeUntil: true } } },
   });
 
-  for (const task of overdueTasks) {
-    if (task.user?.debtFreezeUntil && task.user.debtFreezeUntil > now) continue;
-    const dueDate = new Date(task.dueDate);
+  for (const quest of overdueQuests) {
+    if (quest.user?.debtFreezeUntil && quest.user.debtFreezeUntil > now) continue;
+    const dueDate = new Date(quest.dueDate);
     const msPerDay = 1000 * 60 * 60 * 24;
-    const tz = task.user?.timezone || 'UTC';
+    const tz = quest.user?.timezone || 'UTC';
     // daysOverdue=1 the moment the due time passes; +1 for each local midnight after.
     const dueDateLocalDay = localCalendarDay(dueDate, tz);
     const nowLocalDay = localCalendarDay(now, tz);
     const daysOverdue = 1 + Math.floor((nowLocalDay - dueDateLocalDay) / msPerDay);
-    const basePushups = 5 * daysOverdue;
+    const baseDebt = 5 * daysOverdue;
 
-    if (!task.pushupDebt) {
-      // First time this task is overdue — create new debt entry
-      await prisma.pushupDebt.create({
+    if (!quest.debt) {
+      // First time this quest is overdue — create new debt entry
+      await prisma.debt.create({
         data: {
-          taskId: task.id,
-          userId: task.userId,
-          pushupsOwed: basePushups,
+          questId: quest.id,
+          userId: quest.userId,
+          amountOwed: baseDebt,
           daysOverdue,
           resolved: false,
         },
       });
-    } else if (!task.pushupDebt.resolved) {
+    } else if (!quest.debt.resolved) {
       // Only add debt for new overdue days — don't reset what the user has already paid off
-      const newDays = daysOverdue - task.pushupDebt.daysOverdue;
+      const newDays = daysOverdue - quest.debt.daysOverdue;
       if (newDays > 0) {
-        await prisma.pushupDebt.update({
-          where: { id: task.pushupDebt.id },
+        await prisma.debt.update({
+          where: { id: quest.debt.id },
           data: {
-            pushupsOwed: task.pushupDebt.pushupsOwed + 5 * newDays,
+            amountOwed: quest.debt.amountOwed + 5 * newDays,
             daysOverdue,
           },
         });
@@ -76,47 +76,47 @@ async function calculateAndUpdateDebt(userId = null) {
     }
   }
 
-  console.log(`[DebtJob] Processed ${overdueTasks.length} overdue tasks${userId ? ` for user ${userId}` : ''}`);
+  console.log(`[DebtJob] Processed ${overdueQuests.length} overdue quests${userId ? ` for user ${userId}` : ''}`);
 
-  // ── Reset completed recurring tasks for their next period ─────────────────
+  // ── Reset completed recurring quests for their next period ─────────────────
   // Only runs on the full nightly pass (not per-user on-demand calls)
   if (userId) return;
 
-  const completedRecurring = await prisma.task.findMany({
+  const completedRecurring = await prisma.quest.findMany({
     where: { completed: true, deletedAt: null, recurrence: { not: 'none' } },
-    include: { pushupDebt: true, user: { select: { timezone: true } } },
+    include: { debt: true, user: { select: { timezone: true } } },
   });
 
-  for (const task of completedRecurring) {
-    const tz = task.user?.timezone || 'UTC';
+  for (const quest of completedRecurring) {
+    const tz = quest.user?.timezone || 'UTC';
     let nextDue;
 
-    if (task.recurrence === 'daily') {
+    if (quest.recurrence === 'daily') {
       // Reset to end of today in the user's local timezone
       nextDue = localEndOfDayUTC(localDateString(now, tz), tz);
-    } else if (task.recurrence === 'weekly') {
+    } else if (quest.recurrence === 'weekly') {
       // Preserve the original due time — just advance by exactly 7 days
-      nextDue = new Date(new Date(task.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000);
+      nextDue = new Date(new Date(quest.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000);
     }
 
     // Remove resolved debt so a fresh debt record can be created if overdue again
-    if (task.pushupDebt?.resolved) {
-      await prisma.pushupDebt.delete({ where: { id: task.pushupDebt.id } });
+    if (quest.debt?.resolved) {
+      await prisma.debt.delete({ where: { id: quest.debt.id } });
     }
 
-    await prisma.task.update({
-      where: { id: task.id },
+    await prisma.quest.update({
+      where: { id: quest.id },
       data: { completed: false, completedAt: null, dueDate: nextDue },
     });
   }
 
-  console.log(`[DebtJob] Reset ${completedRecurring.length} recurring tasks`);
+  console.log(`[DebtJob] Reset ${completedRecurring.length} recurring quests`);
 
-  // ── Hard-delete tasks that are past the 7-day leaderboard window ────────
-  // Soft-deleted incomplete tasks have no leaderboard value and can go immediately.
-  // Completed tasks (deleted or not) are kept for 7 days so the leaderboard counts them.
+  // ── Hard-delete quests that are past the 7-day leaderboard window ────────
+  // Soft-deleted incomplete quests have no leaderboard value and can go immediately.
+  // Completed quests (deleted or not) are kept for 7 days so the leaderboard counts them.
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const deleted = await prisma.task.deleteMany({
+  const deleted = await prisma.quest.deleteMany({
     where: {
       OR: [
         { completed: true, recurrence: 'none', completedAt: { lt: sevenDaysAgo } },
@@ -125,7 +125,7 @@ async function calculateAndUpdateDebt(userId = null) {
     },
   });
 
-  console.log(`[DebtJob] Hard-deleted ${deleted.count} expired tasks`);
+  console.log(`[DebtJob] Hard-deleted ${deleted.count} expired quests`);
 }
 
 /**

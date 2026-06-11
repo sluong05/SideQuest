@@ -95,7 +95,7 @@ export default function Signup() {
               <input
                 type="text"
                 className="input"
-                placeholder="e.g. pushup_king"
+                placeholder="e.g. quest_king"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required

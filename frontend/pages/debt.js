@@ -79,9 +79,9 @@ function StatCard({ icon, iconColor, label, children }) {
 /* ── payoff recommendation (right column, orange) ─────────────────────────── */
 
 function PayoffRecommendation({ debt, totalOwed }) {
-  const owed = Math.ceil(debt.pushupsOwed);
+  const owed = Math.ceil(debt.amountOwed);
   const pctOfTotal = Math.round((owed / Math.max(totalOwed, 1)) * 100);
-  const title = debt.task?.title ?? 'Abandoned quest';
+  const title = debt.quest?.title ?? 'Abandoned quest';
 
   return (
     <div className="card" style={{ background: 'rgba(234,88,12,0.07)', borderColor: 'rgba(249,115,22,0.3)' }}>
@@ -128,7 +128,7 @@ function PayoffRecommendation({ debt, totalOwed }) {
 
 function DebtTable({ debts, sortBy, setSortBy, level, totalOwed }) {
   const sorted = [...debts].sort((a, b) =>
-    sortBy === 'owed' ? b.pushupsOwed - a.pushupsOwed : b.daysOverdue - a.daysOverdue
+    sortBy === 'owed' ? b.amountOwed - a.amountOwed : b.daysOverdue - a.daysOverdue
   );
 
   return (
@@ -172,9 +172,9 @@ function DebtTable({ debts, sortBy, setSortBy, level, totalOwed }) {
 
       <div className="divide-y" style={{ borderColor: 'rgba(59,130,246,0.06)' }}>
         {sorted.map((debt) => {
-          const questTitle = debt.task ? debt.task.title : 'Abandoned quest';
-          const category = debt.task?.category ?? 'other';
-          const owed = Math.ceil(debt.pushupsOwed);
+          const questTitle = debt.quest ? debt.quest.title : 'Abandoned quest';
+          const category = debt.quest?.category ?? 'other';
+          const owed = Math.ceil(debt.amountOwed);
           const days = debt.daysOverdue;
           // original charge is 5 pts/day — anything below that has been partially repaid
           const original = Math.max(5 * days, owed);
@@ -199,9 +199,9 @@ function DebtTable({ debts, sortBy, setSortBy, level, totalOwed }) {
               {/* Originating quest */}
               <div className="hidden md:block w-32 flex-shrink-0 leading-tight">
                 <p className="text-xs text-navy-100 truncate">{questTitle}</p>
-                {debt.task?.dueDate && (
+                {debt.quest?.dueDate && (
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Due {new Date(debt.task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    Due {new Date(debt.quest.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 )}
               </div>
@@ -275,7 +275,7 @@ export default function DebtPage() {
       setDebts(debtRes.data.debts);
       setTotalOwed(debtRes.data.totalOwed);
       setStreak(streakRes.data.streak);
-      setAllTimePaid(sessionsRes.data.allTimePushups ?? 0);
+      setAllTimePaid(sessionsRes.data.allTimePaid ?? 0);
       setRecentSessions(sessionsRes.data.sessions.slice(0, 5));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -412,12 +412,12 @@ export default function DebtPage() {
                       <Icon name="check" className="w-3 h-3" color="#4ade80" />
                     </div>
                     <div className="flex-1 min-w-0 leading-tight">
-                      <p className="text-xs font-semibold text-navy-100 truncate">Paid off {s.pushupsCompleted} pts</p>
+                      <p className="text-xs font-semibold text-navy-100 truncate">Paid off {s.amount} pts</p>
                       <p className="text-[10px] text-slate-500">
                         {timeAgo(s.date)} · {(PAYOFF_METHODS.find((m) => m.id === s.activity) ?? PAYOFF_METHODS[0]).label}
                       </p>
                     </div>
-                    <span className="text-[11px] font-bold text-emerald-400 tabular-nums flex-shrink-0">-{s.pushupsCompleted}</span>
+                    <span className="text-[11px] font-bold text-emerald-400 tabular-nums flex-shrink-0">-{s.amount}</span>
                   </div>
                 ))}
               </div>

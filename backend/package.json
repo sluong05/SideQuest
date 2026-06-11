@@ -1,7 +1,7 @@
 {
-  "name": "pushup-debt-backend",
+  "name": "sidequest-backend",
   "version": "1.0.0",
-  "description": "Pushup Debt backend API",
+  "description": "SideQuest backend API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",

@@ -14,18 +14,18 @@ router.get('/:username', auth, async (req, res) => {
         username: true,
         createdAt: true,
         maxStreak: true,
-        totalTasksCompleted: true,
+        totalQuestsCompleted: true,
         bio: true,
         avatar: true,
-        pushupDebts: { where: { resolved: false }, select: { pushupsOwed: true } },
-        pushupSessions: { select: { pushupsCompleted: true } },
+        debts: { where: { resolved: false }, select: { amountOwed: true } },
+        payoffSessions: { select: { amount: true } },
       },
     });
 
     if (!target) return res.status(404).json({ error: 'User not found' });
 
-    const totalDebt = Math.ceil(target.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0));
-    const totalPushups = target.pushupSessions.reduce((s, s2) => s + s2.pushupsCompleted, 0);
+    const totalDebt = Math.ceil(target.debts.reduce((s, d) => s + d.amountOwed, 0));
+    const totalPaid = target.payoffSessions.reduce((s, s2) => s + s2.amount, 0);
 
     return res.json({
       user: {
@@ -33,9 +33,9 @@ router.get('/:username', auth, async (req, res) => {
         username: target.username,
         memberSince: target.createdAt,
         maxStreak: target.maxStreak,
-        totalTasksCompleted: target.totalTasksCompleted,
+        totalQuestsCompleted: target.totalQuestsCompleted,
         totalDebt,
-        totalPushups,
+        totalPaid,
         bio: target.bio,
         avatar: target.avatar,
       },

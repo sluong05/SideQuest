@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Layout from './Layout';
 import { Icon } from './Icons';
 import { useAuth } from '../contexts/AuthContext';
-import { getDebt, getStreak, logPushups } from '../lib/api';
+import { getDebt, getStreak, logPayoff } from '../lib/api';
 
 // Single source of truth for debt payoff methods, used by the Debt Hub,
 // the /pay chooser page, and anywhere else that offers "Pay Debt".
@@ -48,7 +48,7 @@ export function usePayoff(activity = 'fitness') {
     if (submitting || pts < 1) return;
     setSubmitting(true);
     try {
-      const resp = await logPushups(pts, activity);
+      const resp = await logPayoff(pts, activity);
       const { totalOwed: remaining, coinsEarned } = resp.data;
       setTotalOwed(remaining);
       if (coinsEarned > 0) updateUser({ ...user, coins: (user.coins ?? 0) + coinsEarned });

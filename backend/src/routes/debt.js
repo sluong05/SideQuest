@@ -5,25 +5,25 @@ const { calculateAndUpdateDebt } = require('../jobs/dailyDebt');
 
 const router = express.Router();
 
-// GET /api/debt — get all unresolved pushup debt for the user
+// GET /api/debt — get all unresolved debt for the user
 router.get('/', auth, async (req, res) => {
   try {
-    const debts = await prisma.pushupDebt.findMany({
+    const debts = await prisma.debt.findMany({
       where: {
         resolved: false,
         userId: req.userId,
       },
-      include: { task: true },
+      include: { quest: true },
       orderBy: { createdAt: 'asc' },
     });
 
-    const totalOwed = debts.reduce((sum, d) => sum + d.pushupsOwed, 0);
+    const totalOwed = debts.reduce((sum, d) => sum + d.amountOwed, 0);
 
-    // Null out the task reference for soft-deleted tasks so the frontend
-    // groups them under "Deleted tasks" rather than showing a stale task name.
+    // Null out the quest reference for soft-deleted quests so the frontend
+    // groups them under "Deleted quests" rather than showing a stale quest name.
     const sanitised = debts.map((d) => ({
       ...d,
-      task: d.task?.deletedAt ? null : d.task,
+      quest: d.quest?.deletedAt ? null : d.quest,
     }));
 
     return res.json({ debts: sanitised, totalOwed: Math.ceil(totalOwed) });

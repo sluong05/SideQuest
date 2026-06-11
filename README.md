@@ -1,21 +1,21 @@
-# 💪 Pushup Debt
+# ⚔️ SideQuest
 
-A productivity app where unfinished tasks become pushup debt that compounds over time. Complete your tasks or pay the price in reps.
+A productivity app where unfinished quests become debt that compounds over time. Complete your quests or pay the price — in pushups, focus time, or chores.
 
 ## Features
 
-- **Task management** — create one-off, daily, or weekly recurring tasks with due dates
-- **Pushup debt** — missed deadlines generate pushup debt: 5 pushups for the first day, +5 for each additional day overdue
+- **Quest management** — create one-off, daily, or weekly recurring quests with due dates
+- **Quest debt** — missed deadlines generate debt: 5 pts for the first day, +5 for each additional day overdue
 - **Debt levels** — Light Debt / Risky / Debt Spiral / Pushup Bankruptcy with flavor text and a "Pay X to drop to Y" goal
-- **Delete penalty** — deleting an incomplete task costs 5 pushups (confirmation required)
+- **Delete penalty** — deleting an incomplete quest costs 5 pushups (confirmation required)
 - **Camera-verified pushups** — MediaPipe pose detection tracks elbow angle and back position to count valid reps hands-free; anti-cheat requires holding the down position for 0.5s
 - **Gesture control** — raise your hand above your shoulder and hold for 1.5 s to start/stop counting without touching the screen
 - **Coin currency** — surplus pushups (done when debt is 0) earn 1 coin each; spent in the shop
 - **Shop** — spend coins on items; current item: Debt Bomb (💣 50 coins) — adds 10 pushups to a friend's debt
-- **Leaderboard** — ranked by tasks completed in the last 7 days; filterable to friends only; shows all-time task count and total pushups
+- **Leaderboard** — ranked by quests completed in the last 7 days; filterable to friends only; shows all-time quest count and total pushups
 - **Friends** — send/accept/decline friend requests by username; unsend pending requests; activity feed on dashboard; friend-only leaderboard filter
-- **Challenges** — challenge friends to a tasks-completed or pushups-logged competition over 3/7/14/30 days; live scores tracked
-- **Streak tracking** — consecutive days with all tasks completed and no unresolved debt; milestone badges at 3/7/14/30/60/100 days (earned permanently via best-ever streak)
+- **Challenges** — challenge friends to a quests-completed or pushups-logged competition over 3/7/14/30 days; live scores tracked
+- **Streak tracking** — consecutive days with all quests completed and no unresolved debt; milestone badges at 3/7/14/30/60/100 days (earned permanently via best-ever streak)
 - **Progress chart** — 14-day daily pushup bar chart on the dashboard with all-time stats
 - **Public profiles** — each user has a profile at `/u/[username]` visible to anyone logged in
 - **Profile page** — badges, account info, bio, avatar, change username/password, delete account
@@ -27,7 +27,7 @@ A productivity app where unfinished tasks become pushup debt that compounds over
 ## Project Structure
 
 ```
-pushup-debt/
+sidequest/
 ├── backend/                  # Express API + Prisma + PostgreSQL
 │   ├── prisma/
 │   │   ├── schema.prisma     # Database schema
@@ -39,8 +39,8 @@ pushup-debt/
 │   │   │   └── rateLimiter.js
 │   │   ├── routes/
 │   │   │   ├── auth.js       # Signup / Login / Me / Change password & username / Profile
-│   │   │   ├── tasks.js      # CRUD + complete/uncomplete + soft-delete
-│   │   │   ├── debt.js       # Pushup debt queries
+│   │   │   ├── quests.js      # CRUD + complete/uncomplete + soft-delete
+│   │   │   ├── debt.js       # Debt queries
 │   │   │   ├── sessions.js   # Log pushups, reduce debt, earn coins, all-time total
 │   │   │   ├── streak.js     # Streak calculation + maxStreak update
 │   │   │   ├── leaderboard.js
@@ -50,7 +50,7 @@ pushup-debt/
 │   │   │   ├── shop.js       # Coin shop — buy items (Debt Bomb)
 │   │   │   └── push.js       # Web push subscription management
 │   │   ├── jobs/
-│   │   │   ├── dailyDebt.js      # Midnight cron: debt calc + recurring task reset + cleanup
+│   │   │   ├── dailyDebt.js      # Midnight cron: debt calc + recurring quest reset + cleanup
 │   │   │   ├── emailReminders.js # Email reminder cron jobs
 │   │   │   └── pushNotifications.js
 │   │   └── lib/
@@ -61,7 +61,7 @@ pushup-debt/
 │
 ├── frontend/                 # Next.js + TailwindCSS
 │   ├── pages/
-│   │   ├── index.js          # Dashboard (tasks, debt, streak milestone, progress chart, activity feed)
+│   │   ├── index.js          # Dashboard (quests, debt, streak milestone, progress chart, activity feed)
 │   │   ├── login.js          # Sign in (email or username)
 │   │   ├── signup.js         # Create account (email + username)
 │   │   ├── profile.js        # Profile: badges, account settings, change password
@@ -76,9 +76,9 @@ pushup-debt/
 │   │   └── u/[username].js   # Public user profile
 │   ├── components/
 │   │   ├── Layout.js         # Top nav + wrapper (streak badge, coin balance, Shop link)
-│   │   ├── TaskList.js       # Task items with delete confirmation
+│   │   ├── QuestList.js       # Quest items with delete confirmation
 │   │   ├── DebtSummary.js    # Debt display + level badge + breakdown
-│   │   ├── AddTaskModal.js   # Create task modal (with recurrence picker)
+│   │   ├── AddQuestModal.js   # Create quest modal (with recurrence picker)
 │   │   ├── ActivityFeed.js   # Friend activity feed shown on dashboard
 │   │   ├── ErrorBoundary.js
 │   │   └── ParticleBackground.js
@@ -113,7 +113,7 @@ pushup-debt/
 ### 1. Clone / navigate to the project
 
 ```bash
-cd pushup-debt
+cd sidequest
 ```
 
 ### 2. Install all dependencies
@@ -127,7 +127,7 @@ npm run install:all
 Create `backend/.env`:
 
 ```
-DATABASE_URL="postgresql://your-user:your-password@localhost:5432/pushupdebt"
+DATABASE_URL="postgresql://your-user:your-password@localhost:5432/sidequest"
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 PORT=3001
 RESEND_API_KEY="your-resend-key"
@@ -161,7 +161,7 @@ This starts both servers concurrently:
 
 ### Debt Formula
 
-When a task is not completed by its due date:
+When a quest is not completed by its due date:
 
 ```
 pushups = 5 × days_overdue
@@ -195,13 +195,13 @@ Surplus pushups (done after all debt is cleared in a session) earn **1 coin per 
 |---|---|---|
 | 💣 Debt Bomb | 50 coins | Adds 10 pushups to a chosen friend's debt |
 
-### Task Deletion Penalty
+### Quest Deletion Penalty
 
-Deleting an incomplete task costs 5 pushups. A confirmation dialog appears first. Deleting a completed task has no penalty.
+Deleting an incomplete quest costs 5 pushups. A confirmation dialog appears first. Deleting a completed quest has no penalty.
 
-### Recurring Tasks
+### Recurring Quests
 
-Tasks can be set to **Daily** or **Weekly** at creation. After a recurring task is completed, it automatically resets at midnight for the next period.
+Quests can be set to **Daily** or **Weekly** at creation. After a recurring quest is completed, it automatically resets at midnight for the next period.
 
 ### Camera-Verified Pushups
 
@@ -215,11 +215,11 @@ The verify-pushups page uses **MediaPipe Pose** (loaded via CDN) to:
 Find friends by username. Accept/decline requests. Once connected, you can:
 - View each other on the friends-only leaderboard
 - Send a **Debt Bomb** from the shop
-- Challenge each other to a tasks-completed or pushups-logged competition over a set duration
+- Challenge each other to a quests-completed or pushups-logged competition over a set duration
 
 ### Streak & Badges
 
-Counts consecutive days where all tasks were completed with no unresolved debt. Milestone badges unlock at 3, 7, 14, 30, 60, and 100 days. Badges are based on `maxStreak` (your all-time best) so they're permanently earned even if your streak resets.
+Counts consecutive days where all quests were completed with no unresolved debt. Milestone badges unlock at 3, 7, 14, 30, 60, and 100 days. Badges are based on `maxStreak` (your all-time best) so they're permanently earned even if your streak resets.
 
 ---
 
@@ -229,7 +229,7 @@ Counts consecutive days where all tasks were completed with no unresolved debt. 
 |---|---|---|---|
 | POST | `/api/auth/signup` | No | Create account (email, username, password, timezone) |
 | POST | `/api/auth/login` | No | Login with email or username |
-| GET | `/api/auth/me` | Yes | Get current user (incl. coins, totalTasksCompleted, maxStreak) |
+| GET | `/api/auth/me` | Yes | Get current user (incl. coins, totalQuestsCompleted, maxStreak) |
 | PATCH | `/api/auth/username` | Yes | Set or update username |
 | PATCH | `/api/auth/password` | Yes | Change password (requires current password) |
 | PATCH | `/api/auth/profile` | Yes | Update bio and avatar |
@@ -237,15 +237,15 @@ Counts consecutive days where all tasks were completed with no unresolved debt. 
 | POST | `/api/auth/forgot-password` | No | Send password reset email |
 | POST | `/api/auth/reset-password` | No | Reset password via token |
 | DELETE | `/api/auth/account` | Yes | Hard-delete account and all data |
-| GET | `/api/tasks` | Yes | List tasks (`?date=` or `?upToDate=`) |
-| POST | `/api/tasks` | Yes | Create task (supports `recurrence: none\|daily\|weekly`) |
-| PATCH | `/api/tasks/:id/complete` | Yes | Mark task complete |
-| PATCH | `/api/tasks/:id/uncomplete` | Yes | Undo task completion |
-| DELETE | `/api/tasks/:id` | Yes | Soft-delete task (5-pushup penalty if incomplete) |
+| GET | `/api/quests` | Yes | List quests (`?date=` or `?upToDate=`) |
+| POST | `/api/quests` | Yes | Create quest (supports `recurrence: none\|daily\|weekly`) |
+| PATCH | `/api/quests/:id/complete` | Yes | Mark quest complete |
+| PATCH | `/api/quests/:id/uncomplete` | Yes | Undo quest completion |
+| DELETE | `/api/quests/:id` | Yes | Soft-delete quest (5-pushup penalty if incomplete) |
 | GET | `/api/debt` | Yes | List unresolved debts + total |
 | POST | `/api/debt/calculate` | Yes | Trigger on-demand recalculation |
 | POST | `/api/sessions` | Yes | Log pushups (drains debt; surplus earns coins) |
-| GET | `/api/sessions` | Yes | Pushup history (last 30) + allTimePushups |
+| GET | `/api/sessions` | Yes | Pushup history (last 30) + allTimePaid |
 | GET | `/api/streak` | Yes | Current streak |
 | GET | `/api/leaderboard` | Yes | All users ranked (`?friends=true` for friends-only) |
 | GET | `/api/friends` | Yes | List accepted friends with stats |

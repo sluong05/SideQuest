@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Icon } from '../../components/Icons';
 import { usePayoff, PayoffShell, PayoffResult, formatClock } from '../../components/PayoffShell';
-import { getTasks, completeTask } from '../../lib/api';
+import { getQuests, completeQuest } from '../../lib/api';
 
 const COLOR = { main: '#34d399', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', glow: 'rgba(16,185,129,0.2)' };
 const DURATIONS = [10, 25, 45];
@@ -27,9 +27,9 @@ export default function FocusPayoff() {
   useEffect(() => {
     const qid = router.query.quest;
     if (!qid || !payoff.user) return;
-    getTasks()
+    getQuests()
       .then((r) => {
-        const t = (r.data.tasks || []).find((task) => String(task.id) === String(qid));
+        const t = (r.data.quests || []).find((quest) => String(quest.id) === String(qid));
         if (t && !t.completed) setQuest(t);
       })
       .catch(() => {});
@@ -39,7 +39,7 @@ export default function FocusPayoff() {
     if (!quest || questDone || completing) return;
     setCompleting(true);
     try {
-      await completeTask(quest.id);
+      await completeQuest(quest.id);
       setQuestDone(true);
     } catch (err) {
       console.error(err);

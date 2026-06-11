@@ -1,4 +1,4 @@
-# PushupDebt — Architecture
+# SideQuest — Architecture
 
 ## Overview
 
@@ -17,16 +17,16 @@ The app is split into three deployment boundaries: the user's browser, Vercel (f
 - Serves the built frontend to the user's browser over HTTPS
 
 ### Railway
-- **Node.js & Express Backend** — handles all API routes (auth, tasks, debt, sessions, leaderboard, streak, friends, challenges, shop, push notifications, public profiles)
+- **Node.js & Express Backend** — handles all API routes (auth, quests, debt, sessions, leaderboard, streak, friends, challenges, shop, push notifications, public profiles)
 - **node-cron jobs** — run *inside* the backend process: debt recalculation at 00:01 UTC nightly, email reminders on their own schedule
 - **Prisma ORM** — sits between the backend and the database; translates backend calls into SQL queries
-- **PostgreSQL Database** — stores all data (users, tasks, pushup debt, sessions, friendships, challenges, push subscriptions)
+- **PostgreSQL Database** — stores all data (users, quests, debt, sessions, friendships, challenges, push subscriptions)
 
 ---
 
 ## How Data Flows
 
-### A user making a request (e.g. loading their tasks)
+### A user making a request (e.g. loading their quests)
 
 1. User opens the app in their browser → Vercel serves the Next.js Frontend
 2. Frontend reads the JWT token from localStorage
@@ -38,10 +38,10 @@ The app is split into three deployment boundaries: the user's browser, Vercel (f
 ### The midnight cron job
 
 1. At 00:01 UTC, the node-cron scheduler (running inside the backend process) fires automatically
-2. The backend queries all incomplete, overdue tasks via Prisma
-3. For each task, it calculates or updates the pushup debt owed
-4. Recurring completed tasks have their due dates advanced and completion reset
-5. Expired task rows are hard-deleted
+2. The backend queries all incomplete, overdue quests via Prisma
+3. For each quest, it calculates or updates the debt owed
+4. Recurring completed quests have their due dates advanced and completion reset
+5. Expired quest rows are hard-deleted
 6. Prisma writes all updates to PostgreSQL
 
 ### Login / Signup
@@ -58,7 +58,7 @@ The app is split into three deployment boundaries: the user's browser, Vercel (f
 2. Backend drains oldest debt first; any surplus pushups increment `user.coins` (1 per pushup)
 3. User visits `/shop`, picks a Debt Bomb item, selects a friend
 4. Frontend calls `POST /api/shop/buy`
-5. Backend verifies friendship, deducts coins, and creates a `PushupDebt` record on the target user — all in a single Prisma transaction
+5. Backend verifies friendship, deducts coins, and creates a `Debt` record on the target user — all in a single Prisma transaction
 
 ---
 

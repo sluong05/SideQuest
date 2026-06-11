@@ -52,28 +52,28 @@ export const resendVerification = () =>
 export const updateProfile = (bio, avatar) =>
   api.patch('/api/auth/profile', { bio, avatar });
 
-// Quests (backed by /api/tasks)
-export const getTasks = (params = {}) =>
-  api.get('/api/tasks', { params });
+// Quests (backed by /api/quests)
+export const getQuests = (params = {}) =>
+  api.get('/api/quests', { params });
 
-export const createTask = (title, dueDate, recurrence = 'none', questMeta = {}) =>
-  api.post('/api/tasks', { title, dueDate, recurrence, ...questMeta });
+export const createQuest = (title, dueDate, recurrence = 'none', questMeta = {}) =>
+  api.post('/api/quests', { title, dueDate, recurrence, ...questMeta });
 
-export const completeTask = (taskId) =>
-  api.patch(`/api/tasks/${taskId}/complete`);
+export const completeQuest = (questId) =>
+  api.patch(`/api/quests/${questId}/complete`);
 
-export const uncompleteTask = (taskId) =>
-  api.patch(`/api/tasks/${taskId}/uncomplete`);
+export const uncompleteQuest = (questId) =>
+  api.patch(`/api/quests/${questId}/uncomplete`);
 
-export const deleteTask = (taskId) => api.delete(`/api/tasks/${taskId}`);
+export const deleteQuest = (questId) => api.delete(`/api/quests/${questId}`);
 
 // Debt
 export const getDebt = () => api.get('/api/debt');
 export const recalculateDebt = () => api.post('/api/debt/calculate');
 
 // Payoff sessions — activity: fitness | focus | wellness | chores | custom
-export const logPushups = (pushupsCompleted, activity = 'fitness') =>
-  api.post('/api/sessions', { pushupsCompleted, activity });
+export const logPayoff = (amount, activity = 'fitness') =>
+  api.post('/api/sessions', { amount, activity });
 
 export const getSessions = () => api.get('/api/sessions');
 
@@ -109,8 +109,8 @@ export const getShopItems = () => api.get('/api/shop/items');
 export const buyShopItem = (itemId, targetUsername) =>
   api.post('/api/shop/buy', { itemId, targetUsername });
 export const getInventory = () => api.get('/api/shop/inventory');
-export const useItem = (itemId, taskId) =>
-  api.post('/api/shop/use', { itemId, ...(taskId !== undefined ? { taskId } : {}) });
+export const useItem = (itemId, questId) =>
+  api.post('/api/shop/use', { itemId, ...(questId !== undefined ? { questId } : {}) });
 
 // Push notifications
 export const getVapidPublicKey = () => api.get('/api/push/vapid-public-key');

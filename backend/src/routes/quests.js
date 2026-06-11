@@ -6,10 +6,10 @@ const { localMidnightUTC } = require('../lib/timezone');
 
 const router = express.Router();
 
-// GET /api/tasks — get all tasks for the logged-in user
-// ?date=YYYY-MM-DD        → tasks due exactly on that day
-// ?upToDate=YYYY-MM-DD   → all incomplete tasks due on or before that day
-//                           + tasks completed on that day (dashboard view)
+// GET /api/quests — get all quests for the logged-in user
+// ?date=YYYY-MM-DD        → quests due exactly on that day
+// ?upToDate=YYYY-MM-DD   → all incomplete quests due on or before that day
+//                           + quests completed on that day (dashboard view)
 router.get('/', auth, async (req, res) => {
   try {
     const { date, upToDate } = req.query;
@@ -22,7 +22,7 @@ router.get('/', auth, async (req, res) => {
       });
       const timezone = userRecord?.timezone || 'UTC';
       const dayStart = localMidnightUTC(upToDate, timezone);
-      // Return: all incomplete tasks (any due date) + tasks completed today (local time)
+      // Return: all incomplete quests (any due date) + quests completed today (local time)
       whereClause.OR = [
         { completed: false },
         { completed: true, completedAt: { gte: dayStart } },
@@ -35,20 +35,20 @@ router.get('/', auth, async (req, res) => {
       whereClause.dueDate = { gte: start, lte: end };
     }
 
-    const tasks = await prisma.task.findMany({
+    const quests = await prisma.quest.findMany({
       where: whereClause,
-      include: { pushupDebt: true },
+      include: { debt: true },
       orderBy: { createdAt: 'desc' },
     });
 
-    return res.json({ tasks });
+    return res.json({ quests });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// POST /api/tasks — create a new quest
+// POST /api/quests — create a new quest
 router.post('/', auth, async (req, res) => {
   const {
     title,
@@ -75,7 +75,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const due = dueDate ? new Date(dueDate) : new Date();
 
-    const task = await prisma.task.create({
+    const quest = await prisma.quest.create({
       data: {
         title: title.trim(),
         dueDate: due,
@@ -87,48 +87,48 @@ router.post('/', auth, async (req, res) => {
         debtType,
         debtAmount: Number(debtAmount),
       },
-      include: { pushupDebt: true },
+      include: { debt: true },
     });
 
     if (due < new Date()) {
       await calculateAndUpdateDebt(req.userId);
-      const taskWithDebt = await prisma.task.findUnique({
-        where: { id: task.id },
-        include: { pushupDebt: true },
+      const questWithDebt = await prisma.quest.findUnique({
+        where: { id: quest.id },
+        include: { debt: true },
       });
-      return res.status(201).json({ task: taskWithDebt });
+      return res.status(201).json({ quest: questWithDebt });
     }
 
-    return res.status(201).json({ task });
+    return res.status(201).json({ quest });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// PATCH /api/tasks/:id/complete — mark quest as complete, award XP
+// PATCH /api/quests/:id/complete — mark quest as complete, award XP
 router.patch('/:id/complete', auth, async (req, res) => {
-  const taskId = parseInt(req.params.id, 10);
+  const questId = parseInt(req.params.id, 10);
 
   try {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const quest = await prisma.quest.findUnique({ where: { id: questId } });
 
-    if (!task) return res.status(404).json({ error: 'Task not found' });
-    if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
-    if (task.completed) return res.status(400).json({ error: 'Task already completed' });
+    if (!quest) return res.status(404).json({ error: 'Quest not found' });
+    if (quest.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (quest.completed) return res.status(400).json({ error: 'Quest already completed' });
 
-    const xpReward = task.xpReward ?? 50;
+    const xpReward = quest.xpReward ?? 50;
 
     const [updated, updatedUser] = await prisma.$transaction([
-      prisma.task.update({
-        where: { id: taskId },
+      prisma.quest.update({
+        where: { id: questId },
         data: { completed: true, completedAt: new Date() },
-        include: { pushupDebt: true },
+        include: { debt: true },
       }),
       prisma.user.update({
         where: { id: req.userId },
         data: {
-          totalTasksCompleted: { increment: 1 },
+          totalQuestsCompleted: { increment: 1 },
           xp: { increment: xpReward },
         },
       }),
@@ -143,86 +143,86 @@ router.patch('/:id/complete', auth, async (req, res) => {
       });
     }
 
-    return res.json({ task: updated, xpEarned: xpReward });
+    return res.json({ quest: updated, xpEarned: xpReward });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// PATCH /api/tasks/:id/uncomplete — unmark task as complete
+// PATCH /api/quests/:id/uncomplete — unmark quest as complete
 router.patch('/:id/uncomplete', auth, async (req, res) => {
-  const taskId = parseInt(req.params.id, 10);
+  const questId = parseInt(req.params.id, 10);
 
   try {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const quest = await prisma.quest.findUnique({ where: { id: questId } });
 
-    if (!task) return res.status(404).json({ error: 'Task not found' });
-    if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
-    if (!task.completed) return res.status(400).json({ error: 'Task is not completed' });
+    if (!quest) return res.status(404).json({ error: 'Quest not found' });
+    if (quest.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (!quest.completed) return res.status(400).json({ error: 'Quest is not completed' });
 
     const [updated] = await prisma.$transaction([
-      prisma.task.update({
-        where: { id: taskId },
+      prisma.quest.update({
+        where: { id: questId },
         data: { completed: false, completedAt: null },
-        include: { pushupDebt: true },
+        include: { debt: true },
       }),
       prisma.user.update({
         where: { id: req.userId },
-        data: { totalTasksCompleted: { decrement: 1 } },
+        data: { totalQuestsCompleted: { decrement: 1 } },
       }),
     ]);
 
-    return res.json({ task: updated });
+    return res.json({ quest: updated });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// DELETE /api/tasks/:id — delete a task
-// Deleting an incomplete task incurs a 5-pushup penalty
+// DELETE /api/quests/:id — delete a quest
+// Deleting an incomplete quest incurs a 5-pt debt penalty
 router.delete('/:id', auth, async (req, res) => {
-  const taskId = parseInt(req.params.id, 10);
+  const questId = parseInt(req.params.id, 10);
 
   try {
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      include: { pushupDebt: true },
+    const quest = await prisma.quest.findUnique({
+      where: { id: questId },
+      include: { debt: true },
     });
 
-    if (!task) return res.status(404).json({ error: 'Task not found' });
-    if (task.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (!quest) return res.status(404).json({ error: 'Quest not found' });
+    if (quest.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
 
-    const wasIncomplete = !task.completed;
-    const existingDebt = task.pushupDebt;
+    const wasIncomplete = !quest.completed;
+    const existingDebt = quest.debt;
 
-    // Soft-delete: keep the row so completed tasks remain countable in the leaderboard
-    await prisma.task.update({
-      where: { id: taskId },
+    // Soft-delete: keep the row so completed quests remain countable in the leaderboard
+    await prisma.quest.update({
+      where: { id: questId },
       data: { deletedAt: new Date() },
     });
 
     if (wasIncomplete) {
       if (existingDebt) {
-        // Orphan the debt (taskId → null) so it groups under "Deleted tasks", and add penalty
-        await prisma.pushupDebt.update({
+        // Orphan the debt (questId → null) so it groups under "Deleted quests", and add penalty
+        await prisma.debt.update({
           where: { id: existingDebt.id },
-          data: { taskId: null, pushupsOwed: existingDebt.pushupsOwed + 5 },
+          data: { questId: null, amountOwed: existingDebt.amountOwed + 5 },
         });
       } else {
-        await prisma.pushupDebt.create({
+        await prisma.debt.create({
           data: {
-            taskId: null,
+            questId: null,
             userId: req.userId,
-            pushupsOwed: 5,
+            amountOwed: 5,
             daysOverdue: 1,
           },
         });
       }
     }
 
-    return res.json({ message: 'Task deleted' });
+    return res.json({ message: 'Quest deleted' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

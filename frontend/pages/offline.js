@@ -12,12 +12,12 @@ export default function Offline() {
       textAlign: 'center',
       padding: '24px',
     }}>
-      <img src="/Bicep.svg" alt="pushups" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
+      <img src="/Bicep.svg" alt="SideQuest" style={{ width: '64px', height: '64px', marginBottom: '16px' }} />
       <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', marginBottom: '8px' }}>
         You're offline
       </h1>
       <p style={{ fontSize: '14px', color: '#64748b', maxWidth: '280px' }}>
-        No connection right now. Your pushup debt is patiently waiting.
+        No connection right now. Your quest debt is patiently waiting.
       </p>
     </div>
   );

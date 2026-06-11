@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
-import AddTaskModal from '../components/AddTaskModal';
+import AddQuestModal from '../components/AddQuestModal';
 import ActivityFeed from '../components/ActivityFeed';
 import { useAuth } from '../contexts/AuthContext';
-import { getTasks, getDebt, getStreak, getSessions, recalculateDebt, setUsername,
-         getFriends, completeTask, uncompleteTask, deleteTask } from '../lib/api';
+import { getQuests, getDebt, getStreak, getSessions, recalculateDebt, setUsername,
+         getFriends, completeQuest, uncompleteQuest, deleteQuest } from '../lib/api';
 import confetti from 'canvas-confetti';
 import { Icon, CategoryIcon } from '../components/Icons';
 import { CATEGORY_COLORS, DIFF_STYLES, timeAgo } from '../lib/questMeta';
@@ -22,8 +22,8 @@ function formatDue(dateStr) {
   const date = new Date(dateStr);
   const now = new Date();
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const taskDay = new Date(date); taskDay.setHours(0, 0, 0, 0);
-  const dayDiff = Math.round((taskDay - today) / 86400000);
+  const questDay = new Date(date); questDay.setHours(0, 0, 0, 0);
+  const dayDiff = Math.round((questDay - today) / 86400000);
   const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   if (date < now) {
     return { label: dayDiff === 0 ? `Due Today · ${timeStr}` : `${Math.abs(dayDiff)}d overdue`, overdue: true };
@@ -52,39 +52,39 @@ function getDebtLevelInfo(total) {
 }
 
 // ─── Quest Row (dashboard compact style) ─────────────────────────────────────
-function DashQuestRow({ task, onComplete, onUncomplete, onDelete }) {
+function DashQuestRow({ quest, onComplete, onUncomplete, onDelete }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const dueInfo = formatDue(task.dueDate);
-  const catBg   = CATEGORY_COLORS[task.category] ?? 'rgba(59,130,246,0.12)';
-  const diff    = DIFF_STYLES[task.difficulty];
-  const xp      = task.xpReward ?? 50;
-  const debtAmt = task.debtAmount ?? 5;
+  const dueInfo = formatDue(quest.dueDate);
+  const catBg   = CATEGORY_COLORS[quest.category] ?? 'rgba(59,130,246,0.12)';
+  const diff    = DIFF_STYLES[quest.difficulty];
+  const xp      = quest.xpReward ?? 50;
+  const debtAmt = quest.debtAmount ?? 5;
 
-  const accentColor = task.completed ? '#34d399' : dueInfo.overdue ? '#f87171' : '#3b82f6';
+  const accentColor = quest.completed ? '#34d399' : dueInfo.overdue ? '#f87171' : '#3b82f6';
 
   async function doComplete() {
     setLoading(true);
     try {
-      await onComplete(task.id);
+      await onComplete(quest.id);
     } finally { setLoading(false); }
   }
   async function doUncomplete() {
     setLoading(true);
-    try { await onUncomplete(task.id); }
+    try { await onUncomplete(quest.id); }
     finally { setLoading(false); }
   }
   async function doDelete() {
     setShowConfirm(false);
     setLoading(true);
-    try { await onDelete(task.id); }
+    try { await onDelete(quest.id); }
     finally { setLoading(false); }
   }
 
   return (
     <>
       <div
-        className={`flex items-center gap-3 py-2.5 transition-all ${task.completed ? 'opacity-60' : ''}`}
+        className={`flex items-center gap-3 py-2.5 transition-all ${quest.completed ? 'opacity-60' : ''}`}
         style={{ borderBottom: '1px solid rgba(59,130,246,0.07)' }}
       >
         {/* Left accent bar */}
@@ -92,19 +92,19 @@ function DashQuestRow({ task, onComplete, onUncomplete, onDelete }) {
 
         {/* Category icon */}
         <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: catBg }}>
-          <CategoryIcon category={task.category} className="w-4 h-4" />
+          <CategoryIcon category={quest.category} className="w-4 h-4" />
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium leading-tight ${task.completed ? 'line-through text-slate-400' : 'text-white'}`}>
-            {task.title}
+          <p className={`text-sm font-medium leading-tight ${quest.completed ? 'line-through text-slate-400' : 'text-white'}`}>
+            {quest.title}
           </p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className={`text-[11px] ${dueInfo.overdue && !task.completed ? 'text-red-400' : 'text-slate-400'}`}>
+            <span className={`text-[11px] ${dueInfo.overdue && !quest.completed ? 'text-red-400' : 'text-slate-400'}`}>
               {dueInfo.label}
             </span>
-            {!task.completed && debtAmt > 0 && (
+            {!quest.completed && debtAmt > 0 && (
               <span className="text-[10px] text-orange-400/75 font-medium">
                 DEBT IF SKIPPED: +{debtAmt} pts
               </span>
@@ -114,17 +114,17 @@ function DashQuestRow({ task, onComplete, onUncomplete, onDelete }) {
 
         {/* Badges */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {task.completed && (
+          {quest.completed && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full hidden sm:inline" style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}>
               Completed
             </span>
           )}
-          {dueInfo.overdue && !task.completed && (
+          {dueInfo.overdue && !quest.completed && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
               Overdue
             </span>
           )}
-          {diff && !task.completed && (
+          {diff && !quest.completed && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden md:inline" style={{ background: diff.bg, border: `1px solid ${diff.border}`, color: diff.color }}>
               {diff.label}
             </span>
@@ -133,7 +133,7 @@ function DashQuestRow({ task, onComplete, onUncomplete, onDelete }) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {task.completed ? (
+          {quest.completed ? (
             <button
               onClick={doUncomplete}
               disabled={loading}
@@ -185,8 +185,8 @@ function DashQuestRow({ task, onComplete, onUncomplete, onDelete }) {
 }
 
 // ─── Daily Focus Card ─────────────────────────────────────────────────────────
-function DailyFocusCard({ todayAtRisk, tasks }) {
-  const focusTask = todayAtRisk[0] ?? tasks.filter((t) => !t.completed)[0] ?? null;
+function DailyFocusCard({ todayAtRisk, quests }) {
+  const focusQuest = todayAtRisk[0] ?? quests.filter((t) => !t.completed)[0] ?? null;
 
   return (
     <div
@@ -202,9 +202,9 @@ function DailyFocusCard({ todayAtRisk, tasks }) {
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Daily Focus</p>
           <p className="text-sm font-semibold text-white leading-snug">
-            {focusTask ? focusTask.title : 'All quests handled! Keep the streak alive.'}
+            {focusQuest ? focusQuest.title : 'All quests handled! Keep the streak alive.'}
           </p>
-          {focusTask && (
+          {focusQuest && (
             <p className="text-xs text-slate-400 mt-0.5">
               {todayAtRisk.length > 0
                 ? `${todayAtRisk.length} quest${todayAtRisk.length > 1 ? 's' : ''} at risk today`
@@ -214,14 +214,14 @@ function DailyFocusCard({ todayAtRisk, tasks }) {
         </div>
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           <Link
-            href={focusTask ? `/pay/focus?quest=${focusTask.id}` : '/quests'}
+            href={focusQuest ? `/pay/focus?quest=${focusQuest.id}` : '/quests'}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all"
             style={{ background: '#2563eb', border: '1px solid rgba(59,130,246,0.5)', boxShadow: '0 0 16px rgba(59,130,246,0.3)', whiteSpace: 'nowrap' }}
           >
-            {focusTask ? <><Icon name="play" className="w-3.5 h-3.5" color="currentColor" /> Start Focus Session</> : 'View Quests'}
+            {focusQuest ? <><Icon name="play" className="w-3.5 h-3.5" color="currentColor" /> Start Focus Session</> : 'View Quests'}
           </Link>
           <span className="text-[10px] text-slate-500">
-            {focusTask ? `+${focusTask.xpReward ?? 50} XP Possible` : 'Debt-free bonus!'}
+            {focusQuest ? `+${focusQuest.xpReward ?? 50} XP Possible` : 'Debt-free bonus!'}
           </span>
         </div>
       </div>
@@ -306,17 +306,17 @@ function DebtOverviewPanel({ totalOwed, debts }) {
           </div>
           <div className="space-y-2">
             {debts.slice(0, 3).map((debt) => {
-              const owed = Math.ceil(debt.pushupsOwed);
+              const owed = Math.ceil(debt.amountOwed);
               const pct = Math.min((owed / Math.max(totalOwed, 1)) * 100, 100);
               return (
                 <div key={debt.id}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
-                      {debt.task?.category
-                        ? <CategoryIcon category={debt.task.category} className="w-3.5 h-3.5" />
+                      {debt.quest?.category
+                        ? <CategoryIcon category={debt.quest.category} className="w-3.5 h-3.5" />
                         : <Icon name="swords" className="w-3.5 h-3.5" color="#f87171" />}
                       <span className="text-xs text-navy-200 truncate max-w-[120px]">
-                        {debt.task ? debt.task.title : 'Abandoned'}
+                        {debt.quest ? debt.quest.title : 'Abandoned'}
                       </span>
                     </div>
                     <span className="text-xs font-bold text-red-400 tabular-nums">{owed} pts</span>
@@ -454,9 +454,9 @@ function RecentActivityPanel({ sessions }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-navy-100">{meta.label}</p>
-                <p className="text-[10px] text-slate-500">{timeAgo(s.date)} · {s.pushupsCompleted} pts</p>
+                <p className="text-[10px] text-slate-500">{timeAgo(s.date)} · {s.amount} pts</p>
               </div>
-              <span className="text-xs font-bold text-green-400 flex-shrink-0">+{Math.round(s.pushupsCompleted * 2)} XP</span>
+              <span className="text-xs font-bold text-green-400 flex-shrink-0">+{Math.round(s.amount * 2)} XP</span>
             </div>
           );
         })}
@@ -470,13 +470,13 @@ export default function Dashboard() {
   const { user, loading: authLoading, updateUser } = useAuth();
   const router = useRouter();
 
-  const [tasks, setTasks] = useState([]);
+  const [quests, setQuests] = useState([]);
   const [debts, setDebts] = useState([]);
   const [totalOwed, setTotalOwed] = useState(0);
   const [streak, setStreak] = useState(0);
   const [sessions, setSessions] = useState([]);
-  const [allTimePushups, setAllTimePushups] = useState(0);
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [allTimePaid, setAllTimePaid] = useState(0);
+  const [showAddQuest, setShowAddQuest] = useState(false);
   const [showDebtBlock, setShowDebtBlock] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [hasFriends, setHasFriends] = useState(false);
@@ -493,19 +493,19 @@ export default function Dashboard() {
     try {
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const [tasksRes, debtRes, streakRes, sessionsRes, friendsRes] = await Promise.all([
-        getTasks({ upToDate: today }),
+      const [questsRes, debtRes, streakRes, sessionsRes, friendsRes] = await Promise.all([
+        getQuests({ upToDate: today }),
         getDebt(),
         getStreak(),
         getSessions(),
         getFriends(),
       ]);
-      setTasks(tasksRes.data.tasks);
+      setQuests(questsRes.data.quests);
       setDebts(debtRes.data.debts);
       setTotalOwed(debtRes.data.totalOwed);
       setStreak(streakRes.data.streak);
       setSessions(sessionsRes.data.sessions);
-      setAllTimePushups(sessionsRes.data.allTimePushups);
+      setAllTimePaid(sessionsRes.data.allTimePaid);
       setHasFriends(friendsRes.data.friends.length > 0);
     } catch (err) { console.error(err); }
     finally { setDataLoading(false); }
@@ -521,20 +521,20 @@ export default function Dashboard() {
     return () => { document.title = 'SideQuest'; };
   }, [totalOwed]);
 
-  async function handleComplete(taskId) {
+  async function handleComplete(questId) {
     try {
-      await completeTask(taskId);
+      await completeQuest(questId);
       confetti({ particleCount: 80, spread: 55, origin: { y: 0.6 }, colors: ['#3b82f6', '#60a5fa', '#34d399', '#fbbf24', '#fff'], scalar: 0.9 });
       loadData();
     } catch (err) { console.error(err); }
   }
-  async function handleUncomplete(taskId) {
-    try { await uncompleteTask(taskId); loadData(); } catch (err) { console.error(err); }
+  async function handleUncomplete(questId) {
+    try { await uncompleteQuest(questId); loadData(); } catch (err) { console.error(err); }
   }
-  async function handleDelete(taskId) {
-    try { await deleteTask(taskId); loadData(); } catch (err) { console.error(err); }
+  async function handleDelete(questId) {
+    try { await deleteQuest(questId); loadData(); } catch (err) { console.error(err); }
   }
-  async function handleTaskAdded() {
+  async function handleQuestAdded() {
     await recalculateDebt().catch(() => {});
     loadData();
   }
@@ -556,16 +556,16 @@ export default function Dashboard() {
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const overdueCount = tasks.filter((t) => !t.completed && new Date(t.dueDate) < new Date()).length;
-  const completionRate = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
-  const todayAtRisk = tasks.filter((t) => {
+  const completedCount = quests.filter((t) => t.completed).length;
+  const overdueCount = quests.filter((t) => !t.completed && new Date(t.dueDate) < new Date()).length;
+  const completionRate = quests.length > 0 ? Math.round((completedCount / quests.length) * 100) : 0;
+  const todayAtRisk = quests.filter((t) => {
     if (t.completed) return false;
     const due = new Date(t.dueDate);
     return due >= today && due <= todayEnd;
   });
   const displayName = user?.username || 'Questor';
-  const sortedTasks = [...tasks].sort((a, b) => {
+  const sortedQuests = [...quests].sort((a, b) => {
     if (a.completed && !b.completed) return 1;
     if (!a.completed && b.completed) return -1;
     return new Date(a.dueDate) - new Date(b.dueDate);
@@ -612,7 +612,7 @@ export default function Dashboard() {
           <p className="text-slate-400 text-sm mt-0.5">Complete your quests and finish your favorites.</p>
         </div>
         <button
-          onClick={() => totalOwed > 249 ? setShowDebtBlock(true) : setShowAddTask(true)}
+          onClick={() => totalOwed > 249 ? setShowDebtBlock(true) : setShowAddQuest(true)}
           className="btn-primary flex items-center gap-1.5 py-2.5 px-4 text-sm font-semibold flex-shrink-0"
           style={{ opacity: totalOwed > 249 ? 0.5 : 1 }}
         >
@@ -639,11 +639,11 @@ export default function Dashboard() {
               <div className="rounded-2xl p-5" style={{ background: 'rgba(13,31,56,0.7)', border: '1px solid rgba(59,130,246,0.12)' }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Today's Quests</p>
-                  <span className="text-xs text-slate-500">{completedCount}/{tasks.length} completed</span>
+                  <span className="text-xs text-slate-500">{completedCount}/{quests.length} completed</span>
                 </div>
 
                 {/* Completion bar */}
-                {tasks.length > 0 && (
+                {quests.length > 0 && (
                   <div className="flex items-center gap-3 mb-4">
                     <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(59,130,246,0.1)' }}>
                       <div
@@ -656,21 +656,21 @@ export default function Dashboard() {
                 )}
 
                 {/* Quest rows */}
-                {sortedTasks.length === 0 ? (
+                {sortedQuests.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="flex justify-center mb-2"><Icon name="target" className="w-8 h-8" color="#475569" /></div>
                     <p className="text-sm font-medium text-navy-100 mb-1">No quests yet</p>
                     <p className="text-xs text-slate-400 mb-4">Add your first quest to start building momentum.</p>
-                    <button onClick={() => setShowAddTask(true)} className="btn-primary text-sm py-2 px-5">
+                    <button onClick={() => setShowAddQuest(true)} className="btn-primary text-sm py-2 px-5">
                       + Create first quest
                     </button>
                   </div>
                 ) : (
                   <div>
-                    {sortedTasks.map((task) => (
+                    {sortedQuests.map((quest) => (
                       <DashQuestRow
-                        key={task.id}
-                        task={task}
+                        key={quest.id}
+                        quest={quest}
                         onComplete={handleComplete}
                         onUncomplete={handleUncomplete}
                         onDelete={handleDelete}
@@ -679,7 +679,7 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {tasks.length > 0 && (
+                {quests.length > 0 && (
                   <div className="mt-3 flex items-center justify-between">
                     <Link href="/quests" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
                       View all quests →
@@ -692,7 +692,7 @@ export default function Dashboard() {
               </div>
 
               {/* Daily Focus card */}
-              <DailyFocusCard todayAtRisk={todayAtRisk} tasks={tasks} />
+              <DailyFocusCard todayAtRisk={todayAtRisk} quests={quests} />
 
               {/* Friend activity feed — fills left column below Daily Focus */}
               <ActivityFeed />
@@ -700,8 +700,8 @@ export default function Dashboard() {
               {/* Stats row — inside left column */}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Quests Completed', value: user?.totalTasksCompleted ?? 0, color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.2)',  icon: 'checkCircle' },
-                  { label: 'Debt Paid',         value: allTimePushups,                  color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.2)',  icon: 'biceps' },
+                  { label: 'Quests Completed', value: user?.totalQuestsCompleted ?? 0, color: '#34d399', bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.2)',  icon: 'checkCircle' },
+                  { label: 'Debt Paid',         value: allTimePaid,                  color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  border: 'rgba(96,165,250,0.2)',  icon: 'biceps' },
                   { label: 'Completion Rate',   value: `${completionRate}%`,             color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', border: 'rgba(167,139,250,0.2)', icon: 'chart' },
                   { label: 'Level',             value: `Lv ${user?.level ?? 1}`,        color: '#f9a8d4', bg: 'rgba(249,168,212,0.1)', border: 'rgba(249,168,212,0.2)', icon: 'arrowUpCircle' },
                 ].map(({ label, value, color, bg, border, icon }) => (
@@ -729,8 +729,8 @@ export default function Dashboard() {
       )}
 
       {/* Modals */}
-      {showAddTask && (
-        <AddTaskModal onClose={() => setShowAddTask(false)} onTaskAdded={handleTaskAdded} />
+      {showAddQuest && (
+        <AddQuestModal onClose={() => setShowAddQuest(false)} onQuestAdded={handleQuestAdded} />
       )}
 
       {showDebtBlock && (

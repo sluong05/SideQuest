@@ -6,18 +6,18 @@ const { getFriendIds } = require('./friends');
 const router = express.Router();
 
 async function computeScore(userId, type, startDate, endDate) {
-  if (type === 'tasks') {
-    const count = await prisma.task.count({
+  if (type === 'quests') {
+    const count = await prisma.quest.count({
       where: { userId, completed: true, completedAt: { gte: startDate, lte: endDate } },
     });
     return count;
   }
   // pushups
-  const sessions = await prisma.pushupSession.findMany({
+  const sessions = await prisma.payoffSession.findMany({
     where: { userId, date: { gte: startDate, lte: endDate } },
-    select: { pushupsCompleted: true },
+    select: { amount: true },
   });
-  return sessions.reduce((s, r) => s + r.pushupsCompleted, 0);
+  return sessions.reduce((s, r) => s + r.amount, 0);
 }
 
 // GET /api/challenges — all challenges for current user
@@ -89,8 +89,8 @@ router.post('/', auth, async (req, res) => {
   if (!friendId || !type || !durationDays) {
     return res.status(400).json({ error: 'friendId, type, and durationDays are required' });
   }
-  if (!['tasks', 'pushups'].includes(type)) {
-    return res.status(400).json({ error: 'type must be tasks or pushups' });
+  if (!['quests', 'pushups'].includes(type)) {
+    return res.status(400).json({ error: 'type must be quests or pushups' });
   }
   if (![3, 7, 14, 30].includes(Number(durationDays))) {
     return res.status(400).json({ error: 'durationDays must be 3, 7, 14, or 30' });

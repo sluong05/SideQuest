@@ -27,7 +27,7 @@ export default function ActivityFeed() {
         <div className="text-center py-6">
           <p className="text-navy-300 text-sm">No activity yet.</p>
           <p className="text-slate-400 text-xs mt-1">
-            When friends complete tasks or log pushups, it'll show here.
+            When friends complete quests or pay off debt, it'll show here.
           </p>
           <Link href="/friends" className="inline-block mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors">
             Find friends →
@@ -38,16 +38,16 @@ export default function ActivityFeed() {
           {feed.map((event, i) => (
             <div key={i} className="flex items-start gap-3">
               <div className="w-7 h-7 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0 text-sm">
-                {event.type === 'task_completed' ? <Icon name="checkCircle" className="w-4 h-4" color="#4ade80" /> : <img src="/Bicep.svg" className="w-4 h-4" />}
+                {event.type === 'quest_completed' ? <Icon name="checkCircle" className="w-4 h-4" color="#4ade80" /> : <img src="/Bicep.svg" className="w-4 h-4" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-navy-100">
                   <Link href={`/u/${event.username}`} className="font-semibold hover:text-blue-400 transition-colors">
                     {event.username}
                   </Link>
-                  {event.type === 'task_completed'
-                    ? <> completed <span className="text-navy-200">"{event.data.taskTitle}"</span></>
-                    : <> logged <span className="text-blue-400 font-semibold">{event.data.pushupsCompleted} pushups</span></>
+                  {event.type === 'quest_completed'
+                    ? <> completed <span className="text-navy-200">"{event.data.questTitle}"</span></>
+                    : <> paid off <span className="text-blue-400 font-semibold">{event.data.amount} pts</span></>
                   }
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">{timeAgo(event.timestamp)}</p>

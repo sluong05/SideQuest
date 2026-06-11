@@ -32,9 +32,9 @@ router.get('/', auth, async (req, res) => {
         email: true,
         avatar: true,
         maxStreak: true,
-        totalTasksCompleted: true,
-        pushupDebts: { where: { resolved: false }, select: { pushupsOwed: true } },
-        pushupSessions: { select: { pushupsCompleted: true } },
+        totalQuestsCompleted: true,
+        debts: { where: { resolved: false }, select: { amountOwed: true } },
+        payoffSessions: { select: { amount: true } },
       },
     });
 
@@ -42,10 +42,10 @@ router.get('/', auth, async (req, res) => {
       id: f.id,
       username: f.username || f.email.split('@')[0],
       avatar: f.avatar || null,
-      totalDebt: Math.ceil(f.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0)),
-      totalPushups: f.pushupSessions.reduce((s, s2) => s + s2.pushupsCompleted, 0),
+      totalDebt: Math.ceil(f.debts.reduce((s, d) => s + d.amountOwed, 0)),
+      totalPaid: f.payoffSessions.reduce((s, s2) => s + s2.amount, 0),
       maxStreak: f.maxStreak,
-      totalTasksCompleted: f.totalTasksCompleted,
+      totalQuestsCompleted: f.totalQuestsCompleted,
     }));
 
     return res.json({ friends: result });
@@ -89,8 +89,8 @@ router.get('/feed', auth, async (req, res) => {
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [completedTasks, sessions] = await Promise.all([
-      prisma.task.findMany({
+    const [completedQuests, sessions] = await Promise.all([
+      prisma.quest.findMany({
         where: {
           userId: { in: friendIds },
           completed: true,
@@ -100,22 +100,22 @@ router.get('/feed', auth, async (req, res) => {
         orderBy: { completedAt: 'desc' },
         take: 50,
       }),
-      prisma.pushupSession.findMany({
+      prisma.payoffSession.findMany({
         where: {
           userId: { in: friendIds },
           date: { gte: sevenDaysAgo },
         },
-        select: { pushupsCompleted: true, date: true, userId: true, user: { select: { username: true, email: true } } },
+        select: { amount: true, date: true, userId: true, user: { select: { username: true, email: true } } },
         orderBy: { date: 'desc' },
         take: 50,
       }),
     ]);
 
-    const taskEvents = completedTasks.map((t) => ({
-      type: 'task_completed',
+    const questEvents = completedQuests.map((t) => ({
+      type: 'quest_completed',
       userId: t.userId,
       username: t.user.username || t.user.email.split('@')[0],
-      data: { taskTitle: t.title },
+      data: { questTitle: t.title },
       timestamp: t.completedAt,
     }));
 
@@ -123,11 +123,11 @@ router.get('/feed', auth, async (req, res) => {
       type: 'pushups_logged',
       userId: s.userId,
       username: s.user.username || s.user.email.split('@')[0],
-      data: { pushupsCompleted: s.pushupsCompleted },
+      data: { amount: s.amount },
       timestamp: s.date,
     }));
 
-    const feed = [...taskEvents, ...sessionEvents]
+    const feed = [...questEvents, ...sessionEvents]
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
       .slice(0, 50);
 

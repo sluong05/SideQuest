@@ -28,7 +28,7 @@ export default function Terms() {
           </Section>
 
           <Section title="2. Description of Service">
-            <p>SideQuest is a free productivity app that lets users set tasks with due dates, tracks missed deadlines as "pushup debt," and verifies pushup repayment through your device camera. Features include task management, leaderboards, friend connections, streaks, and a coin-based shop. The Service is provided free of charge.</p>
+            <p>SideQuest is a free productivity app that lets users set quests with due dates, tracks missed deadlines as quest debt, and lets users pay it off through verified activities such as camera-verified pushups. Features include quest management, leaderboards, friend connections, streaks, and a coin-based shop. The Service is provided free of charge.</p>
           </Section>
 
           <Section title="3. Eligibility">
@@ -56,11 +56,11 @@ export default function Terms() {
           </Section>
 
           <Section title="6. User Content">
-            <p>You retain ownership of content you submit (tasks, bio, profile photo). By submitting content, you grant us a limited license to store and display it as necessary to operate the Service. We do not claim ownership of your content and will not use it for any purpose beyond operating the Service.</p>
+            <p>You retain ownership of content you submit (quests, bio, profile photo). By submitting content, you grant us a limited license to store and display it as necessary to operate the Service. We do not claim ownership of your content and will not use it for any purpose beyond operating the Service.</p>
           </Section>
 
           <Section title="7. Coins and Shop">
-            <p>Coins are an in-app reward earned through pushup activity. They have no monetary value, cannot be transferred between accounts, and cannot be exchanged for real currency. We reserve the right to modify, reset, or remove coin balances and shop items at any time without notice.</p>
+            <p>Coins are an in-app reward earned through payoff activity. They have no monetary value, cannot be transferred between accounts, and cannot be exchanged for real currency. We reserve the right to modify, reset, or remove coin balances and shop items at any time without notice.</p>
           </Section>
 
           <Section title="8. Camera Access">

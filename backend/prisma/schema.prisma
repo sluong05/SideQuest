@@ -16,7 +16,7 @@ model User {
   passwordResetToken   String?
   passwordResetExpiry  DateTime?
   timezone             String    @default("UTC")
-  totalTasksCompleted  Int       @default(0)
+  totalQuestsCompleted Int       @default(0) @map("totalTasksCompleted")
   maxStreak            Int       @default(0)
   emailReminders         Boolean   @default(true)
   bio                    String?
@@ -32,12 +32,12 @@ model User {
 
   streakShieldActive    Boolean   @default(false)
   debtFreezeUntil       DateTime?
-  pushupMultiplierActive Boolean  @default(false)
+  payoffMultiplierActive Boolean  @default(false) @map("pushupMultiplierActive")
   profileFlair          String?
 
-  tasks              Task[]
-  pushupSessions     PushupSession[]
-  pushupDebts        PushupDebt[]
+  quests             Quest[]
+  payoffSessions     PayoffSession[]
+  debts              Debt[]
   sentRequests       Friendship[]       @relation("SentRequests")
   receivedRequests   Friendship[]       @relation("ReceivedRequests")
   challengesGiven    Challenge[]        @relation("ChallengesGiven")
@@ -75,7 +75,9 @@ model Challenge {
   challenged User @relation("ChallengesReceived", fields: [challengedId], references: [id], onDelete: Cascade)
 }
 
-model Task {
+// Mapped to the legacy "Task" table — physical DB names unchanged by the
+// PushupDebt → SideQuest rebrand so no data migration is required.
+model Quest {
   id          Int       @id @default(autoincrement())
   title       String
   completed   Boolean   @default(false)
@@ -92,32 +94,40 @@ model Task {
   debtType    String    @default("pushups")
   debtAmount  Int       @default(5)
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pushupDebt PushupDebt?
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debt Debt?
+
+  @@map("Task")
 }
 
-model PushupDebt {
+// Mapped to the legacy "PushupDebt" table.
+model Debt {
   id              Int      @id @default(autoincrement())
-  taskId          Int?     @unique
+  questId         Int?     @unique @map("taskId")
   userId          Int
-  pushupsOwed     Float
+  amountOwed      Float    @map("pushupsOwed")
   daysOverdue     Int
   resolved        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("PushupDebt")
 }
 
-model PushupSession {
-  id               Int      @id @default(autoincrement())
-  pushupsCompleted Int
-  activity         String   @default("fitness") // fitness | focus | wellness | chores | custom
-  date             DateTime @default(now())
-  userId           Int
+// Mapped to the legacy "PushupSession" table.
+model PayoffSession {
+  id       Int      @id @default(autoincrement())
+  amount   Int      @map("pushupsCompleted")
+  activity String   @default("fitness") // fitness | focus | wellness | chores | custom
+  date     DateTime @default(now())
+  userId   Int
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("PushupSession")
 }
 
 model UserItem {

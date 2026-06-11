@@ -10,7 +10,7 @@ const SHOP_ITEMS = [
   {
     id: 'debt_bomb',
     name: 'Debt Bomb',
-    description: "Add 10 pushups to a friend's debt. Evil. Necessary.",
+    description: "Add 10 pts to a friend's debt. Evil. Necessary.",
     cost: 50,
     icon: '💣',
     type: 'instant',
@@ -19,7 +19,7 @@ const SHOP_ITEMS = [
   {
     id: 'taunt',
     name: 'Taunt',
-    description: "Send a push notification to a friend to remind them they owe pushups.",
+    description: "Send a push notification to a friend to remind them they owe debt.",
     cost: 10,
     icon: '📣',
     type: 'instant',
@@ -36,7 +36,7 @@ const SHOP_ITEMS = [
   {
     id: 'deadline_ext',
     name: 'Deadline Extension',
-    description: "Push a task's due date forward by 24 hours. No questions asked.",
+    description: "Push a quest's due date forward by 24 hours. No questions asked.",
     cost: 25,
     icon: '⏰',
     type: 'inventory',
@@ -51,8 +51,8 @@ const SHOP_ITEMS = [
   },
   {
     id: 'pushup_multiplier',
-    name: 'Pushup Multiplier',
-    description: "Your next pushup session drains debt at 2× rate.",
+    name: 'Payoff Multiplier',
+    description: "Your next payoff session drains debt at 2× rate.",
     cost: 35,
     icon: '⚡',
     type: 'inventory',
@@ -136,8 +136,8 @@ router.post('/buy', auth, async (req, res) => {
             where: { id: req.userId },
             data: { coins: { decrement: item.cost } },
           }),
-          prisma.pushupDebt.create({
-            data: { userId: target.id, taskId: null, pushupsOwed: 10, daysOverdue: 1, resolved: false },
+          prisma.debt.create({
+            data: { userId: target.id, questId: null, amountOwed: 10, daysOverdue: 1, resolved: false },
           }),
         ]);
         return res.json({ message: `Debt bomb dropped on ${targetUsername}!`, coinsSpent: item.cost });
@@ -152,7 +152,7 @@ router.post('/buy', auth, async (req, res) => {
         await sendPushToUser(
           target.id,
           '📣 You got taunted!',
-          `${senderName} says: go do your pushups.`,
+          `${senderName} says: go pay off your debt.`,
           '/verify-pushups'
         );
         return res.json({ message: `Taunt sent to ${targetUsername}!`, coinsSpent: item.cost });
@@ -184,7 +184,7 @@ router.post('/buy', auth, async (req, res) => {
 
 // POST /api/shop/use
 router.post('/use', auth, async (req, res) => {
-  const { itemId, taskId } = req.body;
+  const { itemId, questId } = req.body;
 
   const item = SHOP_ITEMS.find((i) => i.id === itemId);
   if (!item || item.type !== 'inventory') {
@@ -235,33 +235,33 @@ router.post('/use', auth, async (req, res) => {
     } else if (itemId === 'pushup_multiplier') {
       await prisma.user.update({
         where: { id: req.userId },
-        data: { pushupMultiplierActive: true },
+        data: { payoffMultiplierActive: true },
       });
-      message = 'Pushup Multiplier active! Your next session drains debt at 2× rate.';
+      message = 'Payoff Multiplier active! Your next session drains debt at 2× rate.';
     } else if (itemId === 'debt_discount') {
-      const debts = await prisma.pushupDebt.findMany({
+      const debts = await prisma.debt.findMany({
         where: { userId: req.userId, resolved: false },
       });
       for (const debt of debts) {
-        const newOwed = debt.pushupsOwed * 0.75;
-        await prisma.pushupDebt.update({
+        const newOwed = debt.amountOwed * 0.75;
+        await prisma.debt.update({
           where: { id: debt.id },
-          data: { pushupsOwed: newOwed },
+          data: { amountOwed: newOwed },
         });
       }
-      const saved = debts.reduce((sum, d) => sum + d.pushupsOwed * 0.25, 0);
-      message = `Debt Discount applied! You saved ${Math.ceil(saved)} pushups.`;
+      const saved = debts.reduce((sum, d) => sum + d.amountOwed * 0.25, 0);
+      message = `Debt Discount applied! You saved ${Math.ceil(saved)} pts.`;
     } else if (itemId === 'deadline_ext') {
-      if (!taskId) {
-        return res.status(400).json({ error: 'taskId is required for Deadline Extension' });
+      if (!questId) {
+        return res.status(400).json({ error: 'questId is required for Deadline Extension' });
       }
-      const task = await prisma.task.findFirst({
-        where: { id: taskId, userId: req.userId, completed: false, deletedAt: null },
+      const quest = await prisma.quest.findFirst({
+        where: { id: questId, userId: req.userId, completed: false, deletedAt: null },
       });
-      if (!task) return res.status(404).json({ error: 'Task not found' });
-      const newDue = new Date(new Date(task.dueDate).getTime() + 24 * 60 * 60 * 1000);
-      await prisma.task.update({ where: { id: taskId }, data: { dueDate: newDue } });
-      message = `Deadline extended by 24 hours for "${task.title}".`;
+      if (!quest) return res.status(404).json({ error: 'Quest not found' });
+      const newDue = new Date(new Date(quest.dueDate).getTime() + 24 * 60 * 60 * 1000);
+      await prisma.quest.update({ where: { id: questId }, data: { dueDate: newDue } });
+      message = `Deadline extended by 24 hours for "${quest.title}".`;
     } else if (itemId === 'profile_flair') {
       await prisma.user.update({
         where: { id: req.userId },

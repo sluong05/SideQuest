@@ -11,10 +11,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const USER_SELECT = {
   id: true, email: true, username: true, createdAt: true,
-  timezone: true, totalTasksCompleted: true, maxStreak: true,
+  timezone: true, totalQuestsCompleted: true, maxStreak: true,
   emailReminders: true, bio: true, avatar: true, coins: true,
   streakShieldActive: true, debtFreezeUntil: true,
-  pushupMultiplierActive: true, profileFlair: true,
+  payoffMultiplierActive: true, profileFlair: true,
   emailVerified: true, xp: true, level: true,
 };
 
@@ -32,7 +32,7 @@ async function sendVerificationEmail(email, token) {
   await resend.emails.send({
     from: 'noreply@pushupdebt.com',
     to: email,
-    subject: 'Verify your Pushup Debt email',
+    subject: 'Verify your SideQuest email',
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2 style="color: #1a1a2e;">Verify your email</h2>
@@ -290,10 +290,10 @@ router.patch('/username', auth, async (req, res) => {
 router.delete('/account', auth, async (req, res) => {
   try {
     const userId = req.userId;
-    await prisma.pushupDebt.deleteMany({ where: { userId } });
-    await prisma.pushupSession.deleteMany({ where: { userId } });
+    await prisma.debt.deleteMany({ where: { userId } });
+    await prisma.payoffSession.deleteMany({ where: { userId } });
     await prisma.userItem.deleteMany({ where: { userId } });
-    await prisma.task.deleteMany({ where: { userId } });
+    await prisma.quest.deleteMany({ where: { userId } });
     await prisma.friendship.deleteMany({
       where: { OR: [{ requesterId: userId }, { receiverId: userId }] },
     });
@@ -396,11 +396,11 @@ router.post('/forgot-password', async (req, res) => {
     await resend.emails.send({
       from: 'noreply@pushupdebt.com',
       to: email,
-      subject: 'Reset your Pushup Debt password',
+      subject: 'Reset your SideQuest password',
       html: `
         <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
           <h2 style="color: #1a1a2e;">Reset your password</h2>
-          <p>Click the button below to reset your Pushup Debt password. This link expires in 1 hour.</p>
+          <p>Click the button below to reset your SideQuest password. This link expires in 1 hour.</p>
           <a href="${resetUrl}" style="display:inline-block; background:#f59e0b; color:#1a1a2e; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; margin:16px 0;">
             Reset Password
           </a>

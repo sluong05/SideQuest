@@ -17,8 +17,8 @@ function formatLocalTime(date, timezone) {
 }
 
 /**
- * Runs every hour. Finds tasks due in the next 60 minutes and emails the owner.
- * Uses a slightly offset window (5 min → 65 min) to avoid double-sending on tasks
+ * Runs every hour. Finds quests due in the next 60 minutes and emails the owner.
+ * Uses a slightly offset window (5 min → 65 min) to avoid double-sending on quests
  * due exactly on the hour boundary.
  */
 async function sendAtRiskReminders() {
@@ -28,7 +28,7 @@ async function sendAtRiskReminders() {
   const windowStart = new Date(now.getTime() + 5 * 60 * 1000);
   const windowEnd = new Date(now.getTime() + 65 * 60 * 1000);
 
-  const tasks = await prisma.task.findMany({
+  const quests = await prisma.quest.findMany({
     where: {
       completed: false,
       deletedAt: null,
@@ -38,25 +38,25 @@ async function sendAtRiskReminders() {
     include: { user: { select: { id: true, email: true, username: true, timezone: true } } },
   });
 
-  if (tasks.length === 0) return;
+  if (quests.length === 0) return;
 
   const byUser = {};
-  for (const task of tasks) {
-    if (!byUser[task.userId]) byUser[task.userId] = { user: task.user, tasks: [] };
-    byUser[task.userId].tasks.push(task);
+  for (const quest of quests) {
+    if (!byUser[quest.userId]) byUser[quest.userId] = { user: quest.user, quests: [] };
+    byUser[quest.userId].quests.push(quest);
   }
 
-  for (const { user, tasks: userTasks } of Object.values(byUser)) {
+  for (const { user, quests: userQuests } of Object.values(byUser)) {
     const name = user.username || user.email;
-    const taskRows = userTasks
+    const questRows = userQuests
       .map((t) => {
         const time = formatLocalTime(new Date(t.dueDate), user.timezone);
         return `<li style="margin-bottom:6px;"><strong>${t.title}</strong> — due at ${time}</li>`;
       })
       .join('');
 
-    const count = userTasks.length;
-    const subject = `⚠️ ${count} task${count > 1 ? 's' : ''} due in the next hour`;
+    const count = userQuests.length;
+    const subject = `⚠️ ${count} quest${count > 1 ? 's' : ''} due in the next hour`;
 
     try {
       await resend.emails.send({
@@ -66,12 +66,12 @@ async function sendAtRiskReminders() {
         html: `
           <div style="${BASE_STYLE}">
             <h2 style="color:#1a1a2e;">Hey ${name}, don't forget!</h2>
-            <p>You have ${count} task${count > 1 ? 's' : ''} due in the next hour. Complete ${count > 1 ? 'them' : 'it'} now to avoid pushup debt:</p>
-            <ul style="padding-left:20px; margin:12px 0;">${taskRows}</ul>
+            <p>You have ${count} quest${count > 1 ? 's' : ''} due in the next hour. Complete ${count > 1 ? 'them' : 'it'} now to avoid debt:</p>
+            <ul style="padding-left:20px; margin:12px 0;">${questRows}</ul>
             <a href="${process.env.FRONTEND_URL}" style="${BTN_STYLE}">Open Dashboard</a>
             <p style="color:#666; font-size:12px; margin-top:16px;">
               You're receiving this because you have quests due soon on SideQuest.<br>
-              Miss the deadline and you'll owe 5 pushups — don't say we didn't warn you.
+              Miss the deadline and you'll take on debt — don't say we didn't warn you.
             </p>
           </div>
         `,
@@ -83,12 +83,12 @@ async function sendAtRiskReminders() {
 
   // Also push notify each user
   await Promise.all(
-    Object.values(byUser).map(({ user, tasks: userTasks }) => {
-      const count = userTasks.length;
+    Object.values(byUser).map(({ user, quests: userQuests }) => {
+      const count = userQuests.length;
       return sendPushToUser(
         user.id,
-        `⚠️ ${count} task${count > 1 ? 's' : ''} due soon`,
-        userTasks.map((t) => t.title).join(', '),
+        `⚠️ ${count} quest${count > 1 ? 's' : ''} due soon`,
+        userQuests.map((t) => t.title).join(', '),
         '/'
       );
     })
@@ -99,7 +99,7 @@ async function sendAtRiskReminders() {
 
 /**
  * Runs nightly at 20:00 UTC. Sends a digest to users who have outstanding debt or
- * incomplete tasks due today — i.e. users who have something actionable to see.
+ * incomplete quests due today — i.e. users who have something actionable to see.
  */
 async function sendDailyDigest() {
   if (!process.env.RESEND_API_KEY) return;
@@ -117,13 +117,13 @@ async function sendDailyDigest() {
       email: true,
       username: true,
       timezone: true,
-      tasks: {
+      quests: {
         where: { deletedAt: null, dueDate: { gte: todayStart, lte: todayEnd } },
         select: { id: true, title: true, completed: true, dueDate: true },
       },
-      pushupDebts: {
+      debts: {
         where: { resolved: false },
-        select: { pushupsOwed: true },
+        select: { amountOwed: true },
       },
     },
   });
@@ -131,9 +131,9 @@ async function sendDailyDigest() {
   let sent = 0;
 
   for (const user of users) {
-    const totalOwed = user.pushupDebts.reduce((sum, d) => sum + d.pushupsOwed, 0);
-    const completedToday = user.tasks.filter((t) => t.completed).length;
-    const pendingToday = user.tasks.filter((t) => !t.completed);
+    const totalOwed = user.debts.reduce((sum, d) => sum + d.amountOwed, 0);
+    const completedToday = user.quests.filter((t) => t.completed).length;
+    const pendingToday = user.quests.filter((t) => !t.completed);
 
     // Only email if there's something worth acting on
     if (pendingToday.length === 0 && totalOwed === 0) continue;
@@ -149,25 +149,25 @@ async function sendDailyDigest() {
 
     const debtLine =
       totalOwed > 0
-        ? `<p style="color:#dc2626; font-weight:bold;">You currently owe <strong>${totalOwed} pushups</strong>. Pay them off before midnight to protect your streak.</p>`
+        ? `<p style="color:#dc2626; font-weight:bold;">You currently owe <strong>${totalOwed} pts of debt</strong>. Pay it off before midnight to protect your streak.</p>`
         : '';
 
     const pendingSection =
       pendingToday.length > 0
-        ? `<p>You have ${pendingToday.length} task${pendingToday.length > 1 ? 's' : ''} still pending today:</p>
+        ? `<p>You have ${pendingToday.length} quest${pendingToday.length > 1 ? 's' : ''} still pending today:</p>
            <ul style="padding-left:20px; margin:12px 0;">${pendingRows}</ul>`
         : '';
 
     const completedLine =
       completedToday > 0
-        ? `<p style="color:#16a34a;">Nice work — you've completed ${completedToday} task${completedToday > 1 ? 's' : ''} today.</p>`
+        ? `<p style="color:#16a34a;">Nice work — you've completed ${completedToday} quest${completedToday > 1 ? 's' : ''} today.</p>`
         : '';
 
     try {
       await resend.emails.send({
         from: 'noreply@pushupdebt.com',
         to: user.email,
-        subject: totalOwed > 0 ? `💪 ${totalOwed} pushups owed — end of day recap` : `📋 Daily recap — tasks still pending`,
+        subject: totalOwed > 0 ? `💪 ${totalOwed} pts of debt — end of day recap` : `📋 Daily recap — quests still pending`,
         html: `
           <div style="${BASE_STYLE}">
             <h2 style="color:#1a1a2e;">Evening recap, ${name}</h2>
@@ -191,12 +191,12 @@ async function sendDailyDigest() {
   await Promise.all(
     users
       .filter((u) => {
-        const owed = u.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0);
+        const owed = u.debts.reduce((s, d) => s + d.amountOwed, 0);
         return owed > 0;
       })
       .map((u) => {
-        const owed = Math.ceil(u.pushupDebts.reduce((s, d) => s + d.pushupsOwed, 0));
-        return sendPushToUser(u.id, '💪 Pushups owed', `You owe ${owed} pushups — don't let it pile up.`, '/verify-pushups');
+        const owed = Math.ceil(u.debts.reduce((s, d) => s + d.amountOwed, 0));
+        return sendPushToUser(u.id, '💪 Debt owed', `You owe ${owed} pts of debt — don't let it pile up.`, '/verify-pushups');
       })
   );
 

@@ -29,8 +29,8 @@ function Avatar({ username, avatar, size = 10 }) {
 
 const TABS = ['Friends', 'Requests', 'Find'];
 const CHALLENGE_TYPES = [
-  { value: 'tasks', label: 'Tasks completed' },
-  { value: 'pushups', label: 'Pushups logged' },
+  { value: 'quests', label: 'Quests completed' },
+  { value: 'pushups', label: 'Debt paid' },
 ];
 const DURATIONS = [3, 7, 14, 30];
 
@@ -53,7 +53,7 @@ export default function Friends() {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [challengeModal, setChallengeModal] = useState(null); // { friendId, username }
-  const [challengeType, setChallengeType] = useState('tasks');
+  const [challengeType, setChallengeType] = useState('quests');
   const [challengeDuration, setChallengeDuration] = useState(7);
   const [challengeSending, setChallengeSending] = useState(false);
   const [challengeMsg, setChallengeMsg] = useState(null);
@@ -234,7 +234,7 @@ export default function Friends() {
                       <div>
                         <p className="text-sm text-navy-100">
                           <span className="font-semibold">{c.challenger.username}</span> challenged you —{' '}
-                          <span className="text-blue-400">{c.type === 'tasks' ? 'most tasks' : 'most pushups'}</span>{' '}
+                          <span className="text-blue-400">{c.type === 'quests' ? 'most quests' : 'most debt paid'}</span>{' '}
                           in {c.durationDays} days
                         </p>
                       </div>
@@ -273,7 +273,7 @@ export default function Friends() {
                           </span>
                         </div>
                         <p className="text-xs text-navy-300 mb-2">
-                          {c.type === 'tasks' ? 'Most tasks completed' : 'Most pushups logged'}
+                          {c.type === 'quests' ? 'Most quests completed' : 'Most debt paid'}
                         </p>
                         <div className="flex gap-4 text-sm">
                           <span className="text-blue-400 font-bold">You: {c.myScore ?? '—'}</span>
@@ -338,7 +338,7 @@ export default function Friends() {
                           ? <span className="text-green-400">Clean</span>
                           : <span className="text-red-400">{f.totalDebt} owed</span>
                         }
-                        {' · '}{f.totalPushups} pushups · {f.totalTasksCompleted} tasks
+                        {' · '}{f.totalPaid} pts paid · {f.totalQuestsCompleted} quests
                       </p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">

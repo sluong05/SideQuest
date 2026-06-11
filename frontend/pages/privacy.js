@@ -32,7 +32,7 @@ export default function Privacy() {
             <ul className="list-disc list-inside space-y-1.5 text-navy-200">
               <li><strong className="text-navy-50">Account information</strong> — email address, username, and password (stored as a one-way hash; we never see your plaintext password).</li>
               <li><strong className="text-navy-50">Profile information</strong> — optional profile photo and bio that you choose to provide.</li>
-              <li><strong className="text-navy-50">Tasks and activity</strong> — the tasks you create, their due dates, completion status, and pushup session history.</li>
+              <li><strong className="text-navy-50">Quests and activity</strong> — the quests you create, their due dates, completion status, and payoff session history.</li>
               <li><strong className="text-navy-50">Social data</strong> — friend connections and challenge history between users.</li>
               <li><strong className="text-navy-50">Push notification subscription</strong> — if you opt in, browser-generated keys used to deliver notifications. You can revoke this at any time through your browser settings.</li>
               <li><strong className="text-navy-50">Timezone</strong> — detected automatically from your browser to correctly calculate due dates and streaks.</li>
@@ -47,7 +47,7 @@ export default function Privacy() {
             <ul className="list-disc list-inside space-y-1.5 text-navy-200">
               <li>To provide and operate the SideQuest service.</li>
               <li>To send password reset emails when requested.</li>
-              <li>To send optional email reminders about overdue tasks (only if you enable this in your settings).</li>
+              <li>To send optional email reminders about overdue quests (only if you enable this in your settings).</li>
               <li>To show your progress and rank on the leaderboard.</li>
               <li>We do not sell, rent, or share your personal information with third parties for their marketing purposes.</li>
             </ul>
@@ -64,7 +64,7 @@ export default function Privacy() {
           </Section>
 
           <Section title="6. Data Retention">
-            <p>We retain your data for as long as your account is active. Completed tasks are automatically purged from our system after 7 days. You can permanently delete your account and all associated data at any time from your profile settings.</p>
+            <p>We retain your data for as long as your account is active. Completed quests are automatically purged from our system after 7 days. You can permanently delete your account and all associated data at any time from your profile settings.</p>
           </Section>
 
           <Section title="7. Children's Privacy">

@@ -7,8 +7,8 @@ import { getPublicProfile, sendFriendRequest, getFriends, createChallenge, getSt
 import { Icon } from '../../components/Icons';
 
 const CHALLENGE_TYPES = [
-  { value: 'tasks', label: 'Most tasks completed' },
-  { value: 'pushups', label: 'Most pushups logged' },
+  { value: 'quests', label: 'Most quests completed' },
+  { value: 'pushups', label: 'Most debt paid' },
 ];
 const DURATIONS = [3, 7, 14, 30];
 
@@ -26,7 +26,7 @@ export default function PublicProfile() {
 
   // Challenge modal state
   const [showChallenge, setShowChallenge] = useState(false);
-  const [challengeType, setChallengeType] = useState('tasks');
+  const [challengeType, setChallengeType] = useState('quests');
   const [challengeDuration, setChallengeDuration] = useState(7);
   const [challengeSending, setChallengeSending] = useState(false);
   const [challengeMsg, setChallengeMsg] = useState(null);
@@ -166,19 +166,19 @@ export default function PublicProfile() {
                 <p className={`text-2xl font-bold tabular-nums ${profile.totalDebt === 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {profile.totalDebt}
                 </p>
-                <p className="text-xs text-navy-300 mt-1">pushups owed</p>
+                <p className="text-xs text-navy-300 mt-1">pts owed</p>
               </div>
               <div className="card py-4 text-center">
                 <p className="text-2xl font-bold text-blue-400 tabular-nums">{profile.maxStreak}</p>
                 <p className="text-xs text-navy-300 mt-1">best streak</p>
               </div>
               <div className="card py-4 text-center">
-                <p className="text-2xl font-bold text-navy-50 tabular-nums">{profile.totalPushups}</p>
-                <p className="text-xs text-navy-300 mt-1">pushups all-time</p>
+                <p className="text-2xl font-bold text-navy-50 tabular-nums">{profile.totalPaid}</p>
+                <p className="text-xs text-navy-300 mt-1">pts paid all-time</p>
               </div>
               <div className="card py-4 text-center">
-                <p className="text-2xl font-bold text-green-400 tabular-nums">{profile.totalTasksCompleted}</p>
-                <p className="text-xs text-navy-300 mt-1">tasks completed</p>
+                <p className="text-2xl font-bold text-green-400 tabular-nums">{profile.totalQuestsCompleted}</p>
+                <p className="text-xs text-navy-300 mt-1">quests completed</p>
               </div>
             </div>
           </>

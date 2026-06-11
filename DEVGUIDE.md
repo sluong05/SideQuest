@@ -1,4 +1,4 @@
-# PushupDebt — Developer Guide
+# SideQuest — Developer Guide
 
 A deep dive into how the codebase is structured, how each file works, and how everything connects together.
 
@@ -28,11 +28,11 @@ A deep dive into how the codebase is structured, how each file works, and how ev
 
 ## 1. High-Level Overview
 
-PushupDebt is a full-stack web app with a clear separation between frontend and backend:
+SideQuest is a full-stack web app with a clear separation between frontend and backend:
 
 - **Frontend** (Next.js) — runs in the user's browser, handles all UI, talks to the backend over HTTP
 - **Backend** (Node.js + Express) — handles all business logic, authentication, and database access
-- **Database** (PostgreSQL via Prisma) — stores users, tasks, debt records, pushup sessions, friendships, challenges, and push subscriptions
+- **Database** (PostgreSQL via Prisma) — stores users, quests, debt records, pushup sessions, friendships, challenges, and push subscriptions
 
 The two sides communicate exclusively through a REST API. The frontend never touches the database directly.
 
@@ -90,7 +90,7 @@ CORS (Cross-Origin Resource Sharing) is a browser security mechanism that blocks
 
 ```js
 app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/tasks',       require('./routes/tasks'));
+app.use('/api/quests',       require('./routes/quests'));
 app.use('/api/debt',        require('./routes/debt'));
 app.use('/api/sessions',    require('./routes/sessions'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
@@ -102,7 +102,7 @@ app.use('/api/push',        require('./routes/push'));
 app.use('/api/shop',        require('./routes/shop'));
 ```
 
-Each `require('./routes/...')` loads a file that exports an Express Router. The prefix (`/api/tasks`) is prepended to every route defined inside that router. So `router.get('/')` in `tasks.js` becomes `GET /api/tasks/`.
+Each `require('./routes/...')` loads a file that exports an Express Router. The prefix (`/api/quests`) is prepended to every route defined inside that router. So `router.get('/')` in `quests.js` becomes `GET /api/quests/`.
 
 Note that `friends.js` exports `{ router, getFriendIds }` — the named export `getFriendIds` is reused by `leaderboard.js`, `challenges.js`, and `shop.js`.
 
@@ -171,30 +171,30 @@ Stores account credentials and lifetime stats:
 |---|---|
 | `email`, `username`, `password` | Identity. Username is optional — users can sign up with email only and set a username later |
 | `timezone` | IANA timezone string (e.g. `America/New_York`). Sent by the browser on signup and updated on login if changed. Used for timezone-aware debt calculation |
-| `totalTasksCompleted` | Lifetime counter incremented on `complete`, decremented on `uncomplete`. Persists through task deletion so the leaderboard always shows an accurate all-time count |
+| `totalQuestsCompleted` | Lifetime counter incremented on `complete`, decremented on `uncomplete`. Persists through quest deletion so the leaderboard always shows an accurate all-time count |
 | `maxStreak` | All-time best streak in days. Updated by `GET /api/streak` whenever the current streak exceeds it. Used for badge earning so badges aren't lost when a streak resets |
 | `emailReminders` | Boolean preference for opt-in email notifications |
 | `bio`, `avatar` | Profile customisation. `avatar` is stored as a base64 data URL (capped at 300 KB) |
 | `coins` | Coin balance earned from surplus pushups (1 coin per pushup done when debt = 0). Spent in the shop |
 
-#### Task
+#### Quest
 
-Each task belongs to a user (`userId` foreign key). The `recurrence` field is a string (`"none"`, `"daily"`, `"weekly"`). `completedAt` is null until completed. `deletedAt` is null until soft-deleted.
+Each quest belongs to a user (`userId` foreign key). The `recurrence` field is a string (`"none"`, `"daily"`, `"weekly"`). `completedAt` is null until completed. `deletedAt` is null until soft-deleted.
 
-**Soft-delete**: tasks are never hard-deleted via the API. Instead `deletedAt` is set to the current timestamp. This keeps completed tasks in the database for 7 days so the leaderboard can count them in the `tasksCompleted7d` window. All queries that list tasks filter `deletedAt: null`. The nightly cron hard-deletes expired rows.
+**Soft-delete**: quests are never hard-deleted via the API. Instead `deletedAt` is set to the current timestamp. This keeps completed quests in the database for 7 days so the leaderboard can count them in the `questsCompleted7d` window. All queries that list quests filter `deletedAt: null`. The nightly cron hard-deletes expired rows.
 
-The `pushupDebt` relation is one-to-one with `onDelete: SetNull` — deleting a task orphans its debt (sets `taskId = null`) rather than deleting it.
+The `debt` relation is one-to-one with `onDelete: SetNull` — deleting a quest orphans its debt (sets `questId = null`) rather than deleting it.
 
-#### PushupDebt
+#### Debt (table: `PushupDebt`)
 
-Created when a task goes overdue. Tracks:
-- `pushupsOwed` — the current number of pushups owed (Float for precision during partial payoffs)
+Created when a quest goes overdue. Tracks:
+- `amountOwed` — the current number of pushups owed (Float for precision during partial payoffs)
 - `daysOverdue` — how many days past due (used to recalculate on each cron run without double-charging)
 - `resolved` — set to `true` when pushups are fully paid off
 
-`taskId` is nullable — null means the task was deleted (or the debt was created by a shop item or deletion penalty). The debt breakdown groups all null-taskId debts into a single "Deleted tasks" row. Deleting an incomplete task always creates or adds to a null-taskId debt (5-pushup penalty). The shop's Debt Bomb also creates a null-taskId debt on the target user.
+`questId` is nullable — null means the quest was deleted (or the debt was created by a shop item or deletion penalty). The debt breakdown groups all null-questId debts into a single "Deleted quests" row. Deleting an incomplete quest always creates or adds to a null-questId debt (5-pushup penalty). The shop's Debt Bomb also creates a null-questId debt on the target user.
 
-#### PushupSession
+#### PayoffSession
 
 A log entry every time a user records pushups. Used for leaderboard totals and the pushup history chart. Debt reduction happens in the sessions route handler — this table is purely a log.
 
@@ -207,7 +207,7 @@ When searching for users, pending relationships are now included in results (not
 #### Challenge
 
 Records a competitive challenge between two users. Fields:
-- `type` — `"tasks"` (most tasks completed) or `"pushups"` (most pushups logged)
+- `type` — `"quests"` (most quests completed) or `"pushups"` (most pushups logged)
 - `durationDays` — 3, 7, 14, or 30
 - `status` — `"pending"` → `"active"` (on accept) → stays active until `endDate` passes
 - `startDate`, `endDate` — set when the challenged user accepts; scores are computed relative to this window
@@ -249,7 +249,7 @@ Handles user identity.
 5. Signs and returns a new JWT token
 
 **GET `/api/auth/me`** *(auth required)*
-Returns the current user's full profile including `coins`, `totalTasksCompleted`, `maxStreak`, `timezone`, `bio`, `avatar`. Used by the frontend on page load to validate the stored token and hydrate the auth context.
+Returns the current user's full profile including `coins`, `totalQuestsCompleted`, `maxStreak`, `timezone`, `bio`, `avatar`. Used by the frontend on page load to validate the stored token and hydrate the auth context.
 
 **PATCH `/api/auth/password`** *(auth required)*
 Verifies the old password before updating to the new one.
@@ -264,43 +264,43 @@ Updates `bio` (capped at 160 chars) and/or `avatar` (validated as a data URL, ca
 Toggles the `emailReminders` boolean.
 
 **DELETE `/api/auth/account`** *(auth required)*
-Hard-deletes the user and all their associated data (debts, sessions, tasks, friendships, challenges) in dependency order.
+Hard-deletes the user and all their associated data (debts, sessions, quests, friendships, challenges) in dependency order.
 
 ---
 
-#### `routes/tasks.js`
+#### `routes/quests.js`
 
-Handles task CRUD.
+Handles quest CRUD.
 
-**GET `/api/tasks`**
+**GET `/api/quests`**
 Accepts two optional query params:
-- `?date=YYYY-MM-DD` — returns tasks due on exactly that day
-- `?upToDate=YYYY-MM-DD` — returns all incomplete tasks + tasks completed on that day
+- `?date=YYYY-MM-DD` — returns quests due on exactly that day
+- `?upToDate=YYYY-MM-DD` — returns all incomplete quests + quests completed on that day
 
-The `upToDate` query is what the dashboard uses — it shows everything you need to act on today (incomplete tasks from the past and present) plus what you already finished today.
+The `upToDate` query is what the dashboard uses — it shows everything you need to act on today (incomplete quests from the past and present) plus what you already finished today.
 
-**POST `/api/tasks`**
-Creates a task. Blocked if `totalOwed > 99` (debt guard). After creation, immediately calls `calculateAndUpdateDebt(userId)` — so if you create a task with a past due date, debt is generated right away.
+**POST `/api/quests`**
+Creates a quest. Blocked if `totalOwed > 99` (debt guard). After creation, immediately calls `calculateAndUpdateDebt(userId)` — so if you create a quest with a past due date, debt is generated right away.
 
 **PATCH `/:id/complete`**
-Marks a task complete and sets `completedAt` to now. Runs in a Prisma transaction that also increments `user.totalTasksCompleted`.
+Marks a quest complete and sets `completedAt` to now. Runs in a Prisma transaction that also increments `user.totalQuestsCompleted`.
 
 **PATCH `/:id/uncomplete`**
-Reverses a completion. Runs in a transaction that decrements `user.totalTasksCompleted`.
+Reverses a completion. Runs in a transaction that decrements `user.totalQuestsCompleted`.
 
 **DELETE `/:id`**
-Soft-deletes the task by setting `deletedAt = now()`. If the task was incomplete, a 5-pushup penalty is applied:
-- If the task had existing debt: sets `taskId = null` on that debt and adds 5 to `pushupsOwed`
-- If no existing debt: creates a new `PushupDebt` with `taskId = null, pushupsOwed = 5`
+Soft-deletes the quest by setting `deletedAt = now()`. If the quest was incomplete, a 5-pushup penalty is applied:
+- If the quest had existing debt: sets `questId = null` on that debt and adds 5 to `amountOwed`
+- If no existing debt: creates a new `Debt` with `questId = null, amountOwed = 5`
 
-Completed tasks are soft-deleted with no penalty.
+Completed quests are soft-deleted with no penalty.
 
 ---
 
 #### `routes/debt.js`
 
 **GET `/api/debt`**
-Returns all unresolved debt records for the current user, each joined with its task title, plus the total pushups owed.
+Returns all unresolved debt records for the current user, each joined with its quest title, plus the total pushups owed.
 
 **POST `/api/debt/calculate`**
 Manually triggers debt recalculation for the current user. Called by the dashboard on mount so debt is always fresh when you open the app, without waiting for midnight.
@@ -314,16 +314,16 @@ Records a set of completed pushups and applies them toward debt.
 
 The reduction logic:
 1. Fetches all unresolved debt records, ordered by `createdAt` ascending (oldest debt first)
-2. Iterates through them, subtracting from `pushupsOwed` until the submitted count runs out
+2. Iterates through them, subtracting from `amountOwed` until the submitted count runs out
 3. When a record reaches 0, marks it `resolved: true`
-4. Creates a `PushupSession` record to log the activity
+4. Creates a `PayoffSession` record to log the activity
 5. **If any pushups remain after all debt is cleared**, increments `user.coins` by the remainder (1 coin per surplus pushup)
 6. Returns `{ session, totalOwed, coinsEarned, pushupsApplied }`
 
-Paying oldest debt first is a design choice — it prevents debt from piling up indefinitely for old tasks. Coins are only earned from surplus — there's no reward for pushups that go toward debt.
+Paying oldest debt first is a design choice — it prevents debt from piling up indefinitely for old quests. Coins are only earned from surplus — there's no reward for pushups that go toward debt.
 
 **GET `/api/sessions`**
-Returns the last 30 pushup sessions plus `allTimePushups` (a Prisma aggregate of all sessions ever). Used on the dashboard progress chart and verify-pushups page.
+Returns the last 30 pushup sessions plus `allTimePaid` (a Prisma aggregate of all sessions ever). Used on the dashboard progress chart and verify-pushups page.
 
 ---
 
@@ -331,11 +331,11 @@ Returns the last 30 pushup sessions plus `allTimePushups` (a Prisma aggregate of
 
 **GET `/api/streak`**
 
-Calculates the current streak: consecutive days where all tasks due that day were completed and no pushup debt was outstanding.
+Calculates the current streak: consecutive days where all quests due that day were completed and no debt was outstanding.
 
 The algorithm:
 1. Starts from today and walks backwards one day at a time
-2. For each day, checks if every task due that day has `completed: true`
+2. For each day, checks if every quest due that day has `completed: true`
 3. Also checks if any unresolved debt existed (if debt was accrued that day, the streak breaks)
 4. Stops counting when it finds a day that fails either check
 
@@ -348,13 +348,13 @@ Streak is computed fresh on each request. If the result exceeds `user.maxStreak`
 **GET `/api/leaderboard?friends=true`**
 
 Fetches all users (or only friends + self when `?friends=true`) and for each computes:
-- `totalDebt` — sum of unresolved `pushupsOwed`
-- `totalPushups` — sum of all `pushupsCompleted` across sessions
-- `tasksCompleted7d` — count of tasks completed in the last 7 days (soft-deleted completed tasks still count since their rows are preserved for 7 days)
-- `totalTasksCompleted` — from the `User` field (all-time lifetime counter)
+- `totalDebt` — sum of unresolved `amountOwed`
+- `totalPaid` — sum of all `amount` across sessions
+- `questsCompleted7d` — count of quests completed in the last 7 days (soft-deleted completed quests still count since their rows are preserved for 7 days)
+- `totalQuestsCompleted` — from the `User` field (all-time lifetime counter)
 - `avatar` — for display in the leaderboard rows
 
-Sort order: 1) most `tasksCompleted7d`, 2) clean (zero debt), 3) lowest debt, 4) most pushups.
+Sort order: 1) most `questsCompleted7d`, 2) clean (zero debt), 3) lowest debt, 4) most pushups.
 
 ---
 
@@ -363,13 +363,13 @@ Sort order: 1) most `tasksCompleted7d`, 2) clean (zero debt), 3) lowest debt, 4)
 Exports both a `router` (mounted at `/api/friends`) and a `getFriendIds(userId)` helper used by other routes.
 
 **GET `/api/friends`**
-Returns accepted friends with stats: `username`, `avatar`, `totalDebt`, `totalPushups`, `maxStreak`, `totalTasksCompleted`.
+Returns accepted friends with stats: `username`, `avatar`, `totalDebt`, `totalPaid`, `maxStreak`, `totalQuestsCompleted`.
 
 **GET `/api/friends/requests`**
 Returns pending incoming requests including the requester's `username` and `avatar`.
 
 **GET `/api/friends/feed`**
-Returns a merged, time-sorted activity feed of friends' completed tasks and pushup sessions from the last 7 days (up to 50 events).
+Returns a merged, time-sorted activity feed of friends' completed quests and pushup sessions from the last 7 days (up to 50 events).
 
 **GET `/api/friends/search?q=`**
 Searches users by username. Only excludes accepted friends (and self) — users with a pending relationship are included in results, annotated with `pendingStatus: 'sent' | 'received' | null` and `friendshipId`. This lets the frontend show the correct button state (Add Friend / Request sent + Unsend / Respond) even after navigating away and back.
@@ -388,10 +388,10 @@ Handles two cases: removing an accepted friend (either party can remove), or can
 #### `routes/challenges.js`
 
 **GET `/api/challenges`**
-Returns all non-declined challenges for the current user with live scores. For active challenges (and completed ones), `computeScore()` queries the DB to count tasks or sum pushups within the challenge's `startDate`–`endDate` window. The `winner` field is computed client-side from scores when `endDate` has passed and status is still `"active"`.
+Returns all non-declined challenges for the current user with live scores. For active challenges (and completed ones), `computeScore()` queries the DB to count quests or sum pushups within the challenge's `startDate`–`endDate` window. The `winner` field is computed client-side from scores when `endDate` has passed and status is still `"active"`.
 
 **POST `/api/challenges`**
-Creates a pending challenge. Validates that the target is an accepted friend (using `getFriendIds`), that `type` is `"tasks"` or `"pushups"`, and that `durationDays` is one of `[3, 7, 14, 30]`.
+Creates a pending challenge. Validates that the target is an accepted friend (using `getFriendIds`), that `type` is `"quests"` or `"pushups"`, and that `durationDays` is one of `[3, 7, 14, 30]`.
 
 **PATCH `/:id/accept`**
 Sets `status = "active"`, `startDate = now`, `endDate = now + durationDays`.
@@ -404,7 +404,7 @@ Sets `status = "declined"` (row kept for history, filtered from GET results).
 #### `routes/users.js`
 
 **GET `/api/users/:username`**
-Returns a public profile: username, bio, avatar, maxStreak, totalTasksCompleted, total pushups, and member since date. No private data (email, debt, etc.) is exposed. Auth required (must be logged in to view).
+Returns a public profile: username, bio, avatar, maxStreak, totalQuestsCompleted, total pushups, and member since date. No private data (email, debt, etc.) is exposed. Auth required (must be logged in to view).
 
 ---
 
@@ -421,7 +421,7 @@ Returns the static list of available shop items. Currently:
 Validates the purchase and applies the effect:
 1. Checks the buyer has enough `coins`
 2. For `debt_bomb`: verifies `targetUsername` exists and is an accepted friend
-3. Runs a Prisma `$transaction` — deducts coins from buyer and creates a `PushupDebt` record (`taskId: null, pushupsOwed: 10, daysOverdue: 1`) on the target atomically
+3. Runs a Prisma `$transaction` — deducts coins from buyer and creates a `Debt` record (`questId: null, amountOwed: 10, daysOverdue: 1`) on the target atomically
 
 Using a transaction ensures coins are never deducted without the debt being created (and vice versa).
 
@@ -445,21 +445,21 @@ Exports `calculateAndUpdateDebt(userId)` and `startDebtCronJob()`.
 
 `calculateAndUpdateDebt` is called in three contexts:
 1. **Nightly cron** at 00:01 UTC (for all users)
-2. **`POST /api/tasks`** — immediately after task creation
+2. **`POST /api/quests`** — immediately after quest creation
 3. **`POST /api/debt/calculate`** — manual trigger from the dashboard on mount
 
 **Steps (full nightly run only — steps 3 and 4 are skipped for per-user calls):**
 
-1. Find all incomplete, non-deleted tasks where `dueDate < now`
-2. For each overdue task: create a new `PushupDebt` (first time) or add `5 × newDays` (subsequent runs, only charges new overdue days to preserve partial payoffs)
-3. Reset completed recurring tasks: advance `dueDate` by one period, set `completed = false`, delete resolved debt
-4. Hard-delete expired task rows: completed non-recurring tasks older than 7 days, and soft-deleted incomplete tasks
+1. Find all incomplete, non-deleted quests where `dueDate < now`
+2. For each overdue quest: create a new `Debt` (first time) or add `5 × newDays` (subsequent runs, only charges new overdue days to preserve partial payoffs)
+3. Reset completed recurring quests: advance `dueDate` by one period, set `completed = false`, delete resolved debt
+4. Hard-delete expired quest rows: completed non-recurring quests older than 7 days, and soft-deleted incomplete quests
 
 The daysOverdue calculation is timezone-aware — it uses `Intl.DateTimeFormat` to convert timestamps to the user's local calendar day before computing the difference, so midnight boundaries are counted in the user's local time, not UTC.
 
 #### `jobs/emailReminders.js`
 
-Sends opt-in reminder emails to users with upcoming or overdue tasks. Only sends to users with `emailReminders: true`. Uses Resend.
+Sends opt-in reminder emails to users with upcoming or overdue quests. Only sends to users with `emailReminders: true`. Uses Resend.
 
 ---
 
@@ -487,7 +487,7 @@ api.interceptors.request.use((config) => {
 });
 ```
 
-All backend endpoints are wrapped in named functions so components import clean function names rather than raw Axios calls. Current groups: auth, tasks, debt, sessions, streak, leaderboard, friends, users, challenges, shop, push notifications.
+All backend endpoints are wrapped in named functions so components import clean function names rather than raw Axios calls. Current groups: auth, quests, debt, sessions, streak, leaderboard, friends, users, challenges, shop, push notifications.
 
 ---
 
@@ -498,7 +498,7 @@ All backend endpoints are wrapped in named functions so components import clean 
 React Context that shares authentication state across all pages and components without prop-drilling.
 
 The `AuthProvider` wraps the entire app in `_app.js`. It provides:
-- `user` — the current user object (`null` if not logged in). Includes `coins`, `totalTasksCompleted`, `maxStreak`, `timezone`, `bio`, `avatar` from `/api/auth/me`
+- `user` — the current user object (`null` if not logged in). Includes `coins`, `totalQuestsCompleted`, `maxStreak`, `timezone`, `bio`, `avatar` from `/api/auth/me`
 - `loading` — `true` while validating the stored token on first load
 - `loginUser(token, userData)` — stores the token in localStorage and sets `user` state
 - `logoutUser()` — removes the token, clears `user` state, redirects to `/welcome`
@@ -519,18 +519,18 @@ The main page after login. Layout is a 5-column grid (3 left + 2 right) on deskt
 
 On mount:
 1. Calls `POST /api/debt/calculate` to refresh debt
-2. Fetches tasks (`upToDate=today`), debt, streak, sessions, and friends list in parallel
+2. Fetches quests (`upToDate=today`), debt, streak, sessions, and friends list in parallel
 3. `hasFriends` controls whether the ActivityFeed renders below the grid
 
-**Left column:** task list, progress bar, task stats row, "Today's Focus" card (shown when ≤ 2 tasks).
+**Left column:** quest list, progress bar, quest stats row, "Today's Focus" card (shown when ≤ 2 quests).
 
 **Right column:** DebtSummary component, streak milestone card (progress bar toward next of 3/7/14/30/60/100 days with earned pills), "How It Works" card.
 
-**Progress section (full-width):** 14-day pushup bar chart (hand-rolled SVG), all-time stats row (pushups, tasks, streak, member since).
+**Progress section (full-width):** 14-day pushup bar chart (hand-rolled SVG), all-time stats row (pushups, quests, streak, member since).
 
 **Username prompt:** If `user.username` is null, a banner prompts the user to set one.
 
-**Debt block modal:** If total debt exceeds 99 pushups, the Add Task button shows a blocking modal. This is an intentional mechanic.
+**Debt block modal:** If total debt exceeds 99 pushups, the Add Quest button shows a blocking modal. This is an intentional mechanic.
 
 #### `pages/login.js` / `pages/signup.js`
 
@@ -549,7 +549,7 @@ Sections:
 
 #### `pages/leaderboard.js`
 
-Two tabs: Global and Friends. Friends tab lazy-loads on first switch (`?friends=true`). Each row shows avatar (image or initial fallback), username linked to `/u/[username]`, debt/pushup stats, and a 7-day tasks badge. Current user's row is highlighted in amber.
+Two tabs: Global and Friends. Friends tab lazy-loads on first switch (`?friends=true`). Each row shows avatar (image or initial fallback), username linked to `/u/[username]`, debt/pushup stats, and a 7-day quests badge. Current user's row is highlighted in amber.
 
 #### `pages/friends.js`
 
@@ -559,7 +559,7 @@ Three tabs: Friends, Requests, Find.
 - **Requests** — incoming pending friend requests with Accept/Decline.
 - **Find** — debounced username search (300ms). Results show correct button state based on `pendingStatus` returned by the server: "Add Friend", "Request sent + Unsend", or "Respond" (switches to Requests tab). This state is server-derived — navigating away and back does not reset it.
 
-Challenge modal: pick type (tasks/pushups) and duration (3/7/14/30 days), then send.
+Challenge modal: pick type (quests/pushups) and duration (3/7/14/30 days), then send.
 
 #### `pages/shop.js`
 
@@ -601,28 +601,28 @@ Wraps every page. Renders the sticky top navigation bar with:
 - **Username/email** — clickable link to `/profile`
 - **Logout** button
 
-#### `TaskList.js`
+#### `QuestList.js`
 
-Renders the list of tasks. Each row shows checkbox, title, due date label, recurrence badge, debt badge, and delete button.
+Renders the list of quests. Each row shows checkbox, title, due date label, recurrence badge, debt badge, and delete button.
 
-**Delete confirmation:** Clicking delete on an incomplete task opens an inline modal ("Deleting this task will cost you 5 pushups. Are you sure?"). Completed tasks delete immediately.
+**Delete confirmation:** Clicking delete on an incomplete quest opens an inline modal ("Deleting this quest will cost you 5 pushups. Are you sure?"). Completed quests delete immediately.
 
-**Color coding:** Red = overdue, Yellow = due today, no highlight = future. Tasks sorted: incomplete first (by due date ascending), then completed.
+**Color coding:** Red = overdue, Yellow = due today, no highlight = future. Quests sorted: incomplete first (by due date ascending), then completed.
 
 #### `DebtSummary.js`
 
 Shows debt status:
 - **Total owed** — large number with debt level badge (Light Debt / Risky / Debt Spiral / Pushup Bankruptcy), flavor text, and a "Pay X to drop to Y" sub-goal
-- **Debt breakdown** — each unresolved debt record; null-taskId debts grouped as "Deleted tasks"
-- **At-risk tasks** — tasks due today not yet completed, with a live countdown (shared `useNow()` hook — one 1-second interval, not one per task) and debt projection
+- **Debt breakdown** — each unresolved debt record; null-questId debts grouped as "Deleted quests"
+- **At-risk quests** — quests due today not yet completed, with a live countdown (shared `useNow()` hook — one 1-second interval, not one per quest) and debt projection
 
-#### `AddTaskModal.js`
+#### `AddQuestModal.js`
 
-Modal for creating tasks. Fields: title, due date (defaults to today), recurrence (None / Daily / Weekly). On submit calls `createTask()` then the parent's `onTaskAdded` callback.
+Modal for creating quests. Fields: title, due date (defaults to today), recurrence (None / Daily / Weekly). On submit calls `createQuest()` then the parent's `onQuestAdded` callback.
 
 #### `ActivityFeed.js`
 
-Friend activity feed rendered on the dashboard when `hasFriends` is true. Fetches `GET /api/friends/feed`. Displays task completions and pushup sessions from the last 7 days in a time-sorted list.
+Friend activity feed rendered on the dashboard when `hasFriends` is true. Fetches `GET /api/friends/feed`. Displays quest completions and pushup sessions from the last 7 days in a time-sorted list.
 
 ---
 
@@ -645,14 +645,14 @@ The app uses **Tailwind CSS** utility classes. `globals.css` adds:
 
 ## 5. How Features Work End-to-End
 
-### Creating a task and generating debt
+### Creating a quest and generating debt
 
-1. User fills out `AddTaskModal` and clicks Submit
-2. Frontend calls `POST /api/tasks` with `{ title, dueDate, recurrence }`
-3. Backend validates (blocks if debt > 99), creates the task
-4. Backend immediately calls `calculateAndUpdateDebt(userId)` — if due date is already past, a `PushupDebt` record is created right away
-5. Frontend's `onTaskAdded` callback re-fetches tasks and debt
-6. Dashboard re-renders with the new task and updated debt
+1. User fills out `AddQuestModal` and clicks Submit
+2. Frontend calls `POST /api/quests` with `{ title, dueDate, recurrence }`
+3. Backend validates (blocks if debt > 99), creates the quest
+4. Backend immediately calls `calculateAndUpdateDebt(userId)` — if due date is already past, a `Debt` record is created right away
+5. Frontend's `onQuestAdded` callback re-fetches quests and debt
+6. Dashboard re-renders with the new quest and updated debt
 
 ### Paying off debt and earning coins
 
@@ -660,7 +660,7 @@ The app uses **Tailwind CSS** utility classes. `globals.css` adds:
 2. MediaPipe loads from CDN, webcam starts, pose detection begins
 3. User does pushups — each valid rep increments the counter
 4. User clicks "Log X Pushups"
-5. Frontend calls `POST /api/sessions` with `{ pushupsCompleted: X }`
+5. Frontend calls `POST /api/sessions` with `{ amount: X }`
 6. Backend drains oldest debt first; any surplus increments `user.coins`
 7. Response includes `coinsEarned` — shown as "🪙 +N coins earned!" in the success card
 8. Frontend shows updated debt
@@ -672,7 +672,7 @@ The app uses **Tailwind CSS** utility classes. `globals.css` adds:
 3. Clicks Buy → modal opens with friend picker (shows avatars + current debt)
 4. Selects a friend, clicks Confirm
 5. Frontend calls `POST /api/shop/buy` with `{ itemId: 'debt_bomb', targetUsername }`
-6. Backend verifies friendship, runs a `$transaction`: deducts 50 coins from buyer, creates a `PushupDebt` of 10 on target
+6. Backend verifies friendship, runs a `$transaction`: deducts 50 coins from buyer, creates a `Debt` of 10 on target
 7. Frontend optimistically updates `user.coins` via `updateUser`
 8. Target sees +10 pushups on their debt the next time they load the dashboard
 
@@ -689,9 +689,9 @@ The app uses **Tailwind CSS** utility classes. `globals.css` adds:
 
 1. At 00:01 UTC, `node-cron` fires inside the backend process
 2. Calls `calculateAndUpdateDebt()` for all users
-3. Overdue incomplete tasks get new/updated debt records (timezone-aware day counting)
-4. Completed recurring tasks get their due dates advanced and completion reset
-5. Stale completed non-recurring tasks and soft-deleted incomplete tasks are hard-deleted
+3. Overdue incomplete quests get new/updated debt records (timezone-aware day counting)
+4. Completed recurring quests get their due dates advanced and completion reset
+5. Stale completed non-recurring quests and soft-deleted incomplete quests are hard-deleted
 
 ### Login flow
 
@@ -729,7 +729,7 @@ User action (click)
 ```
 User submits pushups (POST /api/sessions)
   → Backend drains oldest debts first
-    → remaining = pushupsCompleted - total debt drained
+    → remaining = amount - total debt drained
     → if remaining > 0:
         → user.coins += remaining (Prisma increment)
         → coinsEarned = remaining
@@ -745,7 +745,7 @@ POST /api/shop/buy { itemId: 'debt_bomb', targetUsername }
   → Verify target exists and is a friend
   → prisma.$transaction([
       user.update({ coins: { decrement: 50 } }),   // buyer loses coins
-      pushupDebt.create({ userId: target.id, pushupsOwed: 10 }) // target gains debt
+      debt.create({ userId: target.id, amountOwed: 10 }) // target gains debt
     ])
   → Both succeed or both fail — no partial state
 ```
@@ -755,12 +755,12 @@ POST /api/shop/buy { itemId: 'debt_bomb', targetUsername }
 ```
 00:01 UTC
   → node-cron fires inside Express process
-    → For each overdue incomplete task:
+    → For each overdue incomplete quest:
         → Compute daysOverdue (timezone-aware calendar day diff)
-        → Create PushupDebt (first time) or add 5 × newDays (subsequent)
-    → For each completed recurring task:
+        → Create Debt (first time) or add 5 × newDays (subsequent)
+    → For each completed recurring quest:
         → Advance dueDate, reset completed=false, delete resolved debt
-    → Hard-delete expired task rows
+    → Hard-delete expired quest rows
 ```
 
 ### Token lifecycle

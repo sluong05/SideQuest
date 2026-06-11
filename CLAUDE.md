@@ -2,7 +2,7 @@
 
 Gamified self-improvement app: daily goals are "quests." Missing a quest deadline accumulates debt paid off through camera-verified pushups (or other activities) via MediaPipe Pose in the browser. Completing quests earns XP and levels up the user.
 
-> **Rebranded from PushupDebt → SideQuest.** The folder is still named `PushupDebt/` and API routes are still `/api/tasks` internally — only user-facing copy and UI have been updated. A future migration should rename the folder and API routes to `/api/quests`.
+> **Rebranded from PushupDebt → SideQuest.** Code-level rename is complete: the folder is `SideQuest/`, API routes live at `/api/quests` (with `/api/tasks` kept as a legacy alias until all clients are updated), and the Prisma models are `Quest`, `Debt`, and `PayoffSession`. The models are mapped to the legacy DB tables (`Task`, `PushupDebt`, `PushupSession`) via `@@map`/`@map`, so **no database migration was needed** — physical table/column names are unchanged. Still on the old brand (infrastructure-bound): the `pushupdebt.com` domain (og tags), `noreply@pushupdebt.com` Resend sender, and `pushupdebt://` mobile deep-link scheme.
 
 ## Migration Required After Schema Change
 
@@ -10,7 +10,7 @@ After pulling latest, run:
 ```bash
 cd backend && npx prisma migrate dev --name add-quest-fields
 ```
-This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to `Task` and `xp`, `level` to `User`.
+This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to the quests table and `xp`, `level` to `User`. (The later model renames — `Task`→`Quest` etc. — are `@@map`-only and generate no migration.)
 
 ---
 
@@ -44,7 +44,7 @@ This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to `Tas
 │   │   ├── login.js, signup.js, welcome.js
 │   ├── components/
 │   │   ├── Layout.js         # Nav shell (logo, nav tabs, streak/coins/level badges)
-│   │   ├── AddTaskModal.js   # Create quest — category/difficulty + date + time picker
+│   │   ├── AddQuestModal.js   # Create quest — category/difficulty + date + time picker
 │   │   ├── Icons.js          # Shared stroke-SVG icon set + CategoryIcon
 │   │   ├── PayoffShell.js    # PAYOFF_METHODS source of truth + usePayoff hook + payoff page chrome
 │   │   ├── Panel.js          # Shared sidebar panel styles (PANEL_STYLE, SELECT_STYLE, PanelHeader)
@@ -59,9 +59,9 @@ This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to `Tas
     ├── src/
     │   ├── routes/
     │   │   ├── auth.js       # signup, login, /me, username, password, forgot/reset
-    │   │   ├── tasks.js      # CRUD + complete/uncomplete (soft-delete on DELETE)
+    │   │   ├── quests.js      # CRUD + complete/uncomplete (soft-delete on DELETE)
     │   │   ├── debt.js       # GET debt, POST /calculate
-    │   │   ├── sessions.js   # POST log pushups (drains debt), GET last 30 + allTimePushups
+    │   │   ├── sessions.js   # POST log payoff (drains debt), GET last 30 + allTimePaid
     │   │   ├── streak.js     # GET streak (365-day lookback) + updates maxStreak on user
     │   │   └── leaderboard.js
     │   ├── jobs/
@@ -82,43 +82,45 @@ This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to `Tas
 User
   id, email, username (optional unique), password
   timezone String @default("UTC")           // IANA tz, auto-updated on each login
-  totalTasksCompleted Int @default(0)       // lifetime counter, incremented on complete, decremented on uncomplete
+  totalQuestsCompleted Int @default(0)       // lifetime counter, incremented on complete, decremented on uncomplete
   maxStreak Int @default(0)                 // all-time best streak, updated by GET /api/streak
   passwordResetToken, passwordResetExpiry
-  → tasks[], pushupSessions[], pushupDebts[]
+  → quests[], payoffSessions[], debts[]
 
-Task
+Quest
   id, title, completed, recurrence (none/daily/weekly)
-  dueDate DateTime   // full timestamp — user picks date + time in AddTaskModal
+  dueDate DateTime   // full timestamp — user picks date + time in AddQuestModal
   completedAt, deletedAt DateTime?   // deletedAt = soft-delete (row kept for 7-day leaderboard window)
   userId
-  → pushupDebt? (one optional PushupDebt)
+  → debt? (one optional Debt)
 
-PushupDebt
-  id, taskId (nullable — null when task deleted), userId
-  pushupsOwed Float, daysOverdue Int
+Debt              // table: "PushupDebt" (@@map)
+  id, questId (nullable — null when quest deleted), userId
+  amountOwed Float, daysOverdue Int
   resolved Boolean
-  → task?, user
+  → quest?, user
 
-PushupSession
-  id, pushupsCompleted, date, userId
+PayoffSession     // table: "PushupSession" (@@map)
+  id, amount, date, userId
 ```
+
+`Quest` is mapped to the legacy `"Task"` table. Renamed columns keep their old physical names via `@map` (e.g. `amountOwed` → `pushupsOwed`, `questId` → `taskId`, `amount` → `pushupsCompleted`, `totalQuestsCompleted` → `totalTasksCompleted`).
 
 ---
 
 ## Debt Logic (Critical — read carefully)
 
 ### Formula
-`pushupsOwed = 5 × daysOverdue`
+`amountOwed = 5 × daysOverdue`
 
-- **daysOverdue = 1** the instant `now > task.dueDate` (first 5 pushups trigger immediately)
+- **daysOverdue = 1** the instant `now > quest.dueDate` (first 5 pts trigger immediately)
 - **daysOverdue += 1** for each local midnight that passes after the due date's calendar day
 
 ### Calendar day math (timezone-aware)
 ```js
 // In dailyDebt.js — localCalendarDay() converts a UTC timestamp to
 // the user's local calendar date using Intl.DateTimeFormat
-const tz = task.user?.timezone || 'UTC';
+const tz = quest.user?.timezone || 'UTC';
 const dueDateLocalDay = localCalendarDay(dueDate, tz);
 const nowLocalDay = localCalendarDay(now, tz);
 const daysOverdue = 1 + Math.floor((nowLocalDay - dueDateLocalDay) / msPerDay);
@@ -127,34 +129,34 @@ const daysOverdue = 1 + Math.floor((nowLocalDay - dueDateLocalDay) / msPerDay);
 ### Incremental updates
 On subsequent runs, only new days since last stored `daysOverdue` are charged:
 ```js
-const newDays = daysOverdue - task.pushupDebt.daysOverdue;
-if (newDays > 0) pushupsOwed += 5 * newDays;
+const newDays = daysOverdue - quest.debt.daysOverdue;
+if (newDays > 0) amountOwed += 5 * newDays;
 ```
 
 ### When debt is calculated
 1. **Nightly cron** — `00:01 UTC` daily, runs `calculateAndUpdateDebt()` for all users
-2. **On-demand** — triggered on dashboard load and when a new task is added (via `POST /api/debt/calculate`)
+2. **On-demand** — triggered on dashboard load and when a new quest is added (via `POST /api/debt/calculate`)
 
-### Recurring task reset (nightly cron only)
+### Recurring quest reset (nightly cron only)
 - `daily` → next dueDate = today at 23:59:59 UTC
 - `weekly` → next dueDate = original dueDate + 7 days at 23:59:59 UTC
 - Resolved debt is deleted so fresh debt can accumulate
 
-### Task deletion penalty
-Deleting an **incomplete** task costs 5 pushups:
-- Frontend shows a confirmation dialog: "Deleting this task will cost you 5 pushups. Are you sure?"
-- Backend: if task had existing debt, adds 5 to it and sets `taskId = null`; if no existing debt, creates a new PushupDebt with `taskId = null, pushupsOwed = 5`
-- Deleting a **completed** task has no penalty
+### Quest deletion penalty
+Deleting an **incomplete** quest costs 5 pts of debt:
+- Frontend shows a confirmation modal warning it adds debt before skipping/deleting
+- Backend: if quest had existing debt, adds 5 to it and sets `questId = null`; if no existing debt, creates a new Debt with `questId = null, amountOwed = 5`
+- Deleting a **completed** quest has no penalty
 
 ### Soft-delete behaviour
-Tasks are soft-deleted (`deletedAt = now()`) instead of hard-deleted so completed tasks remain countable in the leaderboard 7-day window. The nightly cron hard-deletes:
-- Completed non-recurring tasks with `completedAt < 7 days ago`
-- Soft-deleted incomplete tasks (no leaderboard value, purged immediately)
+Quests are soft-deleted (`deletedAt = now()`) instead of hard-deleted so completed quests remain countable in the leaderboard 7-day window. The nightly cron hard-deletes:
+- Completed non-recurring quests with `completedAt < 7 days ago`
+- Soft-deleted incomplete quests (no leaderboard value, purged immediately)
 
-All task queries (dashboard, debt accumulation, recurring reset) filter `deletedAt: null`.
+All quest queries (dashboard, debt accumulation, recurring reset) filter `deletedAt: null`.
 
-### Task blocking
-If `totalOwed > 249`, the frontend blocks new task creation (shows a debt-block modal).
+### Quest blocking
+If `totalOwed > 249`, the frontend blocks new quest creation (shows a debt-block modal).
 
 ---
 
@@ -179,7 +181,7 @@ Shown as a badge next to the debt total:
 - **Signup/Login**: browser sends `Intl.DateTimeFormat().resolvedOptions().timeZone` alongside credentials
 - **Signup**: timezone saved on user creation
 - **Login**: if detected timezone ≠ stored timezone, backend updates it (handles travel)
-- **`/me`**: returns `timezone`, `totalTasksCompleted`, `maxStreak`, `createdAt` so the frontend always has them in `user`
+- **`/me`**: returns `timezone`, `totalQuestsCompleted`, `maxStreak`, `createdAt` so the frontend always has them in `user`
 - **Profile page** (`/profile`): displays live clock, timezone, change username/password, delete account, streak badges
 
 ---
@@ -212,7 +214,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 
 ### Progress section (`index.js`, full-width below main grid)
 - 14-day pushup bar chart (SVG, no library, today's bar highlighted orange)
-- All-time stats row: total pushups, total tasks completed, current streak, member since
+- All-time stats row: total pushups, total quests completed, current streak, member since
 
 ### Camera rep counter (`verify-pushups.js`)
 - MediaPipe Pose loaded from CDN
@@ -237,23 +239,23 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 |--------|-------|------|-------------|
 | POST | `/api/auth/signup` | No | email, username, password, timezone |
 | POST | `/api/auth/login` | No | identifier (email or username), password, timezone |
-| GET | `/api/auth/me` | Yes | returns full user incl. timezone, totalTasksCompleted, maxStreak |
+| GET | `/api/auth/me` | Yes | returns full user incl. timezone, totalQuestsCompleted, maxStreak |
 | PATCH | `/api/auth/username` | Yes | set/change username |
 | PATCH | `/api/auth/password` | Yes | change password (requires old) |
 | POST | `/api/auth/forgot-password` | No | sends reset email via Resend |
 | POST | `/api/auth/reset-password` | No | token + new password |
 | DELETE | `/api/auth/account` | Yes | hard delete all user data |
-| GET | `/api/tasks` | Yes | `?date=` or `?upToDate=` filter (excludes soft-deleted) |
-| POST | `/api/tasks` | Yes | title, dueDate (ISO string), recurrence |
-| PATCH | `/api/tasks/:id/complete` | Yes | mark done + increment user.totalTasksCompleted |
-| PATCH | `/api/tasks/:id/uncomplete` | Yes | unmark + decrement user.totalTasksCompleted |
-| DELETE | `/api/tasks/:id` | Yes | soft-delete; 5-pushup penalty if incomplete |
-| GET | `/api/debt` | Yes | unresolved debts + totalOwed (soft-deleted task refs nulled out) |
+| GET | `/api/quests` | Yes | `?date=` or `?upToDate=` filter (excludes soft-deleted) |
+| POST | `/api/quests` | Yes | title, dueDate (ISO string), recurrence |
+| PATCH | `/api/quests/:id/complete` | Yes | mark done + increment user.totalQuestsCompleted |
+| PATCH | `/api/quests/:id/uncomplete` | Yes | unmark + decrement user.totalQuestsCompleted |
+| DELETE | `/api/quests/:id` | Yes | soft-delete; 5-pushup penalty if incomplete |
+| GET | `/api/debt` | Yes | unresolved debts + totalOwed (soft-deleted quest refs nulled out) |
 | POST | `/api/debt/calculate` | Yes | on-demand debt recalc for user |
-| POST | `/api/sessions` | Yes | log pushups (pushupsCompleted) |
-| GET | `/api/sessions` | Yes | last 30 sessions + allTimePushups aggregate |
+| POST | `/api/sessions` | Yes | log pushups (amount) |
+| GET | `/api/sessions` | Yes | last 30 sessions + allTimePaid aggregate |
 | GET | `/api/streak` | Yes | current streak; updates user.maxStreak if new best |
-| GET | `/api/leaderboard` | Yes | all users ranked; includes tasksCompleted7d + totalTasksCompleted |
+| GET | `/api/leaderboard` | Yes | all users ranked; includes questsCompleted7d + totalQuestsCompleted |
 
 ---
 

@@ -39,7 +39,9 @@ app.use('/api/auth/resend-verification', authLimiter);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/tasks', require('./routes/tasks'));
+const questsRouter = require('./routes/quests');
+app.use('/api/quests', questsRouter);
+app.use('/api/tasks', questsRouter); // legacy alias — remove once all clients use /api/quests
 app.use('/api/debt', require('./routes/debt'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));

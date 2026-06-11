@@ -195,12 +195,12 @@ function RankTable({ entries, userId, scope }) {
             </div>
 
             <div className="hidden lg:block w-24 text-center flex-shrink-0">
-              <span className="text-xs text-navy-100 tabular-nums">{scope === 'week' ? entry.tasksCompleted7d : entry.totalTasksCompleted}</span>
+              <span className="text-xs text-navy-100 tabular-nums">{scope === 'week' ? entry.questsCompleted7d : entry.totalQuestsCompleted}</span>
             </div>
 
             <div className="hidden sm:block w-20 text-right flex-shrink-0">
-              <span className="text-xs font-semibold tabular-nums" style={{ color: entry.totalPushups > 0 ? '#4ade80' : '#475569' }}>
-                {entry.totalPushups > 0 ? `${entry.totalPushups} pts` : '—'}
+              <span className="text-xs font-semibold tabular-nums" style={{ color: entry.totalPaid > 0 ? '#4ade80' : '#475569' }}>
+                {entry.totalPaid > 0 ? `${entry.totalPaid} pts` : '—'}
               </span>
             </div>
 
@@ -264,7 +264,7 @@ export default function Leaderboard() {
   const baseEntries = tab === 'Friends' ? friendsLeaderboard : leaderboard;
   const isLoadingActive = tab === 'Friends' ? friendsLoading : loading;
   const activeEntries = scope === 'all'
-    ? [...baseEntries].sort((a, b) => (b.totalTasksCompleted - a.totalTasksCompleted) || (b.totalPushups - a.totalPushups))
+    ? [...baseEntries].sort((a, b) => (b.totalQuestsCompleted - a.totalQuestsCompleted) || (b.totalPaid - a.totalPaid))
     : baseEntries;
 
   const userEntry = activeEntries.find((e) => e.id === user?.id);
@@ -304,7 +304,7 @@ export default function Leaderboard() {
             </StatCard>
 
             <StatCard icon="trend" iconColor="#4ade80" label="Quests This Week">
-              <p className="text-xl font-extrabold tabular-nums text-emerald-400">+{userEntry?.tasksCompleted7d ?? 0}</p>
+              <p className="text-xl font-extrabold tabular-nums text-emerald-400">+{userEntry?.questsCompleted7d ?? 0}</p>
               <p className="text-[11px] text-slate-500 mt-1">Counts toward your rank</p>
             </StatCard>
 

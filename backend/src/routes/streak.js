@@ -7,12 +7,12 @@ const router = express.Router();
 
 /**
  * Calculate the user's current streak.
- * A streak day = a day where all tasks due that day were completed
- * AND no pushup debt was created (or all debt was resolved same day).
+ * A streak day = a day where all quests due that day were completed
+ * AND no debt was created (or all debt was resolved same day).
  *
  * We look back day by day from yesterday and count consecutive clean days.
  * All day boundaries are computed in the user's stored timezone so that a
- * task due at 11pm local is grouped under the correct calendar day.
+ * quest due at 11pm local is grouped under the correct calendar day.
  */
 router.get('/', auth, async (req, res) => {
   try {
@@ -30,21 +30,21 @@ router.get('/', auth, async (req, res) => {
 
     const lookbackStart = new Date(todayUTC.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-    // All tasks due in the last 365 days (by local calendar)
-    const tasks = await prisma.task.findMany({
+    // All quests due in the last 365 days (by local calendar)
+    const quests = await prisma.quest.findMany({
       where: {
         userId,
         dueDate: { gte: lookbackStart, lt: todayUTC },
       },
-      include: { pushupDebt: true },
+      include: { debt: true },
     });
 
-    // Group tasks by their LOCAL due date
+    // Group quests by their LOCAL due date
     const byDay = {};
-    for (const task of tasks) {
-      const key = localDateString(new Date(task.dueDate), tz);
+    for (const quest of quests) {
+      const key = localDateString(new Date(quest.dueDate), tz);
       if (!byDay[key]) byDay[key] = [];
-      byDay[key].push(task);
+      byDay[key].push(quest);
     }
 
     // Walk backwards one local day at a time. Stepping back by subtracting 1ms
@@ -58,11 +58,11 @@ router.get('/', auth, async (req, res) => {
       const key = localDateString(prevMoment, tz);
       curMidnight = localMidnightUTC(key, tz);
 
-      const dayTasks = byDay[key];
-      if (!dayTasks || dayTasks.length === 0) continue;
+      const dayQuests = byDay[key];
+      if (!dayQuests || dayQuests.length === 0) continue;
 
-      const allCompleted = dayTasks.every((t) => t.completed);
-      const hasUnresolvedDebt = dayTasks.some((t) => t.pushupDebt && !t.pushupDebt.resolved);
+      const allCompleted = dayQuests.every((t) => t.completed);
+      const hasUnresolvedDebt = dayQuests.some((t) => t.debt && !t.debt.resolved);
 
       if (allCompleted && !hasUnresolvedDebt) {
         streak++;

@@ -323,7 +323,7 @@ export default function Profile() {
             </div>
             {(user.maxStreak ?? 0) === 0 && (
               <p className="text-xs text-slate-400 mt-3 text-center">
-                Complete all your tasks today to start earning badges.
+                Complete all your quests today to start earning badges.
               </p>
             )}
             {streak > 0 && (
@@ -374,7 +374,7 @@ export default function Profile() {
               <div className="flex-1">
                 <p className="text-sm font-medium text-navy-100">Email reminders</p>
                 <p className="text-xs text-navy-300 mt-0.5">
-                  Get notified when tasks are due soon and receive a nightly summary of your debt and progress.
+                  Get notified when quests are due soon and receive a nightly summary of your debt and progress.
                 </p>
               </div>
               <button
@@ -438,7 +438,7 @@ export default function Profile() {
                 <input
                   type="text"
                   className="input"
-                  placeholder={user.username || 'e.g. pushup_king'}
+                  placeholder={user.username || 'e.g. quest_king'}
                   value={usernameInput}
                   onChange={(e) => { setUsernameInput(e.target.value); setUsernameMsg(null); }}
                   minLength={3}
@@ -540,7 +540,7 @@ export default function Profile() {
             <div className="mb-3"><Icon name="alert" className="w-6 h-6" color="#f87171" /></div>
             <h2 className="text-lg font-bold text-navy-50 mb-2">Delete your account?</h2>
             <p className="text-sm text-navy-300 mb-6">
-              This will permanently delete your account, all tasks, pushup history, and debt records.
+              This will permanently delete your account, all quests, payoff history, and debt records.
               There is no way to recover this data.
             </p>
             {deleteError && (
