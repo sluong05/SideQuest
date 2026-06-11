@@ -500,7 +500,12 @@ export default function Dashboard() {
         getSessions(),
         getFriends(),
       ]);
-      setQuests(questsRes.data.quests);
+      // Server already excludes quests completed before today, but re-filter
+      // client-side so a tab left open across midnight doesn't show stale rows
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      setQuests(questsRes.data.quests.filter(
+        (q) => !q.completed || (q.completedAt && new Date(q.completedAt) >= dayStart)
+      ));
       setDebts(debtRes.data.debts);
       setTotalOwed(debtRes.data.totalOwed);
       setStreak(streakRes.data.streak);

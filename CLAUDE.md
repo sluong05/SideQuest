@@ -199,6 +199,12 @@ quests.js returns two lines ("Due Today" / "Today · 3:00 PM"), index.js a singl
 ### Quest skip confirmation (quests.js `QuestCard`, index.js `DashQuestRow`)
 Skipping/deleting an **incomplete** quest shows a confirm modal warning it adds +debtAmount pts of debt.
 
+### Completion locking (one-day undo window)
+A completed quest can only be un-completed on the same local day it was checked off. After local midnight:
+- **Dashboard**: the quest disappears (server `?upToDate=` filter + client-side re-filter in `loadData` for tabs left open across midnight)
+- **All Quests page**: row shows a "Locked" pill instead of Undo; checkbox is disabled
+- **Backend**: `PATCH /api/quests/:id/uncomplete` returns 400 if `completedAt` is before the user's local midnight (timezone-aware via `localMidnightUTC`)
+
 ### Debt payoff flow
 - Every "Pay Debt" button routes to `/pay` (method chooser)
 - `PAYOFF_METHODS` in components/PayoffShell.js is the single source of truth for the five methods:
@@ -248,7 +254,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 | GET | `/api/quests` | Yes | `?date=` or `?upToDate=` filter (excludes soft-deleted) |
 | POST | `/api/quests` | Yes | title, dueDate (ISO string), recurrence |
 | PATCH | `/api/quests/:id/complete` | Yes | mark done + increment user.totalQuestsCompleted |
-| PATCH | `/api/quests/:id/uncomplete` | Yes | unmark + decrement user.totalQuestsCompleted |
+| PATCH | `/api/quests/:id/uncomplete` | Yes | unmark + decrement user.totalQuestsCompleted; rejected (400) if completed on a previous local day — completions lock at local midnight |
 | DELETE | `/api/quests/:id` | Yes | soft-delete; 5-pushup penalty if incomplete |
 | GET | `/api/debt` | Yes | unresolved debts + totalOwed (soft-deleted quest refs nulled out) |
 | POST | `/api/debt/calculate` | Yes | on-demand debt recalc for user |

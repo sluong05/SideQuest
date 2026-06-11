@@ -2,7 +2,7 @@ const express = require('express');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { calculateAndUpdateDebt } = require('../jobs/dailyDebt');
-const { localMidnightUTC } = require('../lib/timezone');
+const { localMidnightUTC, localDateString } = require('../lib/timezone');
 
 const router = express.Router();
 
@@ -151,6 +151,8 @@ router.patch('/:id/complete', auth, async (req, res) => {
 });
 
 // PATCH /api/quests/:id/uncomplete — unmark quest as complete
+// Only allowed on the same local day it was completed; after local midnight
+// the completion locks (XP, streak, and stats are settled for that day).
 router.patch('/:id/uncomplete', auth, async (req, res) => {
   const questId = parseInt(req.params.id, 10);
 
@@ -160,6 +162,16 @@ router.patch('/:id/uncomplete', auth, async (req, res) => {
     if (!quest) return res.status(404).json({ error: 'Quest not found' });
     if (quest.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
     if (!quest.completed) return res.status(400).json({ error: 'Quest is not completed' });
+
+    const userRecord = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { timezone: true },
+    });
+    const timezone = userRecord?.timezone || 'UTC';
+    const todayStart = localMidnightUTC(localDateString(new Date(), timezone), timezone);
+    if (quest.completedAt && quest.completedAt < todayStart) {
+      return res.status(400).json({ error: 'Completed quests lock once the day ends and can no longer be undone' });
+    }
 
     const [updated] = await prisma.$transaction([
       prisma.quest.update({

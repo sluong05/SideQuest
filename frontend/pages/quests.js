@@ -41,6 +41,9 @@ function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
   const duration = quest.duration ?? DIFF_DURATION[quest.difficulty] ?? '~45 min';
   const loading = isActioning === quest.id;
   const isOverdue = dueInfo.overdue && !quest.completed;
+  // Completions lock after the local day they were checked off — no more undo
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const isLocked = quest.completed && quest.completedAt && new Date(quest.completedAt) < todayStart;
 
   const rowBg = quest.completed
     ? 'rgba(8,21,37,0.35)'
@@ -78,8 +81,8 @@ function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
           {/* Checkbox circle */}
           <button
             onClick={() => (quest.completed ? onUncomplete(quest.id) : onComplete(quest.id))}
-            disabled={loading}
-            aria-label={quest.completed ? 'Mark incomplete' : 'Mark complete'}
+            disabled={loading || isLocked}
+            aria-label={isLocked ? 'Completion locked' : quest.completed ? 'Mark incomplete' : 'Mark complete'}
             className="w-[18px] h-[18px] rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-150"
             style={{
               border: `1.5px solid ${quest.completed ? 'rgba(34,197,94,0.7)' : hovered ? 'rgba(96,165,250,0.6)' : 'rgba(71,85,105,0.55)'}`,
@@ -163,14 +166,23 @@ function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
           {/* Actions — stacked */}
           <div className="flex flex-col items-stretch gap-1 flex-shrink-0" style={{ width: 118 }}>
             {quest.completed ? (
-              <button
-                onClick={() => onUncomplete(quest.id)}
-                disabled={loading}
-                className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all duration-150"
-                style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)', color: '#64748b' }}
-              >
-                Undo
-              </button>
+              isLocked ? (
+                <span
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium text-center flex items-center justify-center gap-1.5"
+                  style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.14)', color: '#475569' }}
+                >
+                  <Icon name="lock" className="w-3 h-3" color="#475569" /> Locked
+                </span>
+              ) : (
+                <button
+                  onClick={() => onUncomplete(quest.id)}
+                  disabled={loading}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all duration-150"
+                  style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)', color: '#64748b' }}
+                >
+                  Undo
+                </button>
+              )
             ) : (
               <>
                 <button
