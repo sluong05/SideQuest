@@ -366,49 +366,11 @@ export default function Welcome() {
       {/* Install the app */}
       <section className="relative z-10 py-20" style={{ borderTop: '1px solid rgba(59,130,246,0.1)', background: 'rgba(6,12,24,0.5)', backdropFilter: 'blur(8px)' }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3 text-blue-400">No download needed</p>
-          <h2 className="text-3xl font-bold text-navy-50 mb-3">Add it to your home screen</h2>
-          <p className="text-navy-300 text-sm mb-10">
-            SideQuest works like a native app — full screen, no browser chrome.
+          <p className="text-xs font-semibold uppercase tracking-widest mb-3 text-blue-400">Mobile app</p>
+          <h2 className="text-3xl font-bold text-navy-50 mb-3">Coming to the App Store soon</h2>
+          <p className="text-navy-300 text-sm">
+            A native SideQuest app is on the way. In the meantime, sign up and start your first quest right here in the browser.
           </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
-            <div className="card" style={{ background: 'rgba(13,31,56,0.8)' }}>
-              <p className="text-sm font-bold text-navy-50 mb-4"> iPhone / iPad — Safari</p>
-              <div className="space-y-3">
-                {[
-                  'Open the site in Safari (not Chrome).',
-                  'Tap the Share icon at the bottom.',
-                  'Tap "Add to Home Screen", then "Add".',
-                ].map((text, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-400 mt-0.5" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)' }}>
-                      {i + 1}
-                    </span>
-                    <p className="text-sm text-navy-200 leading-relaxed">{text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="card" style={{ background: 'rgba(13,31,56,0.8)' }}>
-              <p className="text-sm font-bold text-navy-50 mb-4 flex items-center gap-2"><Icon name="bot" className="w-4 h-4" color="#4ade80" /> Android — Chrome</p>
-              <div className="space-y-3">
-                {[
-                  'Open the site in Chrome.',
-                  'Tap the ⋮ menu in the top right.',
-                  'Tap "Add to Home screen", then "Add".',
-                ].map((text, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-blue-400 mt-0.5" style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)' }}>
-                      {i + 1}
-                    </span>
-                    <p className="text-sm text-navy-200 leading-relaxed">{text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 

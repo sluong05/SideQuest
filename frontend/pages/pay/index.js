@@ -32,9 +32,9 @@ export default function PayDebtChooser() {
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#f8fafc' }}>Pay Off Debt</h1>
           <p className="text-sm mt-1" style={{ color: '#64748b' }}>
             {totalOwed > 0 ? (
-              <>You have <span className="font-bold" style={{ color: '#f87171' }}>{totalOwed} debt points</span> to pay off. Choose how you want to clear them.</>
+              <>You have <span className="font-bold" style={{ color: '#f87171' }}>{totalOwed} debt points</span> to pay off. Every 5 pts you repay earns a <span className="font-bold" style={{ color: '#fbbf24' }}>coin</span>.</>
             ) : (
-              <>You're debt-free — but you can still log work. Surplus points become <span className="font-bold" style={{ color: '#fbbf24' }}>coins</span>.</>
+              <>You're debt-free — but you can still log work. Every point becomes a <span className="font-bold" style={{ color: '#fbbf24' }}>coin</span>.</>
             )}
           </p>
         </div>

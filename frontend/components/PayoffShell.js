@@ -18,7 +18,8 @@ export const PAYOFF_METHODS = [
 
 // Shared state + submit flow for all debt payoff pages.
 // submitPoints(n) logs n pts against debt via the sessions API
-// (oldest debt drains first; surplus converts to coins server-side).
+// (oldest debt drains first; coins awarded server-side — 1 per 5 pts of
+// debt repaid, plus 1 per surplus pt when there's no debt left to pay).
 // `activity` tags the session so feeds can show what kind of effort it was.
 export function usePayoff(activity = 'fitness') {
   const { user, loading: authLoading, updateUser } = useAuth();
@@ -153,7 +154,7 @@ export function PayoffResult({ result, onReset }) {
       {result.coinsEarned > 0 && (
         <p className="flex items-center justify-center gap-1.5 text-sm font-semibold text-yellow-400 mt-1">
           <img src="/Pcoin.svg" alt="coin" className="w-4 h-4" />
-          +{result.coinsEarned} coins earned from surplus
+          +{result.coinsEarned} {result.coinsEarned === 1 ? 'coin' : 'coins'} earned
         </p>
       )}
       <div className="flex items-center justify-center gap-3 mt-6">

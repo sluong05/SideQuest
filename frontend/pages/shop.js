@@ -668,14 +668,14 @@ export default function Shop() {
               <p className="text-sm font-bold" style={{ color: '#f8fafc' }}>Earn more coins</p>
             </div>
             <p className="text-xs leading-relaxed mb-3" style={{ color: '#64748b' }}>
-              Complete quests while you have <span className="font-bold" style={{ color: '#fbbf24' }}>zero active debt</span>. Debt? No coins until it's paid.
+              Log payoff actions to bank coins: <span className="font-bold" style={{ color: '#fbbf24' }}>1 coin per 5 pts</span> of debt repaid, or <span className="font-bold" style={{ color: '#fbbf24' }}>1 coin per point</span> once you're debt-free.
             </p>
             <Link
-              href="/quests"
+              href="/pay"
               className="flex items-center justify-center w-full py-2 rounded-lg text-xs font-bold text-white transition-all duration-150"
               style={{ background: 'rgba(37,99,235,0.88)', border: '1px solid rgba(59,130,246,0.5)', boxShadow: '0 0 10px rgba(37,99,235,0.3)' }}
             >
-              View Quests →
+              Log Actions →
             </Link>
           </div>
         </div>

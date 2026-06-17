@@ -209,8 +209,17 @@ A completed quest can only be un-completed on the same local day it was checked 
 - Every "Pay Debt" button routes to `/pay` (method chooser)
 - `PAYOFF_METHODS` in components/PayoffShell.js is the single source of truth for the five methods:
   Fitness → /verify-pushups (camera), Focus/Wellness/Chores/Custom → /pay/* pages
-- All payoff pages submit via `usePayoff(activity)` → POST /api/sessions (oldest debt first, surplus → coins)
+- All payoff pages submit via `usePayoff(activity)` → POST /api/sessions (oldest debt first; see Coin Economy below)
+- **Payoff actions are always available, even when debt-free** — the Debt Hub method grid and dashboard panels surface them regardless of `totalOwed`, so users can log work purely to earn coins. There is no debt-gating on the activity pages themselves.
 - /pay/focus accepts `?quest=<id>` (from the dashboard Daily Focus card) and offers to mark that quest complete after the session
+
+### Coin Economy (backend `sessions.js`)
+Coins are earned **only** through payoff sessions (quest completion grants XP, not coins). For each session:
+- **Debt repayment** → `floor(debtRepaid / 5)` coins (1 coin per 5 pts of debt actually cleared, `debtRepaid = drainPower − remaining`)
+- **Surplus** → when there's no/insufficient debt, leftover effort converts 1:1 to coins, capped at the raw amount logged (`min(remaining, floored)`)
+- Total `coinsEarned = debtCoins + surplusCoins`; response also returns the `debtCoins`/`surplusCoins` breakdown
+- The `payoffMultiplierActive` shop item doubles `drainPower` for debt draining (and thus can inflate `debtRepaid`); the surplus cap still uses the raw logged amount
+- There is **no "coins locked while in debt"** behaviour — that older framing was removed when debt repayment started earning coins. Spending in the shop is gated only by coin balance.
 
 ### Streak milestone card (`index.js`, right column)
 Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
@@ -258,7 +267,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 | DELETE | `/api/quests/:id` | Yes | soft-delete; 5-pushup penalty if incomplete |
 | GET | `/api/debt` | Yes | unresolved debts + totalOwed (soft-deleted quest refs nulled out) |
 | POST | `/api/debt/calculate` | Yes | on-demand debt recalc for user |
-| POST | `/api/sessions` | Yes | log pushups (amount) |
+| POST | `/api/sessions` | Yes | log payoff (amount); drains oldest debt first, awards coins (1 per 5 pts repaid + 1 per surplus pt) |
 | GET | `/api/sessions` | Yes | last 30 sessions + allTimePaid aggregate |
 | GET | `/api/streak` | Yes | current streak; updates user.maxStreak if new best |
 | GET | `/api/leaderboard` | Yes | all users ranked; includes questsCompleted7d + totalQuestsCompleted |

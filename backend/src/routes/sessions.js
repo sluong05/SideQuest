@@ -69,11 +69,18 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    let coinsEarned = 0;
-    if (remaining > 0) {
-      // Coins earned from surplus points (after debt cleared), capped at the amount actually logged
-      const surplus = Math.min(remaining, floored);
-      coinsEarned = surplus;
+    // How many debt points were actually wiped out this session.
+    const debtRepaid = drainPower - remaining;
+
+    // Coins are earned two ways:
+    //   1. Debt repayment — 1 coin per 5 points of debt cleared.
+    //   2. Surplus — when there's no (or not enough) debt to pay, the
+    //      leftover effort converts to coins 1:1, capped at the amount logged.
+    const debtCoins = Math.floor(debtRepaid / 5);
+    const surplusCoins = remaining > 0 ? Math.min(remaining, floored) : 0;
+    const coinsEarned = debtCoins + surplusCoins;
+
+    if (coinsEarned > 0) {
       await prisma.user.update({
         where: { id: req.userId },
         data: { coins: { increment: coinsEarned } },
@@ -87,6 +94,8 @@ router.post('/', auth, async (req, res) => {
       session,
       totalOwed,
       coinsEarned,
+      debtCoins,
+      surplusCoins,
       amountApplied: floored,
       multiplierUsed,
     });

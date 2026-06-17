@@ -246,7 +246,14 @@ function DebtOverviewPanel({ totalOwed, debts }) {
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Debt Overview</p>
         <div className="flex justify-center mb-2"><Icon name="partyPopper" className="w-9 h-9" color="#4ade80" /></div>
         <p className="text-green-400 font-bold text-sm">No Active Debt!</p>
-        <p className="text-xs text-slate-400 mt-1">Keep it that way.</p>
+        <p className="text-xs text-slate-400 mt-1 mb-4">Keep logging actions to earn coins.</p>
+        <Link
+          href="/pay"
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold text-white"
+          style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.85), rgba(234,179,8,0.5))', border: '1px solid rgba(234,179,8,0.5)', boxShadow: '0 0 20px rgba(234,179,8,0.25)' }}
+        >
+          <img src="/Pcoin.svg" alt="" className="w-4 h-4" /> Log Actions for Coins
+        </Link>
       </div>
     );
   }
@@ -402,26 +409,19 @@ function StreakPanel({ streak, maxStreak }) {
 
 // ─── Coin Status Panel ────────────────────────────────────────────────────────
 function DashCoinPanel({ totalOwed, coins }) {
-  const locked = totalOwed > 0;
+  const inDebt = totalOwed > 0;
   return (
     <div
       className="rounded-2xl p-4"
-      style={{
-        background: locked ? 'rgba(239,68,68,0.04)' : 'rgba(234,179,8,0.05)',
-        border: `1px solid ${locked ? 'rgba(239,68,68,0.18)' : 'rgba(234,179,8,0.22)'}`,
-      }}
+      style={{ background: 'rgba(234,179,8,0.05)', border: '1px solid rgba(234,179,8,0.22)' }}
     >
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Coin Status</p>
       <div className="flex items-center gap-2.5 mb-1.5">
-        {locked
-          ? <Icon name="lock" className="w-5 h-5" color="#f87171" />
-          : <img src="/Pcoin.svg" alt="" className="w-5 h-5" />}
+        <img src="/Pcoin.svg" alt="" className="w-5 h-5" />
         <div>
-          <p className="text-sm font-bold" style={{ color: locked ? '#f87171' : '#fbbf24' }}>
-            {locked ? 'Coins Locked' : `${coins} Coins`}
-          </p>
+          <p className="text-sm font-bold" style={{ color: '#fbbf24' }}>{coins} Coins</p>
           <p className="text-[10px]" style={{ color: '#475569' }}>
-            {locked ? `Pay ${totalOwed} pts debt to unlock` : 'Earning on quest completion'}
+            {inDebt ? 'Earn 1 coin per 5 pts of debt repaid' : 'Earn 1 coin per point logged'}
           </p>
         </div>
       </div>

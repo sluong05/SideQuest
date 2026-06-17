@@ -346,20 +346,24 @@ export default function DebtPage() {
             <div className="card text-center py-12">
               <div className="flex justify-center mb-3"><Icon name="partyPopper" className="w-9 h-9" color="#4ade80" /></div>
               <p className="text-xl font-bold text-green-400 mb-2">No Active Debt!</p>
-              <p className="text-navy-300 text-sm">You're cleared. Go crush your quests.</p>
+              <p className="text-navy-300 text-sm">You're cleared. Keep logging actions below to bank <span className="font-bold text-yellow-400">coins</span>.</p>
               <Link href="/quests" className="btn-primary mt-4 text-sm py-2 px-5 inline-block">View Quests</Link>
             </div>
           ) : (
             <DebtTable debts={debts} sortBy={sortBy} setSortBy={setSortBy} level={level} totalOwed={totalOwed} />
           )}
 
-          {/* How do you want to pay */}
-          {totalOwed > 0 && (
+          {/* How do you want to pay / earn */}
+          {!loading && (
             <div className="card">
               <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
                 <div>
-                  <h3 className="text-sm font-bold text-navy-50">How do you want to pay?</h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Choose a payment style to browse actions.</p>
+                  <h3 className="text-sm font-bold text-navy-50">{totalOwed > 0 ? 'How do you want to pay?' : 'Log actions to earn coins'}</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {totalOwed > 0
+                      ? 'Choose a payment style. Every 5 pts repaid earns a coin.'
+                      : "Debt-free — every point you log now becomes a coin."}
+                  </p>
                 </div>
                 <PanelLink href="/pay">Browse All Actions</PanelLink>
               </div>
