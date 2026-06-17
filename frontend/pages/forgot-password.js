@@ -28,7 +28,7 @@ export default function ForgotPassword() {
     <div className="min-h-screen bg-navy-700 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-3"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 2L17.5 9.5L26 10.5L20 16.5L21.5 25L14 21L6.5 25L8 16.5L2 10.5L10.5 9.5L14 2Z" fill="#3B82F6" opacity="0.9"/><circle cx="14" cy="13" r="3" fill="white" opacity="0.9"/></svg><span style={{fontSize:"1.1rem",fontWeight:"bold",letterSpacing:"0.05em",color:"#F8FAFC"}}>SIDEQUEST</span></div>
+          <img src="/sidequest-logo.svg" alt="SideQuest" className="h-12 w-auto mx-auto mb-3" />
           <p className="text-navy-200 text-sm mt-1">Reset your password</p>
         </div>
 

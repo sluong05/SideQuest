@@ -8,14 +8,7 @@ import { PAYOFF_METHODS } from '../components/PayoffShell';
 
 function SideQuestLogo() {
   return (
-    <div className="flex items-center gap-2">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M14 2L17.5 9.5L26 10.5L20 16.5L21.5 25L14 21L6.5 25L8 16.5L2 10.5L10.5 9.5L14 2Z" fill="#3B82F6" opacity="0.9"/>
-        <path d="M14 5L16.5 10.5L23 11.3L18.5 15.8L19.5 22L14 19L8.5 22L9.5 15.8L5 11.3L11.5 10.5L14 5Z" fill="#1d4ed8" opacity="0.6"/>
-        <circle cx="14" cy="13" r="3" fill="white" opacity="0.9"/>
-      </svg>
-      <span className="font-bold text-lg tracking-widest text-navy-50 uppercase">SideQuest</span>
-    </div>
+    <img src="/sidequest-logo-navbar.svg" alt="SideQuest" className="h-8 w-auto" />
   );
 }
 

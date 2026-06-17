@@ -1,0 +1,20 @@
+<svg width="192" height="36" viewBox="0 0 192 36" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SideQuest">
+  <defs>
+    <linearGradient id="sqNavMark" x1="5" y1="3" x2="31" y2="33" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD3FC"/>
+      <stop offset="0.52" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="sqNavText" x1="44" y1="9" x2="187" y2="27" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.72" stop-color="#E0ECFF"/>
+      <stop offset="1" stop-color="#93C5FD"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 2.8L23.2 12.8L33.2 18L23.2 23.2L18 33.2L12.8 23.2L2.8 18L12.8 12.8L18 2.8Z" fill="#071326" stroke="#2A5FD7" stroke-width="1.5"/>
+  <path d="M18 5.8L22 14L30.2 18L22 22L18 30.2L14 22L5.8 18L14 14L18 5.8Z" fill="url(#sqNavMark)"/>
+  <path d="M18 10.5L20.6 15.4L25.5 18L20.6 20.6L18 25.5L15.4 20.6L10.5 18L15.4 15.4L18 10.5Z" fill="#DBEAFE"/>
+  <path d="M13.2 19.6C15.5 16.2 18.8 15.2 23.1 16.7" stroke="#071326" stroke-width="2.1" stroke-linecap="round"/>
+  <path d="M13.2 19.6C15.5 16.2 18.8 15.2 23.1 16.7" stroke="#38BDF8" stroke-width="1" stroke-linecap="round"/>
+  <text x="44" y="25.5" fill="url(#sqNavText)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="850" letter-spacing="3.3">SIDEQUEST</text>
+</svg>

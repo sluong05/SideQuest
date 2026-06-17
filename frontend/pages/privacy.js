@@ -11,7 +11,7 @@ export default function Privacy() {
         <header className="border-b border-blue-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link href="/welcome">
-              <img src="/logo.png" alt="SideQuest" className="h-8 w-auto" />
+              <img src="/sidequest-logo-navbar.svg" alt="SideQuest" className="h-8 w-auto" />
             </Link>
             <Link href="/signup" className="text-sm text-blue-400 hover:text-blue-300 font-semibold transition-colors">
               Sign Up

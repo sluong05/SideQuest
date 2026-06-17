@@ -37,14 +37,16 @@ export default function Document() {
         <meta property="og:site_name" content="SideQuest" />
         <meta property="og:title" content="SideQuest — Turn Your Life Into Side Quests" />
         <meta property="og:description" content="Create quests, miss deadlines and owe debt, pay it back, earn XP and level up. Accountability that actually works." />
-        <meta property="og:image" content="https://pushupdebt.com/og-image.svg" />
+        <meta property="og:image" content="https://pushupdebt.com/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://pushupdebt.com" />
 
         {/* Twitter / X */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="SideQuest — Turn Your Life Into Side Quests" />
         <meta name="twitter:description" content="Create quests, miss deadlines and owe debt, pay it back, earn XP and level up." />
-        <meta name="twitter:image" content="https://pushupdebt.com/og-image.svg" />
+        <meta name="twitter:image" content="https://pushupdebt.com/og-image.png" />
       </Head>
       <body>
         <Main />
