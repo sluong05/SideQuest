@@ -106,18 +106,16 @@ router.post('/buy', auth, async (req, res) => {
       where: { id: req.userId },
       select: { coins: true, username: true },
     });
+    if (!buyer) return res.status(404).json({ error: 'User not found' });
 
-    if (buyer.coins < item.cost) {
-      return res.status(400).json({
-        error: `Not enough coins. You need ${item.cost} but have ${buyer.coins}.`,
-      });
-    }
-
+    // Resolve and validate the target for friend-targeted items BEFORE charging,
+    // so a failed validation never spends coins.
+    let target = null;
     if (item.requiresFriend) {
       if (!targetUsername) {
         return res.status(400).json({ error: 'targetUsername is required' });
       }
-      const target = await prisma.user.findUnique({
+      target = await prisma.user.findUnique({
         where: { username: targetUsername },
         select: { id: true },
       });
@@ -129,25 +127,31 @@ router.post('/buy', auth, async (req, res) => {
       if (!friendIds.includes(target.id)) {
         return res.status(403).json({ error: 'You can only target friends' });
       }
+    }
 
+    // Atomically deduct coins only if the balance still covers the cost. This
+    // conditional update prevents concurrent /buy requests from double-spending
+    // (a check-then-decrement race could otherwise drive the balance negative).
+    const { count } = await prisma.user.updateMany({
+      where: { id: req.userId, coins: { gte: item.cost } },
+      data: { coins: { decrement: item.cost } },
+    });
+    if (count === 0) {
+      return res.status(400).json({
+        error: `Not enough coins. You need ${item.cost} but have ${buyer.coins}.`,
+      });
+    }
+
+    // Coins are now spent — if applying the purchase effect fails, refund them.
+    try {
       if (itemId === 'debt_bomb') {
-        await prisma.$transaction([
-          prisma.user.update({
-            where: { id: req.userId },
-            data: { coins: { decrement: item.cost } },
-          }),
-          prisma.debt.create({
-            data: { userId: target.id, questId: null, amountOwed: 10, daysOverdue: 1, resolved: false },
-          }),
-        ]);
+        await prisma.debt.create({
+          data: { userId: target.id, questId: null, amountOwed: 10, daysOverdue: 1, resolved: false },
+        });
         return res.json({ message: `Debt bomb dropped on ${targetUsername}!`, coinsSpent: item.cost });
       }
 
       if (itemId === 'taunt') {
-        await prisma.user.update({
-          where: { id: req.userId },
-          data: { coins: { decrement: item.cost } },
-        });
         const senderName = buyer.username || 'Someone';
         await sendPushToUser(
           target.id,
@@ -157,25 +161,29 @@ router.post('/buy', auth, async (req, res) => {
         );
         return res.json({ message: `Taunt sent to ${targetUsername}!`, coinsSpent: item.cost });
       }
-    }
 
-    // Inventory items — deduct coins and add to inventory
-    if (item.type === 'inventory') {
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: req.userId },
-          data: { coins: { decrement: item.cost } },
-        }),
-        prisma.userItem.upsert({
+      if (item.type === 'inventory') {
+        await prisma.userItem.upsert({
           where: { userId_itemId: { userId: req.userId, itemId } },
           update: { quantity: { increment: 1 } },
           create: { userId: req.userId, itemId, quantity: 1 },
-        }),
-      ]);
-      return res.json({ message: `${item.name} added to your inventory!`, coinsSpent: item.cost });
-    }
+        });
+        return res.json({ message: `${item.name} added to your inventory!`, coinsSpent: item.cost });
+      }
 
-    return res.status(400).json({ error: 'Unknown item' });
+      // No matching effect — refund and report.
+      await prisma.user.update({
+        where: { id: req.userId },
+        data: { coins: { increment: item.cost } },
+      });
+      return res.status(400).json({ error: 'Unknown item' });
+    } catch (effectErr) {
+      // Refund the spent coins, then surface the error to the outer handler.
+      await prisma.user
+        .update({ where: { id: req.userId }, data: { coins: { increment: item.cost } } })
+        .catch(() => {});
+      throw effectErr;
+    }
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
@@ -198,6 +206,19 @@ router.post('/use', auth, async (req, res) => {
 
     if (!inventoryEntry || inventoryEntry.quantity < 1) {
       return res.status(400).json({ error: 'You do not have this item' });
+    }
+
+    // Validate any required target BEFORE consuming the item, so a failed use
+    // (missing/invalid quest) never burns the inventory entry.
+    let deadlineQuest = null;
+    if (itemId === 'deadline_ext') {
+      if (!questId) {
+        return res.status(400).json({ error: 'questId is required for Deadline Extension' });
+      }
+      deadlineQuest = await prisma.quest.findFirst({
+        where: { id: questId, userId: req.userId, completed: false, deletedAt: null },
+      });
+      if (!deadlineQuest) return res.status(404).json({ error: 'Quest not found' });
     }
 
     // Decrement (or delete) inventory entry
@@ -252,16 +273,9 @@ router.post('/use', auth, async (req, res) => {
       const saved = debts.reduce((sum, d) => sum + d.amountOwed * 0.25, 0);
       message = `Debt Discount applied! You saved ${Math.ceil(saved)} pts.`;
     } else if (itemId === 'deadline_ext') {
-      if (!questId) {
-        return res.status(400).json({ error: 'questId is required for Deadline Extension' });
-      }
-      const quest = await prisma.quest.findFirst({
-        where: { id: questId, userId: req.userId, completed: false, deletedAt: null },
-      });
-      if (!quest) return res.status(404).json({ error: 'Quest not found' });
-      const newDue = new Date(new Date(quest.dueDate).getTime() + 24 * 60 * 60 * 1000);
-      await prisma.quest.update({ where: { id: questId }, data: { dueDate: newDue } });
-      message = `Deadline extended by 24 hours for "${quest.title}".`;
+      const newDue = new Date(new Date(deadlineQuest.dueDate).getTime() + 24 * 60 * 60 * 1000);
+      await prisma.quest.update({ where: { id: deadlineQuest.id }, data: { dueDate: newDue } });
+      message = `Deadline extended by 24 hours for "${deadlineQuest.title}".`;
     } else if (itemId === 'profile_flair') {
       await prisma.user.update({
         where: { id: req.userId },

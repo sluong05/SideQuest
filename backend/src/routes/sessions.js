@@ -6,14 +6,22 @@ const router = express.Router();
 
 const ACTIVITIES = ['fitness', 'focus', 'wellness', 'chores', 'custom'];
 
+// Upper bound on a single logged session. The rep counter is client-side, so the
+// server can't trust the reported amount — cap it to stop a tampered client from
+// wiping all debt, minting unlimited coins, or cheating pushup challenges.
+const MAX_SESSION_AMOUNT = 1000;
+
 // POST /api/sessions — log a debt payoff activity and reduce debt
 router.post('/', auth, async (req, res) => {
   // `pushupsCompleted` accepted as a legacy alias until all clients send `amount`
   const { activity } = req.body;
   const amount = req.body.amount ?? req.body.pushupsCompleted;
 
-  if (!amount || amount <= 0) {
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
     return res.status(400).json({ error: 'amount must be a positive number' });
+  }
+  if (amount > MAX_SESSION_AMOUNT) {
+    return res.status(400).json({ error: `amount cannot exceed ${MAX_SESSION_AMOUNT} per session` });
   }
   const activityType = ACTIVITIES.includes(activity) ? activity : 'fitness';
 

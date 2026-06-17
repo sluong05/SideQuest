@@ -2,6 +2,7 @@ const express = require('express');
 const { Resend } = require('resend');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
+const { escapeHtml } = require('../lib/escapeHtml');
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -216,7 +217,7 @@ router.post('/request', auth, async (req, res) => {
     });
 
     if (target.emailReminders && process.env.RESEND_API_KEY) {
-      const senderName = requester.username || requester.email.split('@')[0];
+      const senderName = escapeHtml(requester.username || requester.email.split('@')[0]);
       resend.emails.send({
         from: 'noreply@pushupdebt.com',
         to: target.email,
@@ -246,6 +247,7 @@ router.post('/request', auth, async (req, res) => {
 router.patch('/:id/accept', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
     const friendship = await prisma.friendship.findUnique({ where: { id } });
     if (!friendship || friendship.receiverId !== req.userId) {
       return res.status(404).json({ error: 'Request not found' });
@@ -265,6 +267,7 @@ router.patch('/:id/accept', auth, async (req, res) => {
 router.patch('/:id/decline', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
     const friendship = await prisma.friendship.findUnique({ where: { id } });
     if (!friendship || friendship.receiverId !== req.userId) {
       return res.status(404).json({ error: 'Request not found' });
@@ -281,6 +284,7 @@ router.patch('/:id/decline', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
     const friendship = await prisma.friendship.findFirst({
       where: {
         id,

@@ -113,6 +113,7 @@ router.post('/', auth, async (req, res) => {
 // PATCH /api/quests/:id — edit a quest's description (only the description is editable)
 router.patch('/:id', auth, async (req, res) => {
   const questId = parseInt(req.params.id, 10);
+  if (Number.isNaN(questId)) return res.status(400).json({ error: 'Invalid quest id' });
   const { description } = req.body;
 
   if (description !== undefined && description !== null && typeof description !== 'string') {
@@ -143,6 +144,7 @@ router.patch('/:id', auth, async (req, res) => {
 // PATCH /api/quests/:id/complete — mark quest as complete, award XP
 router.patch('/:id/complete', auth, async (req, res) => {
   const questId = parseInt(req.params.id, 10);
+  if (Number.isNaN(questId)) return res.status(400).json({ error: 'Invalid quest id' });
 
   try {
     const quest = await prisma.quest.findUnique({ where: { id: questId } });
@@ -189,6 +191,7 @@ router.patch('/:id/complete', auth, async (req, res) => {
 // the completion locks (XP, streak, and stats are settled for that day).
 router.patch('/:id/uncomplete', auth, async (req, res) => {
   const questId = parseInt(req.params.id, 10);
+  if (Number.isNaN(questId)) return res.status(400).json({ error: 'Invalid quest id' });
 
   try {
     const quest = await prisma.quest.findUnique({ where: { id: questId } });
@@ -230,6 +233,7 @@ router.patch('/:id/uncomplete', auth, async (req, res) => {
 // Deleting an incomplete quest incurs a 5-pt debt penalty
 router.delete('/:id', auth, async (req, res) => {
   const questId = parseInt(req.params.id, 10);
+  if (Number.isNaN(questId)) return res.status(400).json({ error: 'Invalid quest id' });
 
   try {
     const quest = await prisma.quest.findUnique({

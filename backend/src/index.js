@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Fail fast if the JWT signing secret is missing or left at the example value —
+// a weak/absent secret silently undermines all authentication.
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 ||
+    process.env.JWT_SECRET.includes('change-this')) {
+  console.error('[FATAL] JWT_SECRET is missing, too short (<32 chars), or still the example value. Set a strong random secret.');
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -8,6 +17,11 @@ const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Behind Railway's reverse proxy — trust the first proxy hop so req.ip and
+// express-rate-limit use the real client IP (X-Forwarded-For) instead of the
+// proxy's address (which would collapse all users into one rate-limit bucket).
+app.set('trust proxy', 1);
 
 app.use(helmet({ contentSecurityPolicy: false }));
 
@@ -24,7 +38,9 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+// 512kb comfortably fits a base64 avatar (capped at ~300KB in the profile route)
+// plus other JSON fields, while keeping the request body bounded against abuse.
+app.use(express.json({ limit: '512kb' }));
 
 // General rate limit on all API routes
 app.use('/api', generalLimiter);

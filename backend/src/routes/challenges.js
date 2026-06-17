@@ -126,6 +126,7 @@ router.post('/', auth, async (req, res) => {
 router.patch('/:id/accept', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid challenge id' });
     const challenge = await prisma.challenge.findUnique({ where: { id } });
     if (!challenge || challenge.challengedId !== req.userId) {
       return res.status(404).json({ error: 'Challenge not found' });
@@ -150,6 +151,7 @@ router.patch('/:id/accept', auth, async (req, res) => {
 router.patch('/:id/decline', auth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid challenge id' });
     const challenge = await prisma.challenge.findUnique({ where: { id } });
     if (!challenge || challenge.challengedId !== req.userId) {
       return res.status(404).json({ error: 'Challenge not found' });

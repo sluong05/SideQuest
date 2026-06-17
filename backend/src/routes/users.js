@@ -4,7 +4,9 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/users/:username — public profile, only visible to friends or self
+// GET /api/users/:username — public profile card, visible to any authenticated
+// user (the leaderboard links every player's profile). Only non-sensitive,
+// competition-facing stats are exposed here — never email or account fields.
 router.get('/:username', auth, async (req, res) => {
   try {
     const target = await prisma.user.findUnique({

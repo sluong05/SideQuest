@@ -2,6 +2,7 @@ const { Resend } = require('resend');
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const { sendPushToUser } = require('./pushNotifications');
+const { escapeHtml } = require('../lib/escapeHtml');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -47,11 +48,11 @@ async function sendAtRiskReminders() {
   }
 
   for (const { user, quests: userQuests } of Object.values(byUser)) {
-    const name = user.username || user.email;
+    const name = escapeHtml(user.username || user.email);
     const questRows = userQuests
       .map((t) => {
         const time = formatLocalTime(new Date(t.dueDate), user.timezone);
-        return `<li style="margin-bottom:6px;"><strong>${t.title}</strong> — due at ${time}</li>`;
+        return `<li style="margin-bottom:6px;"><strong>${escapeHtml(t.title)}</strong> — due at ${time}</li>`;
       })
       .join('');
 
@@ -138,12 +139,12 @@ async function sendDailyDigest() {
     // Only email if there's something worth acting on
     if (pendingToday.length === 0 && totalOwed === 0) continue;
 
-    const name = user.username || user.email;
+    const name = escapeHtml(user.username || user.email);
 
     const pendingRows = pendingToday
       .map((t) => {
         const time = formatLocalTime(new Date(t.dueDate), user.timezone);
-        return `<li style="margin-bottom:6px;"><strong>${t.title}</strong> — due at ${time}</li>`;
+        return `<li style="margin-bottom:6px;"><strong>${escapeHtml(t.title)}</strong> — due at ${time}</li>`;
       })
       .join('');
 

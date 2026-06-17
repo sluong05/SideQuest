@@ -18,6 +18,13 @@ const USER_SELECT = {
   emailVerified: true, xp: true, level: true,
 };
 
+// Basic email shape check — rejects obviously invalid addresses and most markup.
+// (Escaping is still applied wherever email-derived text reaches HTML.)
+const EMAIL_REGEX = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+function validateEmail(email) {
+  return typeof email === 'string' && email.length <= 254 && EMAIL_REGEX.test(email);
+}
+
 function validatePassword(password) {
   if (password.length < 8) return 'Password must be at least 8 characters';
   if (!/[a-zA-Z]/.test(password)) return 'Password must contain at least one letter';
@@ -53,6 +60,10 @@ router.post('/signup', async (req, res) => {
 
   if (!email || !username || !password) {
     return res.status(400).json({ error: 'Email, username, and password are required' });
+  }
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address' });
   }
 
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
@@ -441,7 +452,14 @@ router.post('/reset-password', async (req, res) => {
     const hashed = await bcrypt.hash(password, 10);
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: hashed, passwordResetToken: null, passwordResetExpiry: null },
+      data: {
+        password: hashed,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+        // A successful reset also clears any failed-login lockout.
+        loginAttempts: 0,
+        lockedUntil: null,
+      },
     });
 
     return res.json({ message: 'Password reset successfully' });
