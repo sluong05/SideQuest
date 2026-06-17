@@ -40,39 +40,45 @@ async function calculateAndUpdateDebt(userId = null) {
   });
 
   for (const quest of overdueQuests) {
-    if (quest.user?.debtFreezeUntil && quest.user.debtFreezeUntil > now) continue;
-    const dueDate = new Date(quest.dueDate);
-    const msPerDay = 1000 * 60 * 60 * 24;
-    const tz = quest.user?.timezone || 'UTC';
-    // daysOverdue=1 the moment the due time passes; +1 for each local midnight after.
-    const dueDateLocalDay = localCalendarDay(dueDate, tz);
-    const nowLocalDay = localCalendarDay(now, tz);
-    const daysOverdue = 1 + Math.floor((nowLocalDay - dueDateLocalDay) / msPerDay);
-    const baseDebt = 5 * daysOverdue;
+    // Isolate each quest so one bad record (e.g. an unparseable timezone) can't
+    // abort debt processing for every other user in the batch.
+    try {
+      if (quest.user?.debtFreezeUntil && quest.user.debtFreezeUntil > now) continue;
+      const dueDate = new Date(quest.dueDate);
+      const msPerDay = 1000 * 60 * 60 * 24;
+      const tz = quest.user?.timezone || 'UTC';
+      // daysOverdue=1 the moment the due time passes; +1 for each local midnight after.
+      const dueDateLocalDay = localCalendarDay(dueDate, tz);
+      const nowLocalDay = localCalendarDay(now, tz);
+      const daysOverdue = 1 + Math.floor((nowLocalDay - dueDateLocalDay) / msPerDay);
+      const baseDebt = 5 * daysOverdue;
 
-    if (!quest.debt) {
-      // First time this quest is overdue — create new debt entry
-      await prisma.debt.create({
-        data: {
-          questId: quest.id,
-          userId: quest.userId,
-          amountOwed: baseDebt,
-          daysOverdue,
-          resolved: false,
-        },
-      });
-    } else if (!quest.debt.resolved) {
-      // Only add debt for new overdue days — don't reset what the user has already paid off
-      const newDays = daysOverdue - quest.debt.daysOverdue;
-      if (newDays > 0) {
-        await prisma.debt.update({
-          where: { id: quest.debt.id },
+      if (!quest.debt) {
+        // First time this quest is overdue — create new debt entry
+        await prisma.debt.create({
           data: {
-            amountOwed: quest.debt.amountOwed + 5 * newDays,
+            questId: quest.id,
+            userId: quest.userId,
+            amountOwed: baseDebt,
             daysOverdue,
+            resolved: false,
           },
         });
+      } else if (!quest.debt.resolved) {
+        // Only add debt for new overdue days — don't reset what the user has already paid off
+        const newDays = daysOverdue - quest.debt.daysOverdue;
+        if (newDays > 0) {
+          await prisma.debt.update({
+            where: { id: quest.debt.id },
+            data: {
+              amountOwed: quest.debt.amountOwed + 5 * newDays,
+              daysOverdue,
+            },
+          });
+        }
       }
+    } catch (err) {
+      console.error(`[DebtJob] Skipped quest ${quest.id} (user ${quest.userId}):`, err.message);
     }
   }
 
@@ -88,26 +94,30 @@ async function calculateAndUpdateDebt(userId = null) {
   });
 
   for (const quest of completedRecurring) {
-    const tz = quest.user?.timezone || 'UTC';
-    let nextDue;
+    try {
+      const tz = quest.user?.timezone || 'UTC';
+      let nextDue;
 
-    if (quest.recurrence === 'daily') {
-      // Reset to end of today in the user's local timezone
-      nextDue = localEndOfDayUTC(localDateString(now, tz), tz);
-    } else if (quest.recurrence === 'weekly') {
-      // Preserve the original due time — just advance by exactly 7 days
-      nextDue = new Date(new Date(quest.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000);
+      if (quest.recurrence === 'daily') {
+        // Reset to end of today in the user's local timezone
+        nextDue = localEndOfDayUTC(localDateString(now, tz), tz);
+      } else if (quest.recurrence === 'weekly') {
+        // Preserve the original due time — just advance by exactly 7 days
+        nextDue = new Date(new Date(quest.dueDate).getTime() + 7 * 24 * 60 * 60 * 1000);
+      }
+
+      // Remove resolved debt so a fresh debt record can be created if overdue again
+      if (quest.debt?.resolved) {
+        await prisma.debt.delete({ where: { id: quest.debt.id } });
+      }
+
+      await prisma.quest.update({
+        where: { id: quest.id },
+        data: { completed: false, completedAt: null, dueDate: nextDue },
+      });
+    } catch (err) {
+      console.error(`[DebtJob] Skipped recurring reset for quest ${quest.id} (user ${quest.userId}):`, err.message);
     }
-
-    // Remove resolved debt so a fresh debt record can be created if overdue again
-    if (quest.debt?.resolved) {
-      await prisma.debt.delete({ where: { id: quest.debt.id } });
-    }
-
-    await prisma.quest.update({
-      where: { id: quest.id },
-      data: { completed: false, completedAt: null, dueDate: nextDue },
-    });
   }
 
   console.log(`[DebtJob] Reset ${completedRecurring.length} recurring quests`);

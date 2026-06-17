@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { Resend } = require('resend');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
+const { isValidTimeZone } = require('../lib/timezone');
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -23,6 +24,12 @@ const USER_SELECT = {
 const EMAIL_REGEX = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
 function validateEmail(email) {
   return typeof email === 'string' && email.length <= 254 && EMAIL_REGEX.test(email);
+}
+
+// Store only a hash of email-verification / password-reset tokens. The plaintext
+// goes in the email; a DB leak then yields no usable tokens.
+function hashToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
 function validatePassword(password) {
@@ -62,7 +69,10 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ error: 'Email, username, and password are required' });
   }
 
-  if (!validateEmail(email)) {
+  // Normalize so casing can't create duplicate accounts (A@x.com vs a@x.com).
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  if (!validateEmail(normalizedEmail)) {
     return res.status(400).json({ error: 'Please enter a valid email address' });
   }
 
@@ -76,7 +86,9 @@ router.post('/signup', async (req, res) => {
   if (pwError) return res.status(400).json({ error: pwError });
 
   try {
-    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    const existingEmail = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+    });
     if (existingEmail) return res.status(409).json({ error: 'Email already in use' });
 
     const existingUsername = await prisma.user.findUnique({ where: { username } });
@@ -87,16 +99,16 @@ router.post('/signup', async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         username,
         password: hashedPassword,
-        timezone: timezone || 'UTC',
-        emailVerificationToken: verificationToken,
+        timezone: isValidTimeZone(timezone) ? timezone : 'UTC',
+        emailVerificationToken: hashToken(verificationToken),
       },
     });
 
     // Send verification email — don't fail signup if email fails
-    sendVerificationEmail(email, verificationToken).catch((err) =>
+    sendVerificationEmail(normalizedEmail, verificationToken).catch((err) =>
       console.error('[Auth] Failed to send verification email:', err)
     );
 
@@ -129,7 +141,7 @@ router.post('/login', async (req, res) => {
   try {
     const isEmail = identifier.includes('@');
     const user = isEmail
-      ? await prisma.user.findUnique({ where: { email: identifier } })
+      ? await prisma.user.findFirst({ where: { email: { equals: identifier.trim(), mode: 'insensitive' } } })
       : await prisma.user.findUnique({ where: { username: identifier } });
 
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
@@ -138,7 +150,7 @@ router.post('/login', async (req, res) => {
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minutesLeft = Math.ceil((user.lockedUntil - Date.now()) / 60000);
       return res.status(429).json({
-        error: `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}.`,
+        error: `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}, or reset your password to regain access immediately.`,
       });
     }
 
@@ -157,7 +169,7 @@ router.post('/login', async (req, res) => {
 
       if (shouldLock) {
         return res.status(429).json({
-          error: `Too many failed attempts. Account locked for 15 minutes.`,
+          error: `Too many failed attempts. Account locked for 15 minutes — or reset your password to regain access now.`,
         });
       }
 
@@ -169,7 +181,10 @@ router.post('/login', async (req, res) => {
 
     // Successful login — reset attempt counter
     const updateData = { loginAttempts: 0, lockedUntil: null };
-    if (timezone && timezone !== user.timezone) updateData.timezone = timezone;
+    // Only persist a client-supplied timezone if it's a valid IANA zone.
+    if (timezone && timezone !== user.timezone && isValidTimeZone(timezone)) {
+      updateData.timezone = timezone;
+    }
     await prisma.user.update({ where: { id: user.id }, data: updateData });
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -194,7 +209,7 @@ router.post('/verify-email', async (req, res) => {
 
   try {
     const user = await prisma.user.findFirst({
-      where: { emailVerificationToken: token },
+      where: { emailVerificationToken: hashToken(token) },
     });
 
     if (!user) return res.status(400).json({ error: 'Invalid or expired verification link' });
@@ -226,7 +241,7 @@ router.post('/resend-verification', auth, async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
     await prisma.user.update({
       where: { id: req.userId },
-      data: { emailVerificationToken: verificationToken },
+      data: { emailVerificationToken: hashToken(verificationToken) },
     });
 
     await sendVerificationEmail(user.email, verificationToken);
@@ -390,15 +405,17 @@ router.post('/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: String(email).trim(), mode: 'insensitive' } },
+    });
     if (!user) return res.json({ message: 'If that email exists, a reset link has been sent' });
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiry = new Date(Date.now() + 1000 * 60 * 60);
 
     await prisma.user.update({
-      where: { email },
-      data: { passwordResetToken: token, passwordResetExpiry: expiry },
+      where: { id: user.id },
+      data: { passwordResetToken: hashToken(token), passwordResetExpiry: expiry },
     });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
@@ -442,7 +459,7 @@ router.post('/reset-password', async (req, res) => {
   try {
     const user = await prisma.user.findFirst({
       where: {
-        passwordResetToken: token,
+        passwordResetToken: hashToken(token),
         passwordResetExpiry: { gt: new Date() },
       },
     });

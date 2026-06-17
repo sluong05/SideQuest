@@ -61,13 +61,47 @@ router.post('/', auth, async (req, res) => {
     debtAmount = 5,
   } = req.body;
 
-  if (!title || title.trim() === '') {
+  if (!title || typeof title !== 'string' || title.trim() === '') {
     return res.status(400).json({ error: 'Title is required' });
+  }
+  if (title.trim().length > 200) {
+    return res.status(400).json({ error: 'Title must be 200 characters or fewer' });
+  }
+  if (description !== undefined && description !== null && typeof description !== 'string') {
+    return res.status(400).json({ error: 'description must be a string' });
+  }
+  if (typeof description === 'string' && description.length > 2000) {
+    return res.status(400).json({ error: 'Description must be 2000 characters or fewer' });
   }
 
   const validRecurrences = ['none', 'daily', 'weekly'];
   if (!validRecurrences.includes(recurrence)) {
     return res.status(400).json({ error: 'Invalid recurrence value' });
+  }
+
+  const validCategories = ['fitness', 'learning', 'focus', 'productivity', 'wellness', 'chores', 'other'];
+  if (!validCategories.includes(category)) {
+    return res.status(400).json({ error: 'Invalid category' });
+  }
+
+  const validDifficulties = ['easy', 'medium', 'hard'];
+  if (!validDifficulties.includes(difficulty)) {
+    return res.status(400).json({ error: 'Invalid difficulty' });
+  }
+
+  const validDebtTypes = ['pushups', 'custom', 'fitness', 'focus', 'wellness', 'chores'];
+  if (!validDebtTypes.includes(debtType)) {
+    return res.status(400).json({ error: 'Invalid debt type' });
+  }
+
+  const debtAmountNum = Number(debtAmount);
+  if (!Number.isFinite(debtAmountNum) || debtAmountNum < 0 || debtAmountNum > 1000) {
+    return res.status(400).json({ error: 'debtAmount must be a number between 0 and 1000' });
+  }
+
+  // Reject invalid/unparseable due dates rather than silently storing "Invalid Date".
+  if (dueDate !== undefined && dueDate !== null && Number.isNaN(new Date(dueDate).getTime())) {
+    return res.status(400).json({ error: 'Invalid dueDate' });
   }
 
   const xpByDifficulty = { easy: 25, medium: 50, hard: 100 };
@@ -89,7 +123,7 @@ router.post('/', auth, async (req, res) => {
         difficulty,
         xpReward,
         debtType,
-        debtAmount: Number(debtAmount),
+        debtAmount: debtAmountNum,
       },
       include: { debt: true },
     });
@@ -118,6 +152,9 @@ router.patch('/:id', auth, async (req, res) => {
 
   if (description !== undefined && description !== null && typeof description !== 'string') {
     return res.status(400).json({ error: 'description must be a string' });
+  }
+  if (typeof description === 'string' && description.length > 2000) {
+    return res.status(400).json({ error: 'Description must be 2000 characters or fewer' });
   }
 
   try {

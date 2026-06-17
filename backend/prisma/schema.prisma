@@ -98,6 +98,9 @@ model Quest {
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   debt Debt?
 
+  @@index([userId, deletedAt])
+  @@index([dueDate])
+  @@index([completedAt])
   @@map("Task")
 }
 
@@ -115,6 +118,7 @@ model Debt {
   quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, resolved])
   @@map("PushupDebt")
 }
 
@@ -128,6 +132,8 @@ model PayoffSession {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([date])
   @@map("PushupSession")
 }
 

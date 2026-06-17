@@ -1,3 +1,17 @@
+// True if `tz` is an IANA timezone the runtime can actually use. Client-supplied
+// timezones must be validated before storage — an invalid one makes every
+// Intl.DateTimeFormat call below throw RangeError, which would otherwise abort
+// the nightly debt cron for all users.
+function isValidTimeZone(tz) {
+  if (typeof tz !== 'string' || tz.length === 0 || tz.length > 64) return false;
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Returns the UTC timestamp corresponding to midnight in the given timezone
 // for the given local date string "YYYY-MM-DD".
 // Uses iterative refinement so DST transition days (where noon/midnight differ
@@ -36,4 +50,4 @@ function localEndOfDayUTC(localDateStr, timezone) {
   return new Date(localMidnightUTC(tomorrowStr, timezone).getTime() - 1);
 }
 
-module.exports = { localMidnightUTC, localDateString, localEndOfDayUTC };
+module.exports = { localMidnightUTC, localDateString, localEndOfDayUTC, isValidTimeZone };
