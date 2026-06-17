@@ -52,6 +52,7 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   const {
     title,
+    description,
     dueDate,
     recurrence = 'none',
     category = 'other',
@@ -75,9 +76,12 @@ router.post('/', auth, async (req, res) => {
   try {
     const due = dueDate ? new Date(dueDate) : new Date();
 
+    const trimmedDesc = typeof description === 'string' ? description.trim() : '';
+
     const quest = await prisma.quest.create({
       data: {
         title: title.trim(),
+        description: trimmedDesc === '' ? null : trimmedDesc,
         dueDate: due,
         recurrence,
         userId: req.userId,
@@ -100,6 +104,36 @@ router.post('/', auth, async (req, res) => {
     }
 
     return res.status(201).json({ quest });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH /api/quests/:id — edit a quest's description (only the description is editable)
+router.patch('/:id', auth, async (req, res) => {
+  const questId = parseInt(req.params.id, 10);
+  const { description } = req.body;
+
+  if (description !== undefined && description !== null && typeof description !== 'string') {
+    return res.status(400).json({ error: 'description must be a string' });
+  }
+
+  try {
+    const quest = await prisma.quest.findUnique({ where: { id: questId } });
+
+    if (!quest) return res.status(404).json({ error: 'Quest not found' });
+    if (quest.userId !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+
+    const trimmedDesc = typeof description === 'string' ? description.trim() : '';
+
+    const updated = await prisma.quest.update({
+      where: { id: questId },
+      data: { description: trimmedDesc === '' ? null : trimmedDesc },
+      include: { debt: true },
+    });
+
+    return res.json({ quest: updated });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

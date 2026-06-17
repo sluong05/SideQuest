@@ -12,6 +12,8 @@ cd backend && npx prisma migrate dev --name add-quest-fields
 ```
 This adds `category`, `difficulty`, `xpReward`, `debtType`, `debtAmount` to the quests table and `xp`, `level` to `User`. (The later model renames — `Task`→`Quest` etc. — are `@@map`-only and generate no migration.)
 
+The `20260616000000_add_quest_description` migration adds the optional `description` column to the `Task` table (`ALTER TABLE "Task" ADD COLUMN "description" TEXT`). Run `npx prisma migrate deploy` (prod) or `npx prisma migrate dev` (local) to apply it. Existing quests keep a NULL/blank description.
+
 ---
 
 ## Stack
@@ -89,6 +91,7 @@ User
 
 Quest
   id, title, completed, recurrence (none/daily/weekly)
+  description String?   // optional free-text detail; null for quests created before this field existed
   dueDate DateTime   // full timestamp — user picks date + time in AddQuestModal
   completedAt, deletedAt DateTime?   // deletedAt = soft-delete (row kept for 7-day leaderboard window)
   userId
@@ -196,6 +199,9 @@ Shown as a badge next to the debt total:
 Compares `date < now` (not midnight) so time-based overdue works correctly. Two display variants:
 quests.js returns two lines ("Due Today" / "Today · 3:00 PM"), index.js a single label.
 
+### Quest detail / description (`components/QuestDetailModal.js`)
+Every quest row (quests.js `QuestCard` + index.js `DashQuestRow`) has a "Read Quest" button that opens `QuestDetailModal` — a read-only card showing title, description, due date, status, difficulty, recurrence, XP, and debt. Inside it, an **"Edit Quest"** button flips the description into an editable textarea (**only the description is editable**); Save calls `PATCH /api/quests/:id` via `updateQuestDescription`. The optional description is also captured at creation time in `AddQuestModal` (and shown in its live preview). Pages keep their local `quests` state in sync through an `onUpdated(updatedQuest)` callback. Quests created before this feature have a blank description.
+
 ### Quest skip confirmation (quests.js `QuestCard`, index.js `DashQuestRow`)
 Skipping/deleting an **incomplete** quest shows a confirm modal warning it adds +debtAmount pts of debt.
 
@@ -261,7 +267,8 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 | POST | `/api/auth/reset-password` | No | token + new password |
 | DELETE | `/api/auth/account` | Yes | hard delete all user data |
 | GET | `/api/quests` | Yes | `?date=` or `?upToDate=` filter (excludes soft-deleted) |
-| POST | `/api/quests` | Yes | title, dueDate (ISO string), recurrence |
+| POST | `/api/quests` | Yes | title, description (optional), dueDate (ISO string), recurrence |
+| PATCH | `/api/quests/:id` | Yes | edit quest description only (other fields ignored) |
 | PATCH | `/api/quests/:id/complete` | Yes | mark done + increment user.totalQuestsCompleted |
 | PATCH | `/api/quests/:id/uncomplete` | Yes | unmark + decrement user.totalQuestsCompleted; rejected (400) if completed on a previous local day — completions lock at local midnight |
 | DELETE | `/api/quests/:id` | Yes | soft-delete; 5-pushup penalty if incomplete |

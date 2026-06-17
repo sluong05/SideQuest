@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import AddQuestModal from '../components/AddQuestModal';
+import QuestDetailModal from '../components/QuestDetailModal';
 import { useAuth } from '../contexts/AuthContext';
 import { getQuests, getDebt, getStreak, completeQuest, uncompleteQuest, deleteQuest, recalculateDebt } from '../lib/api';
 import confetti from 'canvas-confetti';
@@ -29,8 +30,9 @@ function formatDue(dateStr) {
 }
 
 // ─── Quest Row ──────────────────────────────────────────────────────────────
-function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
+function QuestCard({ quest, onComplete, onUncomplete, onSkip, onUpdated, isActioning }) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   const dueInfo = formatDue(quest.dueDate);
@@ -165,6 +167,15 @@ function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
 
           {/* Actions — stacked */}
           <div className="flex flex-col items-stretch gap-1 flex-shrink-0" style={{ width: 118 }}>
+            <button
+              onClick={() => setShowDetail(true)}
+              className="text-[11px] px-3 py-1 rounded-lg font-medium transition-all duration-150 flex items-center justify-center gap-1"
+              style={{ background: 'rgba(8,21,37,0.8)', border: '1px solid rgba(59,130,246,0.14)', color: '#94a3b8' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#60a5fa'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.14)'; }}
+            >
+              <Icon name="book" className="w-3 h-3" color="currentColor" /> Read Quest
+            </button>
             {quest.completed ? (
               isLocked ? (
                 <span
@@ -214,6 +225,14 @@ function QuestCard({ quest, onComplete, onUncomplete, onSkip, isActioning }) {
           </div>
         </div>
       </div>
+
+      {showDetail && (
+        <QuestDetailModal
+          quest={quest}
+          onClose={() => setShowDetail(false)}
+          onUpdated={onUpdated}
+        />
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -431,44 +450,22 @@ function StreakPanel({ streak }) {
 }
 
 function CoinStatusPanel({ totalOwed, userCoins }) {
-  const locked = totalOwed > 0;
+  const inDebt = totalOwed > 0;
   return (
     <div
       className="rounded-2xl p-4"
-      style={{
-        background: locked ? 'rgba(239,68,68,0.04)' : 'rgba(234,179,8,0.05)',
-        border: `1px solid ${locked ? 'rgba(239,68,68,0.18)' : 'rgba(234,179,8,0.22)'}`,
-      }}
+      style={{ background: 'rgba(234,179,8,0.05)', border: '1px solid rgba(234,179,8,0.22)' }}
     >
       <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#475569' }}>Coin Earnings</p>
-      {locked ? (
-        <>
-          <div className="flex items-center gap-2 mb-1.5">
-            <Icon name="lock" className="w-4 h-4" color="#f87171" />
-            <p className="text-sm font-bold text-red-400">Locked</p>
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
-            Pay off <span className="font-bold text-red-400">{totalOwed} pts</span> to earn coins on quest completion.
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="flex items-center gap-2 mb-1.5">
-            <img src="/Pcoin.svg" alt="" className="w-4 h-4" />
-            <p className="text-sm font-bold text-yellow-400">Active</p>
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
-            You're debt-free! Earn coins on every quest you complete.
-          </p>
-          {userCoins !== undefined && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <img src="/Pcoin.svg" alt="" className="w-3.5 h-3.5" />
-              <span className="text-sm font-bold text-yellow-400">{userCoins}</span>
-              <span className="text-xs" style={{ color: '#64748b' }}>in wallet</span>
-            </div>
-          )}
-        </>
-      )}
+      <div className="flex items-center gap-2 mb-1.5">
+        <img src="/Pcoin.svg" alt="" className="w-4 h-4" />
+        <p className="text-sm font-bold text-yellow-400">{userCoins ?? 0} in wallet</p>
+      </div>
+      <p className="text-xs leading-relaxed" style={{ color: '#64748b' }}>
+        {inDebt
+          ? <>Log payoff actions to earn <span className="font-bold text-yellow-400">1 coin per 5 pts</span> of debt repaid.</>
+          : <>You're debt-free! Every point you log now becomes a <span className="font-bold text-yellow-400">coin</span>.</>}
+      </p>
     </div>
   );
 }
@@ -549,6 +546,9 @@ export default function Quests() {
     try { await deleteQuest(questId); loadData(); }
     catch (err) { console.error(err); }
     finally { setActionLoading(null); }
+  }
+  function handleQuestUpdated(updated) {
+    setQuests((prev) => prev.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
   }
 
   const now        = new Date();
@@ -798,6 +798,7 @@ export default function Quests() {
                     onComplete={handleComplete}
                     onUncomplete={handleUncomplete}
                     onSkip={handleSkip}
+                    onUpdated={handleQuestUpdated}
                     isActioning={actionLoading}
                   />
                 ))}

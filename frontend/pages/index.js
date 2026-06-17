@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import AddQuestModal from '../components/AddQuestModal';
+import QuestDetailModal from '../components/QuestDetailModal';
 import ActivityFeed from '../components/ActivityFeed';
 import { useAuth } from '../contexts/AuthContext';
 import { getQuests, getDebt, getStreak, getSessions, recalculateDebt, setUsername,
@@ -52,8 +53,9 @@ function getDebtLevelInfo(total) {
 }
 
 // ─── Quest Row (dashboard compact style) ─────────────────────────────────────
-function DashQuestRow({ quest, onComplete, onUncomplete, onDelete }) {
+function DashQuestRow({ quest, onComplete, onUncomplete, onDelete, onUpdated }) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
   const [loading, setLoading] = useState(false);
   const dueInfo = formatDue(quest.dueDate);
   const catBg   = CATEGORY_COLORS[quest.category] ?? 'rgba(59,130,246,0.12)';
@@ -133,6 +135,14 @@ function DashQuestRow({ quest, onComplete, onUncomplete, onDelete }) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            onClick={() => setShowDetail(true)}
+            className="text-[11px] px-2.5 py-1 rounded-lg font-medium transition-colors flex items-center gap-1"
+            style={{ background: 'rgba(13,31,56,0.8)', border: '1px solid rgba(59,130,246,0.15)', color: '#94a3b8' }}
+            aria-label="Read quest details"
+          >
+            <Icon name="book" className="w-3 h-3" color="currentColor" /> <span className="hidden sm:inline">Read</span>
+          </button>
           {quest.completed ? (
             <button
               onClick={doUncomplete}
@@ -164,6 +174,14 @@ function DashQuestRow({ quest, onComplete, onUncomplete, onDelete }) {
           )}
         </div>
       </div>
+
+      {showDetail && (
+        <QuestDetailModal
+          quest={quest}
+          onClose={() => setShowDetail(false)}
+          onUpdated={onUpdated}
+        />
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -539,6 +557,9 @@ export default function Dashboard() {
   async function handleDelete(questId) {
     try { await deleteQuest(questId); loadData(); } catch (err) { console.error(err); }
   }
+  function handleQuestUpdated(updated) {
+    setQuests((prev) => prev.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
+  }
   async function handleQuestAdded() {
     await recalculateDebt().catch(() => {});
     loadData();
@@ -679,6 +700,7 @@ export default function Dashboard() {
                         onComplete={handleComplete}
                         onUncomplete={handleUncomplete}
                         onDelete={handleDelete}
+                        onUpdated={handleQuestUpdated}
                       />
                     ))}
                   </div>

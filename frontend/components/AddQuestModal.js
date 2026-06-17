@@ -25,7 +25,7 @@ function todayString() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtAmount }) {
+function QuestPreview({ title, description, category, difficulty, dueDate, dueTime, debtAmount }) {
   const cat = CATEGORIES.find((c) => c.value === category);
   const diff = DIFFICULTIES.find((d) => d.value === difficulty);
   const catBg = CATEGORY_COLORS[category] ?? 'rgba(59,130,246,0.1)';
@@ -48,6 +48,9 @@ function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtAmoun
             <p className="text-xs text-slate-400 mt-1">{dueFmt}</p>
           </div>
         </div>
+        {description && description.trim() && (
+          <p className="text-xs text-slate-300 leading-relaxed mb-3 whitespace-pre-wrap">{description}</p>
+        )}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium px-2 py-0.5 rounded-full capitalize" style={{ background: catBg, color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)' }}>
             {cat?.label ?? 'Other'}
@@ -105,6 +108,7 @@ function QuestPreview({ title, category, difficulty, dueDate, dueTime, debtAmoun
 
 export default function AddQuestModal({ onClose, onQuestAdded }) {
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(todayString());
   const [dueTime, setDueTime] = useState('23:59');
   const [recurrence, setRecurrence] = useState('none');
@@ -127,6 +131,7 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
       const dueDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
       const res = await createQuest(title.trim(), dueDateTime.toISOString(), recurrence, {
         category, difficulty, debtType: 'custom', debtAmount: Number(debtAmount),
+        description: description.trim(),
       });
       onQuestAdded(res.data.quest);
       onClose();
@@ -172,6 +177,21 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                   onChange={(e) => setTitle(e.target.value)}
                   autoFocus
                   maxLength={200}
+                />
+              </div>
+
+              {/* Description (optional) */}
+              <div>
+                <label className="label">
+                  Description <span className="text-slate-500 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  className="input resize-none"
+                  rows={3}
+                  placeholder="Add more detail about what this quest means…"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={1000}
                 />
               </div>
 
@@ -303,6 +323,7 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
             <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4">Quest Preview</p>
             <QuestPreview
               title={title}
+              description={description}
               category={category}
               difficulty={difficulty}
               dueDate={dueDate}

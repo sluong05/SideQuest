@@ -59,6 +59,9 @@ export const getQuests = (params = {}) =>
 export const createQuest = (title, dueDate, recurrence = 'none', questMeta = {}) =>
   api.post('/api/quests', { title, dueDate, recurrence, ...questMeta });
 
+export const updateQuestDescription = (questId, description) =>
+  api.patch(`/api/quests/${questId}`, { description });
+
 export const completeQuest = (questId) =>
   api.patch(`/api/quests/${questId}/complete`);
 
