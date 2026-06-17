@@ -203,6 +203,10 @@ Deleting an incomplete quest costs 5 pushups. A confirmation dialog appears firs
 
 Quests can be set to **Daily** or **Weekly** at creation. After a recurring quest is completed, it automatically resets at midnight for the next period.
 
+### Completed Quest Retention
+
+Completed (non-recurring) quests stay on the **All Quests** page for **7 days** so they still count toward the rolling leaderboard window. The midnight cron (`dailyDebt.js`, 00:01 UTC) then hard-deletes any whose `completedAt` is more than 7 days old, so they disappear on the first nightly run after the 7-day mark. (On the **Dashboard** a completed quest drops off after the local day it was checked off — only the All Quests view keeps it for the full week.)
+
 ### Camera-Verified Pushups
 
 The verify-pushups page uses **MediaPipe Pose** (loaded via CDN) to:
