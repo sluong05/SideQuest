@@ -3,6 +3,7 @@ const { Resend } = require('resend');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { escapeHtml } = require('../lib/escapeHtml');
+const { sendPushToUser } = require('../jobs/pushNotifications');
 
 const router = express.Router();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -215,6 +216,13 @@ router.post('/request', auth, async (req, res) => {
     const friendship = await prisma.friendship.create({
       data: { requesterId: req.userId, receiverId: target.id },
     });
+
+    sendPushToUser(
+      target.id,
+      '👋 New friend request',
+      `${requester.username || requester.email.split('@')[0]} wants to be friends on SideQuest.`,
+      '/friends'
+    ).catch((err) => console.error('[Friends] request push failed:', err.message));
 
     if (target.emailReminders && process.env.RESEND_API_KEY) {
       const senderName = escapeHtml(requester.username || requester.email.split('@')[0]);
