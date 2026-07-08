@@ -71,4 +71,40 @@ router.delete('/unsubscribe', auth, async (req, res) => {
   }
 });
 
+// POST /api/push/register-device — save a native iOS APNs device token
+router.post('/register-device', auth, async (req, res) => {
+  const { token } = req.body;
+  if (!token || typeof token !== 'string' || token.length > 256) {
+    return res.status(400).json({ error: 'token is required' });
+  }
+  // APNs device tokens are hex strings (64+ chars); reject anything else.
+  if (!/^[0-9a-fA-F]+$/.test(token)) {
+    return res.status(400).json({ error: 'Invalid device token' });
+  }
+  try {
+    await prisma.deviceToken.upsert({
+      where: { token },
+      update: { userId: req.userId, platform: 'ios' },
+      create: { userId: req.userId, token, platform: 'ios' },
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/push/unregister-device — remove a native iOS device token
+router.delete('/unregister-device', auth, async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: 'token is required' });
+  try {
+    await prisma.deviceToken.deleteMany({ where: { token, userId: req.userId } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

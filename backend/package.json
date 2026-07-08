@@ -12,6 +12,7 @@
     "db:seed": "node src/seed.js"
   },
   "dependencies": {
+    "@parse/node-apn": "^6.0.1",
     "@prisma/client": "^5.10.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

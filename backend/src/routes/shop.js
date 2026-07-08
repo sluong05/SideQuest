@@ -148,6 +148,14 @@ router.post('/buy', auth, async (req, res) => {
         await prisma.debt.create({
           data: { userId: target.id, questId: null, amountOwed: 10, daysOverdue: 1, resolved: false },
         });
+        // Debt is applied at this point — a push failure must not refund the coins.
+        const senderName = buyer.username || 'Someone';
+        await sendPushToUser(
+          target.id,
+          '💣 Debt bomb incoming!',
+          `${senderName} just dropped +10 debt on you. Pay it off!`,
+          '/debt'
+        ).catch((err) => console.error('[Shop] debt_bomb push failed:', err.message));
         return res.json({ message: `Debt bomb dropped on ${targetUsername}!`, coinsSpent: item.cost });
       }
 
