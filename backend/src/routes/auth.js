@@ -40,9 +40,14 @@ function validatePassword(password) {
   return null;
 }
 
+// Email links must not contain a literal '=': quoted-printable transport uses
+// '=' as its escape character, and an unescaped one gets decoded together with
+// the first two token chars, corrupting the link (e.g. '=45' → 'E'). Web links
+// carry the token in the path; app links keep the ?token= form the shipped iOS
+// app parses, but with '=' written as the HTML entity '&#61;'.
 async function sendVerificationEmail(email, token) {
-  const webUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-  const appUrl = `pushupdebt://verify-email?token=${token}`;
+  const webUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+  const appUrl = `pushupdebt://verify-email?token&#61;${token}`;
   await resend.emails.send({
     from: 'noreply@pushupdebt.com',
     to: email,
@@ -418,8 +423,10 @@ router.post('/forgot-password', async (req, res) => {
       data: { passwordResetToken: hashToken(token), passwordResetExpiry: expiry },
     });
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    const appResetUrl = `pushupdebt://reset-password?token=${token}`;
+    // Path/entity forms avoid quoted-printable '=' corruption — see
+    // sendVerificationEmail above.
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+    const appResetUrl = `pushupdebt://reset-password?token&#61;${token}`;
 
     await resend.emails.send({
       from: 'noreply@pushupdebt.com',
