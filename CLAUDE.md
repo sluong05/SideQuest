@@ -242,6 +242,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 - Elbow angle < 85° = "down" position, > 160° = "up" position
 - **Anti-cheat**: must hold the down position (elbow < 90°) for ≥ 500ms before the rep can be counted — prevents bouncing. A "▼ HOLD…" badge with a fill-progress animation shows during the hold.
 - Back angle < 40° = parallel (required for rep to count)
+- **Orientation check**: wrist must be below the shoulder in the image (`wr.y > sh.y`) for either rep transition — blocks "backwards pushups" done lying on your back pressing hands upward
 - Gesture: raise wrist above shoulder for 1.5s → start/stop counting
 - Ding sound (`DingSound.mp3`) on each counted rep
 - On submit: `POST /api/sessions` which drains oldest debt first

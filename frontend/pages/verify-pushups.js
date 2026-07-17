@@ -259,6 +259,12 @@ export default function VerifyPushups() {
     // Update React display state (batched by React 18)
     setAngle(Math.round(deg));
 
+    // ── Orientation — hands must be planted on the floor ────────────────────
+    // In a real pushup the wrist is always BELOW the shoulder in the image
+    // (y grows downward). Lying on your back and pressing the hands up puts
+    // the wrist above the shoulder, so that pose can never count a rep.
+    const handsOnFloor = wr.y > sh.y;
+
     // ── Back / torso angle — shoulder→hip line vs horizontal ─────────────────
     const lBackVis = (L[IDX.L_SHOULDER]?.visibility || 0) + (L[IDX.L_HIP]?.visibility || 0);
     const rBackVis = (L[IDX.R_SHOULDER]?.visibility || 0) + (L[IDX.R_HIP]?.visibility || 0);
@@ -290,7 +296,7 @@ export default function VerifyPushups() {
     const DOWN_HOLD_MS = 500;
 
     if (countingRef.current) {
-      if (deg < 90 && backParallel && stageRef.current === 'up') {
+      if (deg < 90 && backParallel && handsOnFloor && stageRef.current === 'up') {
         // Start or continue timing the hold in the down position
         if (downSinceRef.current === null) downSinceRef.current = Date.now();
         const held = Date.now() - downSinceRef.current;
@@ -306,7 +312,7 @@ export default function VerifyPushups() {
         setDownHoldProgress(0);
       }
 
-      if (deg > 155 && stageRef.current === 'down' && backParallel) {
+      if (deg > 155 && stageRef.current === 'down' && backParallel && handsOnFloor) {
         stageRef.current    = 'up';
         downSinceRef.current = null;
         setDownHoldProgress(0);
