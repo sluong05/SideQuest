@@ -44,7 +44,10 @@ router.post('/', auth, async (req, res) => {
   }
   const activityType = ACTIVITIES.includes(activity) ? activity : 'fitness';
 
-  if (activityType === 'fitness') {
+  // TODO: make sessionToken mandatory once the App Store build that sends it
+  // is live — until then token-less submissions must pass so the shipped iOS
+  // app can still log pushups (it predates the pace check).
+  if (activityType === 'fitness' && req.body.sessionToken !== undefined) {
     let start;
     try {
       start = jwt.verify(req.body.sessionToken, process.env.JWT_SECRET);

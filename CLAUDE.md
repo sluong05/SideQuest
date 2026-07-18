@@ -244,7 +244,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 - Back angle < 40° = parallel (required for rep to count)
 - **Orientation check**: wrist must be below the shoulder in the image (`wr.y > sh.y`) for either rep transition — blocks "backwards pushups" done lying on your back pressing hands upward
 - **Shoulder-travel check**: the shoulder must drop ≥15% of torso length from its fully-extended baseline before "down" registers — blocks counting reps by just bending an elbow while the body stays put
-- **Server pace check**: page fetches a signed start token from `POST /api/sessions/start` on load; fitness submissions must include it and the server rejects rep counts exceeding 1.5 reps/sec of elapsed time since the token was issued (elapsed time is computed from the token's `iat`, so it can't be spoofed)
+- **Server pace check**: page fetches a signed start token from `POST /api/sessions/start` on load; fitness submissions that include it are rejected if the rep count exceeds 1.5 reps/sec of elapsed time since the token was issued (elapsed time is computed from the token's `iat`, so it can't be spoofed). **Temporarily optional**: token-less fitness submissions are still accepted because the live App Store iOS build predates the token — make it mandatory once the updated iOS build is released
 - Gesture: raise wrist above shoulder for 1.5s → start/stop counting
 - Ding sound (`DingSound.mp3`) on each counted rep
 - On submit: `POST /api/sessions` which drains oldest debt first
@@ -278,7 +278,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 | GET | `/api/debt` | Yes | unresolved debts + totalOwed (soft-deleted quest refs nulled out) |
 | POST | `/api/debt/calculate` | Yes | on-demand debt recalc for user |
 | POST | `/api/sessions/start` | Yes | issue signed workout-start token for the fitness pace check |
-| POST | `/api/sessions` | Yes | log payoff (amount); fitness requires `sessionToken` + passes pace check; drains oldest debt first, awards coins (1 per 5 pts repaid + 1 per surplus pt) |
+| POST | `/api/sessions` | Yes | log payoff (amount); fitness `sessionToken` pace-checked when present (mandatory after iOS update ships); drains oldest debt first, awards coins (1 per 5 pts repaid + 1 per surplus pt) |
 | GET | `/api/sessions` | Yes | last 30 sessions + allTimePaid aggregate |
 | GET | `/api/streak` | Yes | current streak; updates user.maxStreak if new best |
 | GET | `/api/leaderboard` | Yes | all users ranked; includes questsCompleted7d + totalQuestsCompleted |
