@@ -319,7 +319,7 @@ export default function VerifyPushups() {
       sh.y - upShoulderYRef.current >= SHOULDER_DROP_FRACTION * torsoLen;
 
     // ── State machine — only runs when user has pressed Start ────────────────
-    const DOWN_HOLD_MS = 500;
+    const DOWN_HOLD_MS = 250;
 
     if (countingRef.current) {
       if (deg < 90 && backParallel && handsOnFloor && shoulderDropped && stageRef.current === 'up') {

@@ -240,7 +240,7 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 ### Camera rep counter (`verify-pushups.js`)
 - MediaPipe Pose loaded from CDN
 - Elbow angle < 85° = "down" position, > 160° = "up" position
-- **Anti-cheat**: must hold the down position (elbow < 90°) for ≥ 500ms before the rep can be counted — prevents bouncing. A "▼ HOLD…" badge with a fill-progress animation shows during the hold.
+- **Anti-cheat**: must hold the down position (elbow < 90°) for ≥ 250ms before the rep can be counted — prevents bouncing. A "▼ HOLD…" badge with a fill-progress animation shows during the hold.
 - Back angle < 40° = parallel (required for rep to count)
 - **Orientation check**: wrist must be below the shoulder in the image (`wr.y > sh.y`) for either rep transition — blocks "backwards pushups" done lying on your back pressing hands upward
 - **Shoulder-travel check**: the shoulder must drop ≥15% of torso length from its fully-extended baseline before "down" registers — blocks counting reps by just bending an elbow while the body stays put
