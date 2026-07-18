@@ -67,6 +67,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/shop', require('./routes/shop'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Health check
 app.get('/api/health', (req, res) => {

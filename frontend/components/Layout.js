@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import ParticleBackground from './ParticleBackground';
 import { Icon } from './Icons';
-import { getFriendRequests, resendVerification } from '../lib/api';
+import { getFriendRequests, resendVerification, getUnseenNotifications, markNotificationsSeen } from '../lib/api';
 
 function SideQuestLogo() {
   return (
@@ -15,6 +15,74 @@ function SideQuestLogo() {
         className="h-7 w-auto group-hover:opacity-90 transition-opacity"
       />
     </Link>
+  );
+}
+
+// Popup for taunts / debt bombs received while (or since last being) in the app.
+// Polls unseen events every 30s and shows them once; dismiss marks them seen.
+function IncomingEventsPopup({ user }) {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const check = () =>
+      getUnseenNotifications()
+        .then((r) => { if (alive && r.data.notifications.length > 0) setEvents(r.data.notifications); })
+        .catch(() => {});
+    check();
+    const id = setInterval(check, 30000);
+    return () => { alive = false; clearInterval(id); };
+  }, [user]);
+
+  if (!user || events.length === 0) return null;
+
+  function dismiss() {
+    markNotificationsSeen(events.map((e) => e.id)).catch(() => {});
+    setEvents([]);
+  }
+
+  const hasBomb = events.some((e) => e.type === 'debt_bomb');
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div
+        className="relative rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center"
+        style={{
+          background: 'var(--bg-card-alt)',
+          border: `1px solid ${hasBomb ? 'rgba(248,113,113,0.4)' : 'rgba(59,130,246,0.3)'}`,
+        }}
+      >
+        <div className="text-4xl mb-2">{hasBomb ? '💣' : '📣'}</div>
+        <h2 className="text-lg font-bold text-navy-50 mb-4">
+          {hasBomb ? 'You have been bombed with debt!' : 'You have been taunted!'}
+        </h2>
+        <div className="space-y-2 mb-5 max-h-60 overflow-y-auto">
+          {events.map((e) => (
+            <div
+              key={e.id}
+              className="rounded-lg px-3 py-2.5 text-sm text-left text-navy-100"
+              style={{
+                background: 'rgba(15,26,46,0.8)',
+                border: `1px solid ${e.type === 'debt_bomb' ? 'rgba(248,113,113,0.25)' : 'rgba(59,130,246,0.2)'}`,
+              }}
+            >
+              <span className="mr-1.5">{e.type === 'debt_bomb' ? '💣' : '📣'}</span>
+              {e.message}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={dismiss} className="btn-secondary flex-1 py-2.5 text-sm">Dismiss</button>
+          {hasBomb && (
+            <Link href="/pay" onClick={dismiss} className="btn-primary flex-1 py-2.5 text-sm flex items-center justify-center">
+              Pay it off
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -252,6 +320,8 @@ export default function Layout({ children, streak = 0, showIdleModel = false }) 
       <main className="relative z-10 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
+
+      <IncomingEventsPopup user={user} />
     </div>
   );
 }

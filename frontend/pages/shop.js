@@ -137,6 +137,7 @@ export default function Shop() {
   // Buy modal state
   const [buyItem, setBuyItem] = useState(null);
   const [selectedFriend, setSelectedFriend] = useState(null);
+  const [tauntMessage, setTauntMessage] = useState('');
   const [buying, setBuying] = useState(false);
   const [buyResult, setBuyResult] = useState(null);
 
@@ -185,12 +186,14 @@ export default function Shop() {
   function openBuy(item) {
     setBuyItem(item);
     setSelectedFriend(null);
+    setTauntMessage('');
     setBuyResult(null);
   }
 
   function closeBuy() {
     setBuyItem(null);
     setSelectedFriend(null);
+    setTauntMessage('');
     setBuyResult(null);
   }
 
@@ -200,7 +203,7 @@ export default function Shop() {
     setBuying(true);
     setBuyResult(null);
     try {
-      await buyShopItem(buyItem.id, selectedFriend?.username);
+      await buyShopItem(buyItem.id, selectedFriend?.username, buyItem.id === 'taunt' ? tauntMessage.trim() : undefined);
       updateUser({ ...user, coins: (user.coins ?? 0) - buyItem.cost });
       recordPurchase(buyItem);
 
@@ -715,6 +718,21 @@ export default function Shop() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {buyItem.id === 'taunt' && (
+            <div className="mb-5">
+              <label className="label mb-2 block">Your message <span className="text-navy-400 font-normal">(optional)</span></label>
+              <textarea
+                value={tauntMessage}
+                onChange={(e) => setTauntMessage(e.target.value)}
+                maxLength={140}
+                rows={2}
+                placeholder="go pay off your debt."
+                className="input w-full resize-none text-sm"
+              />
+              <p className="text-[11px] text-navy-400 mt-1 text-right">{tauntMessage.length}/140</p>
             </div>
           )}
 

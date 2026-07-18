@@ -19,7 +19,7 @@ const SHOP_ITEMS = [
   {
     id: 'taunt',
     name: 'Taunt',
-    description: "Send a push notification to a friend to remind them they owe debt.",
+    description: "Send a friend a message of your choosing to remind them they owe debt.",
     cost: 10,
     icon: '📣',
     type: 'instant',
@@ -148,25 +148,34 @@ router.post('/buy', auth, async (req, res) => {
         await prisma.debt.create({
           data: { userId: target.id, questId: null, amountOwed: 10, daysOverdue: 1, resolved: false },
         });
-        // Debt is applied at this point — a push failure must not refund the coins.
+        // Debt is applied at this point — a push/notification failure must not
+        // refund the coins.
         const senderName = buyer.username || 'Someone';
-        await sendPushToUser(
-          target.id,
-          '💣 Debt bomb incoming!',
-          `${senderName} just dropped +10 debt on you. Pay it off!`,
-          '/debt'
-        ).catch((err) => console.error('[Shop] debt_bomb push failed:', err.message));
+        const body = `${senderName} just dropped +10 debt on you. Pay it off!`;
+        await prisma.appNotification
+          .create({ data: { userId: target.id, type: 'debt_bomb', message: body, fromUsername: buyer.username } })
+          .catch((err) => console.error('[Shop] debt_bomb notification failed:', err.message));
+        await sendPushToUser(target.id, '💣 Debt bomb incoming!', body, '/debt')
+          .catch((err) => console.error('[Shop] debt_bomb push failed:', err.message));
         return res.json({ message: `Debt bomb dropped on ${targetUsername}!`, coinsSpent: item.cost });
       }
 
       if (itemId === 'taunt') {
         const senderName = buyer.username || 'Someone';
-        await sendPushToUser(
-          target.id,
-          '📣 You got taunted!',
-          `${senderName} says: go pay off your debt.`,
-          '/verify-pushups'
-        );
+        // Optional custom message from the buyer, shown in the push and the
+        // in-app popup. Collapse whitespace and cap length; fall back to the
+        // classic line when blank.
+        const custom = typeof req.body.message === 'string'
+          ? req.body.message.replace(/\s+/g, ' ').trim().slice(0, 140)
+          : '';
+        const body = custom
+          ? `${senderName} says: "${custom}"`
+          : `${senderName} says: go pay off your debt.`;
+        await prisma.appNotification.create({
+          data: { userId: target.id, type: 'taunt', message: body, fromUsername: buyer.username },
+        });
+        await sendPushToUser(target.id, '📣 You got taunted!', body, '/verify-pushups')
+          .catch((err) => console.error('[Shop] taunt push failed:', err.message));
         return res.json({ message: `Taunt sent to ${targetUsername}!`, coinsSpent: item.cost });
       }
 

@@ -249,6 +249,9 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 - Ding sound (`DingSound.mp3`) on each counted rep
 - On submit: `POST /api/sessions` which drains oldest debt first
 
+### In-app taunt / debt-bomb popups (`components/Layout.js` `IncomingEventsPopup`)
+Buying `taunt` (with an optional custom message, ≤140 chars, sent as `message` on `/api/shop/buy`) or `debt_bomb` writes an `AppNotification` row for the target in addition to the push. Every page wrapped in `Layout` polls `GET /api/notifications/unseen` on load and every 30s; unseen events appear as a modal popup ("You have been taunted!" / "You have been bombed with debt!") and are marked seen on dismiss via `POST /api/notifications/seen`. iOS mirrors this in `MainTabView`.
+
 ### Profile page (`/profile`)
 - Avatar initial, username/email header, member since date
 - **Badges section**: 6 streak milestone badges (3, 7, 14, 30, 60, 100 days) — earned state based on `user.maxStreak` (all-time best), not current streak. Locked badges shown dimmed.
@@ -282,6 +285,8 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 | GET | `/api/sessions` | Yes | last 30 sessions + allTimePaid aggregate |
 | GET | `/api/streak` | Yes | current streak; updates user.maxStreak if new best |
 | GET | `/api/leaderboard` | Yes | all users ranked; includes questsCompleted7d + totalQuestsCompleted |
+| GET | `/api/notifications/unseen` | Yes | unseen in-app popup events (taunts, debt bombs) |
+| POST | `/api/notifications/seen` | Yes | mark ids (or all unseen) as seen |
 
 ---
 

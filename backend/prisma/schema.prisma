@@ -45,6 +45,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   deviceTokens       DeviceToken[]
   inventory          UserItem[]
+  appNotifications   AppNotification[]
 }
 
 model Friendship {
@@ -160,6 +161,22 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// In-app popup events (taunts, debt bombs). Written at purchase time so the
+// target sees a popup on their next app open even if the push never lands.
+model AppNotification {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  type         String   // taunt | debt_bomb
+  message      String
+  fromUsername String?
+  seen         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, seen])
 }
 
 // Native iOS APNs device tokens (the web uses PushSubscription/VAPID instead).

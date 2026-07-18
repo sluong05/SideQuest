@@ -111,8 +111,11 @@ export const declineChallenge = (id) => api.patch(`/api/challenges/${id}/decline
 
 // Shop
 export const getShopItems = () => api.get('/api/shop/items');
-export const buyShopItem = (itemId, targetUsername) =>
-  api.post('/api/shop/buy', { itemId, targetUsername });
+// In-app popup notifications (taunts, debt bombs)
+export const getUnseenNotifications = () => api.get('/api/notifications/unseen');
+export const markNotificationsSeen = (ids) => api.post('/api/notifications/seen', { ids });
+export const buyShopItem = (itemId, targetUsername, message) =>
+  api.post('/api/shop/buy', { itemId, targetUsername, ...(message ? { message } : {}) });
 export const getInventory = () => api.get('/api/shop/inventory');
 export const useItem = (itemId, questId) =>
   api.post('/api/shop/use', { itemId, ...(questId !== undefined ? { questId } : {}) });
