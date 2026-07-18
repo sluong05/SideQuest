@@ -243,6 +243,8 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 - **Anti-cheat**: must hold the down position (elbow < 90°) for ≥ 500ms before the rep can be counted — prevents bouncing. A "▼ HOLD…" badge with a fill-progress animation shows during the hold.
 - Back angle < 40° = parallel (required for rep to count)
 - **Orientation check**: wrist must be below the shoulder in the image (`wr.y > sh.y`) for either rep transition — blocks "backwards pushups" done lying on your back pressing hands upward
+- **Shoulder-travel check**: the shoulder must drop ≥15% of torso length from its fully-extended baseline before "down" registers — blocks counting reps by just bending an elbow while the body stays put
+- **Server pace check**: page fetches a signed start token from `POST /api/sessions/start` on load; fitness submissions must include it and the server rejects rep counts exceeding 1.5 reps/sec of elapsed time since the token was issued (elapsed time is computed from the token's `iat`, so it can't be spoofed)
 - Gesture: raise wrist above shoulder for 1.5s → start/stop counting
 - Ding sound (`DingSound.mp3`) on each counted rep
 - On submit: `POST /api/sessions` which drains oldest debt first
@@ -275,7 +277,8 @@ Milestones: 3, 7, 14, 30, 60, 100 days. Shows:
 | DELETE | `/api/quests/:id` | Yes | soft-delete; 5-pushup penalty if incomplete |
 | GET | `/api/debt` | Yes | unresolved debts + totalOwed (soft-deleted quest refs nulled out) |
 | POST | `/api/debt/calculate` | Yes | on-demand debt recalc for user |
-| POST | `/api/sessions` | Yes | log payoff (amount); drains oldest debt first, awards coins (1 per 5 pts repaid + 1 per surplus pt) |
+| POST | `/api/sessions/start` | Yes | issue signed workout-start token for the fitness pace check |
+| POST | `/api/sessions` | Yes | log payoff (amount); fitness requires `sessionToken` + passes pace check; drains oldest debt first, awards coins (1 per 5 pts repaid + 1 per surplus pt) |
 | GET | `/api/sessions` | Yes | last 30 sessions + allTimePaid aggregate |
 | GET | `/api/streak` | Yes | current streak; updates user.maxStreak if new best |
 | GET | `/api/leaderboard` | Yes | all users ranked; includes questsCompleted7d + totalQuestsCompleted |

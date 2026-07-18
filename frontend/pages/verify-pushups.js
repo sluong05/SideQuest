@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { logPayoff, getDebt, getStreak } from '../lib/api';
+import { logPayoff, startPayoffSession, getDebt, getStreak } from '../lib/api';
 import { Icon } from '../components/Icons';
 
 // ─── MediaPipe landmark indices ───────────────────────────────────────────────
@@ -107,6 +107,10 @@ export default function VerifyPushups() {
   const gestureStartRef    = useRef(null);   // timestamp when raise-hand gesture started
   const gestureCooldownRef = useRef(false);  // prevents re-triggering immediately after toggle
 
+  // Server-issued workout start token (backend pace check) + shoulder baseline
+  const sessionTokenRef = useRef(null);
+  const upShoulderYRef  = useRef(null);      // shoulder y while fully up — down requires a real drop
+
   // UI state
   const [reps,            setReps]            = useState(0);
   const [angle,           setAngle]           = useState(null);
@@ -118,6 +122,7 @@ export default function VerifyPushups() {
   const [camError,   setCamError]   = useState('');
   const [submitting,   setSubmitting]   = useState(false);
   const [submitted,    setSubmitted]    = useState(false);
+  const [submitError,  setSubmitError]  = useState('');
   const [totalOwed,    setTotalOwed]    = useState(0);
   const [coinsEarned,  setCoinsEarned]  = useState(0);
   const [streak,     setStreak]     = useState(0);
@@ -127,6 +132,15 @@ export default function VerifyPushups() {
   useEffect(() => {
     if (!authLoading && !user) router.push('/welcome');
   }, [user, authLoading]);
+
+  // Fetch the workout start token as soon as the page opens — the server uses
+  // its timestamp to reject rep counts faster than a human pace.
+  useEffect(() => {
+    if (!user || sessionTokenRef.current) return;
+    startPayoffSession()
+      .then((r) => { sessionTokenRef.current = r.data.sessionToken; })
+      .catch(() => {});
+  }, [user]);
 
   // ── Load debt info ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -292,11 +306,23 @@ export default function VerifyPushups() {
       setBackAngle(null);
     }
 
+    // ── Shoulder must actually travel down (anti "air curl") ────────────────
+    // A real pushup lowers the shoulder by a big fraction of torso length;
+    // bending an elbow while the body stays put does not. Baseline is the
+    // shoulder height while fully up; "down" requires a real drop from it.
+    const SHOULDER_DROP_FRACTION = 0.15;
+    const torsoLen = bSh && bHip ? Math.hypot(bSh.x - bHip.x, bSh.y - bHip.y) : 0;
+    if (stageRef.current === 'up' && deg > 155) upShoulderYRef.current = sh.y;
+    const shoulderDropped =
+      upShoulderYRef.current !== null &&
+      torsoLen > 0 &&
+      sh.y - upShoulderYRef.current >= SHOULDER_DROP_FRACTION * torsoLen;
+
     // ── State machine — only runs when user has pressed Start ────────────────
     const DOWN_HOLD_MS = 500;
 
     if (countingRef.current) {
-      if (deg < 90 && backParallel && handsOnFloor && stageRef.current === 'up') {
+      if (deg < 90 && backParallel && handsOnFloor && shoulderDropped && stageRef.current === 'up') {
         // Start or continue timing the hold in the down position
         if (downSinceRef.current === null) downSinceRef.current = Date.now();
         const held = Date.now() - downSinceRef.current;
@@ -382,6 +408,7 @@ export default function VerifyPushups() {
           setCounting(false);
         } else {
           stageRef.current    = 'up';
+          upShoulderYRef.current = null;
           setStage('up');
           countingRef.current = true;
           setCounting(true);
@@ -504,6 +531,7 @@ if (streamRef.current) {
   function startCounting() {
     stageRef.current    = 'up';
     downSinceRef.current = null;
+    upShoulderYRef.current = null;
     setStage('up');
     setDownHoldProgress(0);
     countingRef.current = true;
@@ -522,8 +550,13 @@ if (streamRef.current) {
     if (reps === 0 || submitting) return;
     stopCounting();
     setSubmitting(true);
+    setSubmitError('');
     try {
-      const res = await logPayoff(reps);
+      if (!sessionTokenRef.current) {
+        // Mount-time fetch failed (e.g. flaky network) — try once more
+        sessionTokenRef.current = (await startPayoffSession()).data.sessionToken;
+      }
+      const res = await logPayoff(reps, 'fitness', sessionTokenRef.current);
       setTotalOwed(res.data.totalOwed);
       const earned = res.data.coinsEarned ?? 0;
       setCoinsEarned(earned);
@@ -537,6 +570,7 @@ if (streamRef.current) {
       setTimeout(() => { setSubmitted(false); setCoinsEarned(0); }, 4000);
     } catch (err) {
       console.error(err);
+      setSubmitError(err.response?.data?.error || 'Could not log reps — try again');
     } finally {
       setSubmitting(false);
     }
@@ -780,6 +814,9 @@ if (streamRef.current) {
                     >
                       {submitting ? 'Logging…' : `Log ${reps}`}
                     </button>
+                  )}
+                  {submitError && (
+                    <span className="text-xs text-red-400 font-medium">{submitError}</span>
                   )}
                 </div>
               )}

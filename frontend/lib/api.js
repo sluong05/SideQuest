@@ -75,8 +75,10 @@ export const getDebt = () => api.get('/api/debt');
 export const recalculateDebt = () => api.post('/api/debt/calculate');
 
 // Payoff sessions — activity: fitness | focus | wellness | chores | custom
-export const logPayoff = (amount, activity = 'fitness') =>
-  api.post('/api/sessions', { amount, activity });
+// Fitness requires a sessionToken from startPayoffSession (server pace check).
+export const startPayoffSession = () => api.post('/api/sessions/start');
+export const logPayoff = (amount, activity = 'fitness', sessionToken) =>
+  api.post('/api/sessions', { amount, activity, sessionToken });
 
 export const getSessions = () => api.get('/api/sessions');
 

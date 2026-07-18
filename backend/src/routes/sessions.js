@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 
@@ -10,6 +11,24 @@ const ACTIVITIES = ['fitness', 'focus', 'wellness', 'chores', 'custom'];
 // server can't trust the reported amount — cap it to stop a tampered client from
 // wiping all debt, minting unlimited coins, or cheating pushup challenges.
 const MAX_SESSION_AMOUNT = 1000;
+
+// Fitness sessions must also pass a pace check: the client fetches a signed
+// start token (below) when the rep counter opens, and the server measures
+// elapsed time from the token's own `iat` — so the start time can't be spoofed.
+// A tampered client can still lie about reps, but only at a human pace over
+// real wall-clock time.
+const FITNESS_MAX_REPS_PER_SEC = 1.5;
+const FITNESS_RATE_BUFFER = 3; // grace reps so a quick legit set isn't rejected
+
+// POST /api/sessions/start — issue a signed token marking when a workout began
+router.post('/start', auth, (req, res) => {
+  const sessionToken = jwt.sign(
+    { userId: req.userId, type: 'payoff-start' },
+    process.env.JWT_SECRET,
+    { expiresIn: '12h' }
+  );
+  return res.status(201).json({ sessionToken });
+});
 
 // POST /api/sessions — log a debt payoff activity and reduce debt
 router.post('/', auth, async (req, res) => {
@@ -24,6 +43,23 @@ router.post('/', auth, async (req, res) => {
     return res.status(400).json({ error: `amount cannot exceed ${MAX_SESSION_AMOUNT} per session` });
   }
   const activityType = ACTIVITIES.includes(activity) ? activity : 'fitness';
+
+  if (activityType === 'fitness') {
+    let start;
+    try {
+      start = jwt.verify(req.body.sessionToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: 'Workout session expired or invalid — reload the pushup page and try again' });
+    }
+    if (start.type !== 'payoff-start' || start.userId !== req.userId) {
+      return res.status(400).json({ error: 'Invalid workout session token' });
+    }
+    const elapsedSec = Math.floor(Date.now() / 1000) - start.iat;
+    const maxReps = elapsedSec * FITNESS_MAX_REPS_PER_SEC + FITNESS_RATE_BUFFER;
+    if (amount > maxReps) {
+      return res.status(400).json({ error: 'That many reps in this little time is not humanly possible — nice try' });
+    }
+  }
 
   try {
     const floored = Math.floor(amount);
