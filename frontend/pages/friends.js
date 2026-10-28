@@ -8,16 +8,21 @@ import {
   getFriends, getFriendRequests, searchUsers,
   sendFriendRequest, acceptFriendRequest, declineFriendRequest,
   removeFriend, createChallenge, getChallenges, acceptChallenge, declineChallenge,
-  getStreak,
+  getStreak, getInviteLink, getChallengeInviteLink,
 } from '../lib/api';
 import { Icon } from '../components/Icons';
+import SocialTabs from '../components/SocialTabs';
+import ShareButton from '../components/ShareButton';
+import { PageMeta, joinUrl } from '../lib/site';
+import { track } from '../lib/analytics';
 
-function Avatar({ username, avatar, size = 10 }) {
+function Avatar({ username, avatar, avatarUrl, size = 10 }) {
   const dim = `w-${size} h-${size}`;
+  const src = avatarUrl || avatar;
   return (
     <div className={`${dim} rounded-full overflow-hidden border border-navy-600 flex-shrink-0`}>
-      {avatar ? (
-        <img src={avatar} alt={username} className="w-full h-full object-cover" />
+      {src ? (
+        <img src={src} alt={username} className="w-full h-full object-cover" loading="lazy" />
       ) : (
         <div className="w-full h-full bg-navy-700 flex items-center justify-center">
           <span className="text-base font-bold text-navy-300">{username[0].toUpperCase()}</span>
@@ -30,9 +35,11 @@ function Avatar({ username, avatar, size = 10 }) {
 const TABS = ['Friends', 'Requests', 'Find'];
 const CHALLENGE_TYPES = [
   { value: 'quests', label: 'Quests completed' },
-  { value: 'pushups', label: 'Debt paid' },
+  { value: 'pushups', label: 'Pushups' },
 ];
 const DURATIONS = [3, 7, 14, 30];
+
+const INVITE_TEXT = 'Join me on SideQuest — we set quests with real deadlines, and if you miss one you owe pushups (or focus time, or chores).';
 
 export default function Friends() {
   const { user, loading: authLoading } = useAuth();
@@ -110,6 +117,8 @@ export default function Friends() {
     try {
       await acceptFriendRequest(id);
       setRequests((prev) => prev.filter((r) => r.id !== id));
+      track('friend_added', { via: 'accept' });
+      loadFriends();
     } catch {}
   }
 
@@ -145,6 +154,7 @@ export default function Friends() {
       setSearchResults((prev) =>
         prev.map((u) => u.username === username ? { ...u, pendingStatus: 'sent', friendshipId } : u)
       );
+      track('friend_added', { via: 'request' });
     } catch {}
   }
 
@@ -155,6 +165,36 @@ export default function Friends() {
         prev.map((u) => u.friendshipId === friendshipId ? { ...u, pendingStatus: null, friendshipId: null } : u)
       );
     } catch {}
+  }
+
+  // ── Invites (people not on SideQuest yet) ─────────────────────────────────
+  async function getInvitePayload() {
+    let url;
+    try {
+      const r = await getInviteLink();
+      url = r.data.url;
+    } catch {
+      url = user?.username ? joinUrl({ ref: user.username }) : joinUrl();
+    }
+    track('invite_sent', { kind: 'friend' });
+    return { title: 'Join me on SideQuest', text: INVITE_TEXT, url };
+  }
+
+  async function getChallengeInvitePayload() {
+    let url;
+    try {
+      const r = await getChallengeInviteLink(challengeType, challengeDuration);
+      url = r.data.url;
+    } catch {
+      url = user?.username ? joinUrl({ ref: user.username, challenge: `${challengeType}-${challengeDuration}` }) : joinUrl();
+    }
+    track('invite_sent', { kind: 'challenge', type: challengeType, durationDays: challengeDuration });
+    const what = challengeType === 'pushups' ? 'pushups' : 'quests completed';
+    return {
+      title: 'SideQuest challenge',
+      text: `I challenge you on SideQuest: most ${what} in ${challengeDuration} days. Loser owes pushups.`,
+      url,
+    };
   }
 
   // ── Challenges section (shown in Friends tab) ─────────────────────────────
@@ -182,6 +222,7 @@ export default function Friends() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
+        <PageMeta title="Friends" description="Add friends on SideQuest, compare streaks and challenge each other." path="/friends" noindex />
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -193,10 +234,20 @@ export default function Friends() {
 
   return (
     <Layout streak={streak}>
+      <PageMeta title="Friends" description="Add friends on SideQuest, compare streaks and challenge each other." path="/friends" noindex />
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-navy-50">Friends</h1>
-          <p className="text-navy-300 text-sm mt-1">Connect, compete, and keep each other accountable.</p>
+        <SocialTabs />
+        <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-navy-50">Friends</h1>
+            <p className="text-navy-300 text-sm mt-1">Connect, compete, and keep each other accountable.</p>
+          </div>
+          <ShareButton
+            getPayload={getInvitePayload}
+            label="Invite friends"
+            eventProps={{ source: 'friends_header', kind: 'invite' }}
+            className="btn-primary text-sm py-2 px-4 flex-shrink-0"
+          />
         </div>
 
         {/* Tabs */}
@@ -222,6 +273,21 @@ export default function Friends() {
         {/* ── Friends Tab ── */}
         {tab === 'Friends' && (
           <div className="space-y-4">
+            {/* Challenge someone not on SideQuest */}
+            <div className="card flex items-center gap-3 flex-wrap" style={{ borderColor: 'rgba(249,115,22,0.25)' }}>
+              <Icon name="swords" className="w-5 h-5 flex-shrink-0" color="#fb923c" />
+              <div className="flex-1 min-w-[180px]">
+                <p className="text-sm font-semibold text-navy-50">Challenge someone not on SideQuest</p>
+                <p className="text-xs text-navy-300">Send a link — the challenge starts when they join.</p>
+              </div>
+              <button
+                onClick={() => { setChallengeModal({ external: true }); setChallengeMsg(null); }}
+                className="btn-secondary text-xs py-1.5 px-3 flex-shrink-0"
+              >
+                Create challenge link
+              </button>
+            </div>
+
             {/* Pending challenges */}
             {pendingChallenges.length > 0 && (
               <div className="card border-blue-700/40 bg-amber-950/10">
@@ -234,7 +300,7 @@ export default function Friends() {
                       <div>
                         <p className="text-sm text-navy-100">
                           <span className="font-semibold">{c.challenger.username}</span> challenged you —{' '}
-                          <span className="text-blue-400">{c.type === 'quests' ? 'most quests' : 'most debt paid'}</span>{' '}
+                          <span className="text-blue-400">{c.type === 'quests' ? 'most quests' : 'most pushups'}</span>{' '}
                           in {c.durationDays} days
                         </p>
                       </div>
@@ -273,7 +339,7 @@ export default function Friends() {
                           </span>
                         </div>
                         <p className="text-xs text-navy-300 mb-2">
-                          {c.type === 'quests' ? 'Most quests completed' : 'Most debt paid'}
+                          {c.type === 'quests' ? 'Most quests completed' : 'Most pushups'}
                         </p>
                         <div className="flex gap-4 text-sm">
                           <span className="text-blue-400 font-bold">You: {c.myScore ?? '—'}</span>
@@ -319,16 +385,26 @@ export default function Friends() {
               <div className="card text-center py-12">
                 <div className="flex justify-center mb-3"><Icon name="users" className="w-8 h-8" color="#475569" /></div>
                 <p className="text-navy-200 font-medium">No friends yet</p>
-                <p className="text-slate-400 text-sm mt-1 mb-4">Find people by username to get started.</p>
-                <button onClick={() => setTab('Find')} className="btn-primary text-sm py-2 px-5">
-                  Find Friends
-                </button>
+                <p className="text-slate-400 text-sm mt-1 mb-4">
+                  SideQuest is better with someone keeping you honest. Invite a friend — you both get bonus coins.
+                </p>
+                <div className="flex gap-2 justify-center flex-wrap">
+                  <ShareButton
+                    getPayload={getInvitePayload}
+                    label="Invite friends"
+                    eventProps={{ source: 'friends_empty', kind: 'invite' }}
+                    className="btn-primary text-sm py-2 px-5"
+                  />
+                  <button onClick={() => setTab('Find')} className="btn-secondary text-sm py-2 px-5">
+                    Find by username
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
                 {friends.map((f) => (
                   <div key={f.id} className="card flex items-center gap-4">
-                    <Avatar username={f.username} avatar={f.avatar} />
+                    <Avatar username={f.username} avatar={f.avatar} avatarUrl={f.avatarUrl} />
                     <div className="flex-1 min-w-0">
                       <Link href={`/u/${f.username}`} className="font-semibold text-navy-50 hover:text-blue-400 transition-colors">
                         {f.username}
@@ -378,7 +454,7 @@ export default function Friends() {
               <div className="space-y-3">
                 {requests.map((r) => (
                   <div key={r.id} className="card flex items-center gap-4">
-                    <Avatar username={r.from.username} avatar={r.from.avatar} />
+                    <Avatar username={r.from.username} avatar={r.from.avatar} avatarUrl={r.from.avatarUrl} />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-navy-50">{r.from.username}</p>
                       <p className="text-xs text-slate-400">{timeAgo(r.createdAt)}</p>
@@ -425,7 +501,7 @@ export default function Friends() {
               <div className="space-y-3">
                 {searchResults.map((u) => (
                   <div key={u.id} className="card flex items-center gap-4">
-                    <Avatar username={u.username} avatar={u.avatar} />
+                    <Avatar username={u.username} avatar={u.avatar} avatarUrl={u.avatarUrl} />
                     <p className="flex-1 font-semibold text-navy-50">{u.username}</p>
                     {u.pendingStatus === 'sent' ? (
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -461,6 +537,15 @@ export default function Friends() {
                 <p className="text-slate-400 text-sm">Type at least 2 characters to search</p>
               </div>
             )}
+            <div className="card text-center py-6 mt-4">
+              <p className="text-sm text-navy-200 mb-3">Friend not on SideQuest yet?</p>
+              <ShareButton
+                getPayload={getInvitePayload}
+                label="Send an invite link"
+                eventProps={{ source: 'friends_find', kind: 'invite' }}
+                className="btn-secondary text-sm py-2 px-5"
+              />
+            </div>
           </div>
         )}
       </div>
@@ -470,8 +555,14 @@ export default function Friends() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChallengeModal(null)} />
           <div className="relative bg-navy-800 border border-navy-600 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-navy-50 mb-1">Challenge {challengeModal.username}</h2>
-            <p className="text-sm text-navy-300 mb-5">First to win based on the metric you pick.</p>
+            <h2 className="text-lg font-bold text-navy-50 mb-1">
+              {challengeModal.external ? 'Challenge someone new' : `Challenge ${challengeModal.username}`}
+            </h2>
+            <p className="text-sm text-navy-300 mb-5">
+              {challengeModal.external
+                ? "Pick the metric and length, then share the link. They'll join as your friend with the challenge waiting."
+                : 'Highest score at the end wins. Pushups count camera-verified reps only.'}
+            </p>
 
             <div className="space-y-4">
               <div>
@@ -526,10 +617,30 @@ export default function Friends() {
                 <button onClick={() => setChallengeModal(null)} className="btn-secondary flex-1 py-2.5 text-sm">
                   Cancel
                 </button>
-                <button onClick={handleSendChallenge} disabled={challengeSending} className="btn-primary flex-1 py-2.5 text-sm">
-                  {challengeSending ? 'Sending…' : 'Send Challenge'}
-                </button>
+                {challengeModal.external ? (
+                  <ShareButton
+                    getPayload={getChallengeInvitePayload}
+                    label="Share challenge link"
+                    eventProps={{ source: 'challenge_composer', kind: 'challenge_invite' }}
+                    className="btn-primary flex-1 py-2.5 text-sm"
+                    icon={false}
+                  />
+                ) : (
+                  <button onClick={handleSendChallenge} disabled={challengeSending} className="btn-primary flex-1 py-2.5 text-sm">
+                    {challengeSending ? 'Sending…' : 'Send Challenge'}
+                  </button>
+                )}
               </div>
+
+              {!challengeModal.external && (
+                <button
+                  type="button"
+                  onClick={() => { setChallengeModal({ external: true }); setChallengeMsg(null); }}
+                  className="w-full text-xs text-blue-400 hover:text-blue-300 pt-1"
+                >
+                  Challenge someone not on SideQuest instead →
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -30,15 +30,30 @@ export default function ActivityFeed() {
             When friends complete quests or pay off debt, it'll show here.
           </p>
           <Link href="/friends" className="inline-block mt-3 text-xs text-blue-400 hover:text-blue-300 transition-colors">
-            Find friends →
+            Invite or find friends →
           </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {feed.map((event, i) => (
             <div key={i} className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center flex-shrink-0 text-sm">
-                {event.type === 'quest_completed' ? <Icon name="checkCircle" className="w-4 h-4" color="#4ade80" /> : <img src="/Bicep.svg" className="w-4 h-4" />}
+              <div className="relative w-7 h-7 flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-navy-700 border border-navy-600 flex items-center justify-center text-sm overflow-hidden">
+                  {event.avatarUrl ? (
+                    <img src={event.avatarUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  ) : event.type === 'quest_completed' ? (
+                    <Icon name="checkCircle" className="w-4 h-4" color="#4ade80" />
+                  ) : (
+                    <img src="/Bicep.svg" alt="" className="w-4 h-4" />
+                  )}
+                </div>
+                {event.avatarUrl && (
+                  <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-800 border border-navy-600 flex items-center justify-center">
+                    {event.type === 'quest_completed'
+                      ? <Icon name="checkCircle" className="w-2.5 h-2.5" color="#4ade80" />
+                      : <img src="/Bicep.svg" alt="" className="w-2.5 h-2.5" />}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-navy-100">
@@ -46,8 +61,8 @@ export default function ActivityFeed() {
                     {event.username}
                   </Link>
                   {event.type === 'quest_completed'
-                    ? <> completed <span className="text-navy-200">"{event.data.questTitle}"</span></>
-                    : <> paid off <span className="text-blue-400 font-semibold">{event.data.amount} pts</span></>
+                    ? <> completed <span className="text-navy-200">"{event.data?.questTitle}"</span></>
+                    : <> paid off <span className="text-blue-400 font-semibold">{event.data?.amount} pts</span></>
                   }
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">{timeAgo(event.timestamp)}</p>

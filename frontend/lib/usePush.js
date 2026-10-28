@@ -13,12 +13,19 @@ export function usePush() {
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [supported, setSupported] = useState(false);
+  // iOS only allows web push from a Home Screen app (iOS 16.4+)
+  const [needsInstall, setNeedsInstall] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const ok = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
     setSupported(ok);
     if (ok) setPermission(Notification.permission);
+
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setNeedsInstall(isIOS && !standalone);
   }, []);
 
   useEffect(() => {
@@ -71,5 +78,8 @@ export function usePush() {
     }
   }
 
-  return { supported, permission, subscribed, loading, subscribe, unsubscribe };
+  // denied: the user blocked notifications — must be re-enabled in browser/OS settings
+  const denied = permission === 'denied';
+
+  return { supported, permission, subscribed, loading, subscribe, unsubscribe, needsInstall, denied };
 }

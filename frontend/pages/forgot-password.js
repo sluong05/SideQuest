@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { forgotPassword } from '../lib/api';
 import { Icon } from '../components/Icons';
+import { PageMeta } from '../lib/site';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -26,6 +27,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen bg-navy-700 flex items-center justify-center p-4">
+      <PageMeta title="Reset your password" description="Reset your SideQuest password." path="/forgot-password" noindex />
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <img src="/sidequest-logo.svg" alt="SideQuest" className="h-12 w-auto mx-auto mb-3" />

@@ -3,10 +3,38 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile } from '../lib/api';
+import { changePassword, setUsername, getStreak, deleteAccount, updateNotifications, updateProfile,
+         updatePushReminders, updatePreferences } from '../lib/api';
 import { useNow } from '../lib/hooks';
 import { usePush } from '../lib/usePush';
 import { Icon } from '../components/Icons';
+import ShareButton from '../components/ShareButton';
+import { PageMeta, SITE_URL } from '../lib/site';
+import { streakShareText, profileShareText, profileLink } from '../lib/share';
+
+const SHARE_MILESTONES = [7, 30, 100];
+
+function Toggle({ checked, onChange, disabled, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={!!checked}
+      aria-label={label}
+      onClick={onChange}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        checked ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+          checked ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  );
+}
 
 const BADGES = [
   { days: 3,   label: 'First Steps',  icon: <Icon name="sprout" className="w-6 h-6" color="#4ade80" /> },
@@ -71,18 +99,6 @@ export default function Profile() {
       setPasswordMsg({ type: 'error', text: 'Password must be at least 8 characters' });
       return;
     }
-    if (!/[a-zA-Z]/.test(newPassword)) {
-      setPasswordMsg({ type: 'error', text: 'Password must contain at least one letter' });
-      return;
-    }
-    if (!/[0-9]/.test(newPassword)) {
-      setPasswordMsg({ type: 'error', text: 'Password must contain at least one number' });
-      return;
-    }
-    if (!/[^a-zA-Z0-9]/.test(newPassword)) {
-      setPasswordMsg({ type: 'error', text: 'Password must contain at least one special character' });
-      return;
-    }
     if (newPassword !== confirmPassword) {
       setPasswordMsg({ type: 'error', text: 'New passwords do not match' });
       return;
@@ -110,7 +126,7 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setBioInput(user.bio || '');
-      setAvatarPreview(user.avatar || null);
+      setAvatarPreview(user.avatarUrl || user.avatar || null);
     }
   }, [user]);
 
@@ -142,7 +158,10 @@ export default function Profile() {
     setProfileSaving(true);
     setProfileMsg(null);
     try {
-      const res = await updateProfile(bioInput, avatarPreview);
+      // Only send the avatar when it was changed locally (a data: URL) — the
+      // stored avatar may be served as an https avatarUrl now.
+      const avatarToSend = avatarPreview && String(avatarPreview).startsWith('data:image/') ? avatarPreview : undefined;
+      const res = await updateProfile(bioInput, avatarToSend);
       updateUser(res.data.user);
       setProfileMsg({ type: 'success', text: 'Profile updated!' });
     } catch (err) {
@@ -157,12 +176,60 @@ export default function Profile() {
 
   // ── Notifications ────────────────────────────────────────────────────────
   const [emailReminders, setEmailReminders] = useState(true);
+  const [pushReminders, setPushReminders] = useState(true);
+  const [allowChaos, setAllowChaos] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
+  const [pushPrefSaving, setPushPrefSaving] = useState(false);
+  const [chaosSaving, setChaosSaving] = useState(false);
   const [notifMsg, setNotifMsg] = useState(null);
 
   useEffect(() => {
-    if (user) setEmailReminders(user.emailReminders ?? true);
+    if (user) {
+      setEmailReminders(user.emailReminders ?? true);
+      setPushReminders(user.pushReminders ?? true);
+      setAllowChaos(user.allowChaos ?? true);
+    }
   }, [user]);
+
+  async function handleTogglePushReminders() {
+    const next = !pushReminders;
+    setPushReminders(next);
+    setPushPrefSaving(true);
+    setNotifMsg(null);
+    try {
+      // Turning push reminders on also needs a device subscription.
+      if (next && push?.supported && !push.subscribed && push.permission !== 'denied') {
+        await push.subscribe?.();
+      }
+      const res = await updatePushReminders(next);
+      if (res?.data?.user) updateUser(res.data.user);
+      else updateUser({ ...user, pushReminders: next });
+      setNotifMsg({ type: 'success', text: next ? 'Push reminders enabled.' : 'Push reminders disabled.' });
+    } catch {
+      setPushReminders(!next);
+      setNotifMsg({ type: 'error', text: 'Failed to save preference.' });
+    } finally {
+      setPushPrefSaving(false);
+    }
+  }
+
+  async function handleToggleChaos() {
+    const next = !allowChaos;
+    setAllowChaos(next);
+    setChaosSaving(true);
+    setNotifMsg(null);
+    try {
+      const res = await updatePreferences({ allowChaos: next });
+      if (res?.data?.user) updateUser(res.data.user);
+      else updateUser({ ...user, allowChaos: next });
+      setNotifMsg({ type: 'success', text: next ? 'Friends can send you Debt Bombs & taunts.' : 'Debt Bombs & taunts from friends are off.' });
+    } catch {
+      setAllowChaos(!next);
+      setNotifMsg({ type: 'error', text: 'Failed to save preference.' });
+    } finally {
+      setChaosSaving(false);
+    }
+  }
 
   async function handleToggleReminders() {
     const next = !emailReminders;
@@ -201,6 +268,7 @@ export default function Profile() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-navy-600 flex items-center justify-center">
+        <PageMeta title="Your profile" description="Manage your SideQuest profile, reminders and account." path="/profile" noindex />
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -208,25 +276,65 @@ export default function Profile() {
 
   return (
     <Layout streak={streak}>
+      <PageMeta title="Your profile" description="Manage your SideQuest profile, reminders and account." path="/profile" noindex />
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
           <Link href="/" className="inline-flex items-center gap-1 text-sm text-navy-200 hover:text-navy-100 mb-2 transition-colors">
             ← Dashboard
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-blue-400">
-                {(user.username || user.email)[0].toUpperCase()}
-              </span>
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-500/20 border border-blue-500/40 flex items-center justify-center flex-shrink-0">
+              {(user.avatarUrl || user.avatar) ? (
+                <img src={user.avatarUrl || user.avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl font-bold text-blue-400">
+                  {(user.username || user.email)[0].toUpperCase()}
+                </span>
+              )}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-navy-50">{user.username || user.email}</h1>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-navy-50 truncate">{user.username || user.email}</h1>
               <p className="text-sm text-navy-300">
                 Member since {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </p>
             </div>
+            {user.username && (
+              <ShareButton
+                text={profileShareText(user.username, streak)}
+                url={profileLink(user.username)}
+                label="Share profile"
+                eventProps={{ source: 'profile_header' }}
+                className="btn-secondary text-xs py-2 px-3 flex-shrink-0"
+              />
+            )}
           </div>
+          {user.username && (
+            <p className="text-xs text-slate-500 mt-2">
+              Public profile: <Link href={`/u/${user.username}`} className="text-blue-400 hover:text-blue-300">{SITE_URL.replace(/^https?:\/\//, '')}/u/{user.username}</Link>
+            </p>
+          )}
         </div>
+
+        {/* Streak milestone share prompt */}
+        {(() => {
+          const hit = [...SHARE_MILESTONES].reverse().find((m) => streak >= m);
+          if (!hit || !user.username) return null;
+          return (
+            <div className="card mb-6 p-4 flex items-center gap-3 flex-wrap" style={{ borderColor: 'rgba(249,115,22,0.35)', background: 'rgba(249,115,22,0.06)' }}>
+              <Icon name="flame" className="w-6 h-6 flex-shrink-0" color="#fb923c" />
+              <div className="flex-1 min-w-[160px]">
+                <p className="text-sm font-semibold text-navy-50">{streak}-day streak — {hit}-day milestone unlocked!</p>
+                <p className="text-xs text-navy-300">Show it off and invite someone to keep up.</p>
+              </div>
+              <ShareButton
+                text={streakShareText(streak)}
+                url={profileLink(user.username)}
+                eventProps={{ source: 'profile_streak', value: hit }}
+                className="btn-primary text-xs py-2 px-3"
+              />
+            </div>
+          );
+        })()}
 
         <div className="space-y-6">
 
@@ -235,7 +343,7 @@ export default function Profile() {
             <p className="text-xs text-navy-200 uppercase tracking-wide font-medium mb-4">Profile</p>
             <div className="flex items-start gap-5">
               {/* Avatar upload */}
-              <label className="flex-shrink-0 cursor-pointer group relative">
+              <label className="flex-shrink-0 cursor-pointer group relative flex flex-col items-center gap-1.5">
                 <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-navy-600 group-hover:border-blue-500/60 transition-colors">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
@@ -247,9 +355,10 @@ export default function Profile() {
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-white text-xs font-semibold">Change</span>
-                </div>
+                {/* Always visible (touch devices have no hover) */}
+                <span className="text-xs font-semibold text-blue-400 group-hover:text-blue-300 px-2 py-0.5 rounded-md" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                  Change photo
+                </span>
                 <input
                   type="file"
                   accept="image/*"
@@ -374,52 +483,76 @@ export default function Profile() {
               <div className="flex-1">
                 <p className="text-sm font-medium text-navy-100">Email reminders</p>
                 <p className="text-xs text-navy-300 mt-0.5">
-                  Get notified when quests are due soon and receive a nightly summary of your debt and progress.
+                  A heads-up before quests are due and a short evening summary.
+                  {user.emailVerified === false && ' Verify your email to receive these.'}
                 </p>
               </div>
-              <button
-                role="switch"
-                aria-checked={emailReminders}
-                onClick={handleToggleReminders}
-                disabled={notifSaving}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                  emailReminders ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
-                } ${notifSaving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
-                    emailReminders ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+              <Toggle checked={emailReminders} onChange={handleToggleReminders} disabled={notifSaving} label="Email reminders" />
             </div>
-            {push.supported && push.permission !== 'denied' && (
+
+            <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-navy-700">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-navy-100">Push reminders</p>
+                <p className="text-xs text-navy-300 mt-0.5">
+                  Reminders on this device (and the iOS app) before deadlines and when your streak is at risk.
+                </p>
+              </div>
+              <Toggle checked={pushReminders} onChange={handleTogglePushReminders} disabled={pushPrefSaving || !!push?.loading} label="Push reminders" />
+            </div>
+
+            {/* This browser's push subscription */}
+            {push?.supported && push.permission !== 'denied' && (
               <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-navy-700">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-navy-100">Push notifications</p>
-                  <p className="text-xs text-navy-300 mt-0.5">
-                    {push.permission === 'denied'
-                      ? 'Blocked by browser — enable in site settings.'
-                      : 'Get alerts even when the tab is closed.'}
-                  </p>
+                  <p className="text-sm font-medium text-navy-100">Notifications in this browser</p>
+                  <p className="text-xs text-navy-300 mt-0.5">Get alerts even when the tab is closed.</p>
                 </div>
-                <button
-                  role="switch"
-                  aria-checked={push.subscribed}
-                  onClick={push.subscribed ? push.unsubscribe : push.subscribe}
-                  disabled={push.loading}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                    push.subscribed ? 'bg-blue-600' : 'bg-navy-600 border border-navy-500'
-                  } ${push.loading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
-                      push.subscribed ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Toggle
+                  checked={!!push.subscribed}
+                  onChange={push.subscribed ? push.unsubscribe : push.subscribe}
+                  disabled={!!push.loading}
+                  label="Browser notifications"
+                />
               </div>
             )}
+
+            {push?.permission === 'denied' && (
+              <div className="mt-4 pt-4 border-t border-navy-700">
+                <div className="rounded-lg px-3 py-3 text-xs text-navy-200" style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.25)' }}>
+                  <p className="font-semibold text-yellow-400 mb-1">Notifications are blocked by your browser</p>
+                  <p>
+                    To turn them back on, open your browser's site settings for {SITE_URL.replace(/^https?:\/\//, '')} (the lock or
+                    "aA" icon next to the address), set Notifications to Allow, then reload this page.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {push?.needsInstall && (
+              <div className="mt-4 pt-4 border-t border-navy-700">
+                <div className="rounded-lg px-3 py-3 flex items-start gap-3" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                  <Icon name="lightbulb" className="w-5 h-5 flex-shrink-0 mt-0.5" color="#60a5fa" />
+                  <div className="text-xs text-navy-200">
+                    <p className="font-semibold text-blue-300 mb-1">Add to Home Screen to get reminders</p>
+                    <p>
+                      On iPhone, web reminders only work from the Home Screen app: tap the Share button in Safari,
+                      choose <span className="font-semibold">Add to Home Screen</span>, then open SideQuest from there and turn on notifications.
+                      Or get the iOS app from the App Store.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-navy-700">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-navy-100">Allow Debt Bombs & taunts from friends</p>
+                <p className="text-xs text-navy-300 mt-0.5">
+                  Friends can spend coins to add a little debt or send you a nudge. Turn off anytime.
+                </p>
+              </div>
+              <Toggle checked={allowChaos} onChange={handleToggleChaos} disabled={chaosSaving} label="Allow Debt Bombs and taunts" />
+            </div>
             {notifMsg && (
               <p className={`text-xs mt-3 ${notifMsg.type === 'error' ? 'text-red-400' : 'text-slate-400'}`}>
                 {notifMsg.text}
@@ -482,11 +615,11 @@ export default function Profile() {
                 <input
                   type="password"
                   className="input"
-                  placeholder="Min. 6 characters"
+                  placeholder="At least 8 characters"
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setPasswordMsg(null); }}
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <div>

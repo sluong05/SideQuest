@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Icon } from '../../components/Icons';
-import { usePayoff, PayoffShell, PayoffResult } from '../../components/PayoffShell';
+import { usePayoff, PayoffShell, PayoffResult, SESSION_CAPS } from '../../components/PayoffShell';
+
+const MAX_PTS = SESSION_CAPS.chores; // server cap per session
 
 const COLOR = { main: '#fb923c', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.35)', glow: 'rgba(249,115,22,0.2)' };
 
@@ -18,7 +20,7 @@ const PRESET_CHORES = [
 ];
 
 export default function ChoresPayoff() {
-  const payoff = usePayoff('chores');
+  const payoff = usePayoff('chores', { autoStart: true });
   const { submitting, result, setResult, submitPoints } = payoff;
 
   const [chores, setChores] = useState(PRESET_CHORES);
@@ -26,7 +28,8 @@ export default function ChoresPayoff() {
   const [customLabel, setCustomLabel] = useState('');
   const [customPts, setCustomPts] = useState(5);
 
-  const total = chores.filter((c) => checked.has(c.id)).reduce((s, c) => s + c.pts, 0);
+  const rawTotal = chores.filter((c) => checked.has(c.id)).reduce((s, c) => s + c.pts, 0);
+  const total = Math.min(rawTotal, MAX_PTS);
 
   function toggle(id) {
     setChecked((prev) => {
@@ -56,7 +59,7 @@ export default function ChoresPayoff() {
       icon="home"
       color={COLOR}
       title="Chore Payoff"
-      subtitle="Check off what you've actually done — honor system."
+      subtitle={`Check off what you've actually done — honor system. Up to ${MAX_PTS} pts per session.`}
     >
       {result ? (
         <PayoffResult result={result} onReset={reset} />
@@ -69,7 +72,8 @@ export default function ChoresPayoff() {
                 <button
                   key={chore.id}
                   onClick={() => toggle(chore.id)}
-                  className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-left transition-all duration-150"
+                  aria-pressed={isChecked}
+                  className="flex items-center gap-3 px-3.5 py-3 min-h-[48px] rounded-xl text-left transition-all duration-150"
                   style={isChecked
                     ? { background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.4)', boxShadow: '0 0 10px rgba(249,115,22,0.12)' }
                     : { background: 'rgba(8,21,37,0.65)', border: '1px solid rgba(59,130,246,0.1)' }
@@ -96,19 +100,22 @@ export default function ChoresPayoff() {
           </div>
 
           {/* Add custom chore */}
-          <div className="flex items-center gap-2 px-4 pb-4">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 px-4 pb-4">
             <input
               type="text"
+              aria-label="Custom chore name"
               value={customLabel}
               onChange={(e) => setCustomLabel(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addCustom()}
               placeholder="Add your own chore…"
-              className="input flex-1 text-sm py-2"
+              enterKeyHint="done"
+              className="input w-full sm:w-auto sm:flex-1 lg:text-sm py-2 min-h-[44px]"
             />
             <select
+              aria-label="Points for custom chore"
               value={customPts}
               onChange={(e) => setCustomPts(Number(e.target.value))}
-              className="text-xs font-semibold rounded-lg px-2 py-2.5 focus:outline-none cursor-pointer flex-shrink-0"
+              className="text-base lg:text-xs font-semibold rounded-lg px-2 min-h-[44px] focus:outline-none cursor-pointer flex-1 sm:flex-none"
               style={{ background: 'rgba(8,21,37,0.95)', border: '1px solid rgba(59,130,246,0.18)', color: '#94a3b8' }}
             >
               {[2, 3, 5, 8, 10, 12, 15].map((p) => <option key={p} value={p}>+{p} pts</option>)}
@@ -116,7 +123,7 @@ export default function ChoresPayoff() {
             <button
               onClick={addCustom}
               disabled={!customLabel.trim()}
-              className="text-xs font-bold px-4 py-2.5 rounded-lg flex-shrink-0 transition-all duration-150 disabled:opacity-40"
+              className="text-xs font-bold px-4 min-h-[44px] rounded-lg flex-1 sm:flex-none transition-all duration-150 disabled:opacity-40"
               style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.35)', color: '#fb923c' }}
             >
               Add
@@ -125,19 +132,21 @@ export default function ChoresPayoff() {
 
           {/* Total bar */}
           <div
-            className="flex items-center justify-between gap-3 px-4 py-3.5"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5"
             style={{ borderTop: '1px solid rgba(59,130,246,0.1)', background: 'rgba(8,15,32,0.6)' }}
           >
             <div className="leading-tight">
-              <p className="text-sm font-bold" style={{ color: total > 0 ? '#f8fafc' : '#475569' }}>
+              <p className="text-sm font-bold" style={{ color: total > 0 ? '#f8fafc' : '#94A3B8' }}>
                 {checked.size} chore{checked.size !== 1 ? 's' : ''} · <span style={{ color: '#fb923c' }}>+{total} pts</span>
               </p>
-              <p className="text-[11px]" style={{ color: '#475569' }}>Only log chores you've genuinely finished.</p>
+              <p className="text-[11px]" style={{ color: '#94A3B8' }}>
+                {rawTotal > MAX_PTS ? `Capped at ${MAX_PTS} pts per session — log the rest later.` : "Only log chores you've genuinely finished."}
+              </p>
             </div>
             <button
               onClick={() => submitPoints(total)}
               disabled={total < 1 || submitting}
-              className="text-sm font-bold text-white px-6 py-2.5 rounded-xl transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-sm font-bold text-white px-6 min-h-[44px] rounded-xl transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ background: 'rgba(37,99,235,0.9)', border: '1px solid rgba(59,130,246,0.55)', boxShadow: total > 0 ? '0 0 14px rgba(37,99,235,0.35)' : 'none' }}
             >
               {submitting ? 'Logging…' : `Pay off ${total} pts`}

@@ -1,0 +1,27 @@
+# SideQuest — https://pushupdebt.com
+# NOTE: the Sitemap URL below is static; update it if NEXT_PUBLIC_SITE_URL changes.
+User-agent: *
+Allow: /$
+Allow: /welcome
+Allow: /u/
+Allow: /join
+Allow: /privacy
+Allow: /terms
+Allow: /signup
+Allow: /login
+Disallow: /quests
+Disallow: /debt
+Disallow: /pay
+Disallow: /verify-pushups
+Disallow: /friends
+Disallow: /leaderboard
+Disallow: /shop
+Disallow: /progress
+Disallow: /profile
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /forgot-password
+Disallow: /offline
+Disallow: /api/
+
+Sitemap: https://pushupdebt.com/sitemap.xml

@@ -7,8 +7,10 @@ export const SELECT_STYLE = {
   border: '1px solid rgba(59,130,246,0.18)',
   color: '#94a3b8',
   borderRadius: 8,
-  padding: '6px 28px 6px 10px',
-  fontSize: 12,
+  padding: '8px 28px 8px 10px',
+  minHeight: 40,
+  // 16px keeps iOS Safari from zooming the page when the select is focused
+  fontSize: 16,
   outline: 'none',
   appearance: 'none',
   WebkitAppearance: 'none',
@@ -25,7 +27,7 @@ export function PanelHeader({ icon, children, color = '#60a5fa', action }) {
         >
           {icon}
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#475569' }}>{children}</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#94A3B8' }}>{children}</p>
       </div>
       {action}
     </div>

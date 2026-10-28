@@ -1,5 +1,8 @@
 import { Html, Head, Main, NextScript } from 'next/document';
+import { SITE_NAME, APP_STORE_ID } from '../lib/site';
 
+// Site-wide tags only. Page-specific title / description / OG / canonical are
+// set per page via <PageMeta> (lib/site.js) so they never duplicate here.
 export default function Document() {
   return (
     <Html lang="en">
@@ -25,28 +28,17 @@ export default function Document() {
         <meta name="apple-mobile-web-app-title" content="SideQuest" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
+        {/* Smart App Banner (Safari on iOS) — only once the App Store id is configured */}
+        {APP_STORE_ID && <meta name="apple-itunes-app" content={`app-id=${APP_STORE_ID}`} />}
+
         {/* Theme */}
         <meta name="theme-color" content="#080F20" />
         <meta name="msapplication-TileColor" content="#080F20" />
 
-        {/* SEO */}
-        <meta name="description" content="Turn your life into side quests. Set goals with deadlines, build debt when you miss them, and pay it back to level up." />
-
-        {/* Open Graph */}
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="SideQuest" />
-        <meta property="og:title" content="SideQuest — Turn Your Life Into Side Quests" />
-        <meta property="og:description" content="Create quests, miss deadlines and owe debt, pay it back, earn XP and level up. Accountability that actually works." />
-        <meta property="og:image" content="https://pushupdebt.com/og-image.png" />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:url" content="https://pushupdebt.com" />
-
-        {/* Twitter / X */}
+        {/* Open Graph / Twitter — site-wide constants */}
+        <meta property="og:site_name" content={SITE_NAME} />
+        <meta property="og:locale" content="en_US" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="SideQuest — Turn Your Life Into Side Quests" />
-        <meta name="twitter:description" content="Create quests, miss deadlines and owe debt, pay it back, earn XP and level up." />
-        <meta name="twitter:image" content="https://pushupdebt.com/og-image.png" />
       </Head>
       <body>
         <Main />

@@ -12,11 +12,12 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 //   use blob:.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://accounts.google.com https://appleid.cdn-apple.com`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
-  `connect-src 'self' ${API_ORIGIN} https://cdn.jsdelivr.net`,
+  `connect-src 'self' ${API_ORIGIN} https://cdn.jsdelivr.net https://accounts.google.com https://appleid.apple.com`,
+  "frame-src https://accounts.google.com https://appleid.apple.com",
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",

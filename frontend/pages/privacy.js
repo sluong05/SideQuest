@@ -1,12 +1,10 @@
 import Link from 'next/link';
-import Head from 'next/head';
+import { PageMeta, SUPPORT_EMAIL } from '../lib/site';
 
 export default function Privacy() {
   return (
     <>
-      <Head>
-        <title>Privacy Policy — SideQuest</title>
-      </Head>
+      <PageMeta title="Privacy Policy" description="How SideQuest collects, uses and protects your data." path="/privacy" />
       <div className="min-h-screen bg-navy-600 text-navy-50">
         <header className="border-b border-blue-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -24,7 +22,7 @@ export default function Privacy() {
           <p className="text-slate-400 text-sm mb-10">Last updated: May 13, 2025</p>
 
           <Section title="1. Who We Are">
-            <p>SideQuest is operated by Steven Luong ("we," "us," or "our"), an individual based in Washington, United States. You can reach us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>SideQuest is operated by Steven Luong ("we," "us," or "our"), an individual based in Washington, United States. You can reach us at <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
           </Section>
 
           <Section title="2. What We Collect">
@@ -59,6 +57,8 @@ export default function Privacy() {
               <li><strong className="text-navy-50">Resend</strong> — used to deliver transactional emails (password reset, reminders). Your email address is passed to Resend solely for this purpose.</li>
               <li><strong className="text-navy-50">Railway</strong> — our backend server and database are hosted on Railway. Your data is stored on Railway's infrastructure.</li>
               <li><strong className="text-navy-50">Vercel</strong> — our frontend is hosted on Vercel.</li>
+              <li><strong className="text-navy-50">PostHog</strong> — if enabled, we send basic product-usage events (for example "signed up" or "created a quest") with a random device identifier to understand how SideQuest is used. We never send quest contents or camera data.</li>
+              <li><strong className="text-navy-50">Sign in with Apple / Google</strong> — if you choose these options, Apple or Google confirms your identity and shares your email address (and optionally your name) with us.</li>
               <li><strong className="text-navy-50">Google CDN (MediaPipe)</strong> — the pushup detection library is loaded from Google's CDN in your browser. No data is sent to Google from this interaction.</li>
             </ul>
           </Section>
@@ -68,7 +68,7 @@ export default function Privacy() {
           </Section>
 
           <Section title="7. Children's Privacy">
-            <p>SideQuest is not directed at children under 13. If we become aware that a child under 13 has created an account, we will delete it promptly. If you believe a child under 13 is using this service, please contact us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>SideQuest is not directed at children under 13. If we become aware that a child under 13 has created an account, we will delete it promptly. If you believe a child under 13 is using this service, please contact us at <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
           </Section>
 
           <Section title="8. Your Rights">
@@ -79,7 +79,7 @@ export default function Privacy() {
               <li>Delete your account and all associated data at any time from your profile settings.</li>
               <li>Opt out of email reminders at any time in your notification settings.</li>
             </ul>
-            <p className="mt-3">To make any other data request, email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p className="mt-3">To make any other data request, email us at <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
           </Section>
 
           <Section title="9. Security">
@@ -91,7 +91,7 @@ export default function Privacy() {
           </Section>
 
           <Section title="11. Contact">
-            <p>Questions about this policy? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>Questions about this policy? Email us at <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
           </Section>
 
           <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-slate-400">

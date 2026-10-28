@@ -20,7 +20,9 @@
   --success:          #22C55E;
   --text-primary:     #F8FAFC;
   --text-muted:       #94A3B8;
-  --text-dim:         #475569;
+  --text-secondary:   #94A3B8; /* readable secondary text (≥4.5:1 on card bg) */
+  --text-dim:         #475569; /* decorative only — never for information */
+  --tabbar-h:         56px;
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────────── */
@@ -153,7 +155,11 @@
     color: var(--text-primary);
     font-size: 14px;
   }
-  .input::placeholder { color: #475569; }
+  /* 16px on touch-size screens so iOS Safari doesn't zoom on focus */
+  @media (max-width: 1023px) {
+    .input { font-size: 16px; }
+  }
+  .input::placeholder { color: #64748b; }
   .input:focus {
     border-color: rgba(59, 130, 246, 0.6);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
@@ -167,17 +173,17 @@
 
   /* ─ Section header ───────────────────────────────────────────────────── */
   .section-label {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #475569;
+    color: var(--text-secondary);
   }
 
   /* ─ Badges ───────────────────────────────────────────────────────────── */
   .badge {
     @apply inline-flex items-center gap-0.5 rounded-full font-bold;
-    font-size: 10px;
+    font-size: 11px;
     padding: 2px 8px;
   }
   .badge-blue   { background: rgba(37,99,235,0.14);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.28); }
@@ -224,19 +230,106 @@
     background: rgba(8, 21, 37, 0.65);
     border: 1px solid rgba(59, 130, 246, 0.1);
   }
-  .quest-row:hover {
-    background: rgba(11, 27, 45, 0.95);
-    border-color: rgba(59, 130, 246, 0.3);
-    box-shadow: 0 0 16px rgba(37, 99, 235, 0.1);
+  @media (hover: hover) {
+    .quest-row:hover {
+      background: rgba(11, 27, 45, 0.95);
+      border-color: rgba(59, 130, 246, 0.3);
+      box-shadow: 0 0 16px rgba(37, 99, 235, 0.1);
+    }
   }
   .quest-row.overdue {
     background: rgba(239, 68, 68, 0.04);
     border-color: rgba(239, 68, 68, 0.2);
   }
-  .quest-row.overdue:hover {
-    box-shadow: 0 0 14px rgba(239, 68, 68, 0.1);
+  @media (hover: hover) {
+    .quest-row.overdue:hover {
+      box-shadow: 0 0 14px rgba(239, 68, 68, 0.1);
+    }
   }
   .quest-row.completed {
     opacity: 0.5;
+  }
+
+  /* ─ Quest card (quests page) — hover only on real pointers ──────────── */
+  .sq-quest-card {
+    background: rgba(8, 21, 37, 0.65);
+    border: 1px solid rgba(59, 130, 246, 0.12);
+  }
+  .sq-quest-card.is-overdue {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.22);
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.09), inset 0 0 28px rgba(239, 68, 68, 0.03);
+  }
+  .sq-quest-card.is-completed {
+    background: rgba(8, 21, 37, 0.35);
+    border-color: rgba(34, 197, 94, 0.1);
+  }
+  .sq-check { border: 1.5px solid rgba(71, 85, 105, 0.55); }
+  @media (hover: hover) {
+    .sq-quest-card:not(.is-overdue):not(.is-completed):hover {
+      background: rgba(11, 27, 45, 0.95);
+      border-color: rgba(37, 99, 235, 0.38);
+      box-shadow: 0 0 18px rgba(37, 99, 235, 0.13), inset 0 0 28px rgba(37, 99, 235, 0.04);
+    }
+    .sq-quest-card:not(.is-completed):hover .sq-check { border-color: rgba(96, 165, 250, 0.6); }
+  }
+
+  /* ─ Row buttons ───────────────────────────────────────────────────────── */
+  .sq-row-btn {
+    background: rgba(8, 21, 37, 0.8);
+    border: 1px solid rgba(59, 130, 246, 0.14);
+    color: #94a3b8;
+  }
+  .sq-btn-blue {
+    color: #fff;
+    background: rgba(37, 99, 235, 0.88);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+  }
+  .sq-btn-blue:disabled { background: rgba(37, 99, 235, 0.4); box-shadow: none; }
+  .sq-link-muted { color: #94a3b8; }
+  .sq-nav-link { color: #94a3b8; }
+  /* payoff method cards — set --m-border-hover / --m-glow inline */
+  .sq-method-card {
+    background: var(--m-bg-base, rgba(13, 31, 56, 0.5));
+    border: 1px solid var(--m-border-base, rgba(59, 130, 246, 0.12));
+  }
+  @media (hover: hover) {
+    .sq-row-btn:hover:not(:disabled) { color: #60a5fa; border-color: rgba(59, 130, 246, 0.4); }
+    .sq-row-btn-danger:hover:not(:disabled) { color: #f87171; border-color: rgba(239, 68, 68, 0.35); }
+    .sq-btn-blue:hover:not(:disabled) { background: #2563eb; box-shadow: 0 0 18px rgba(37, 99, 235, 0.55); }
+    .sq-link-muted:hover { color: #e2e8f0; }
+    .sq-nav-link:hover { color: #e2e8f0; }
+    .sq-method-card:hover {
+      border-color: var(--m-border-hover, rgba(59, 130, 246, 0.4));
+      box-shadow: 0 0 16px var(--m-glow, rgba(37, 99, 235, 0.15));
+      background: var(--m-bg-hover, var(--m-bg-base, rgba(13, 31, 56, 0.5)));
+    }
+  }
+
+  /* ─ Mobile shell ─────────────────────────────────────────────────────── */
+  /* main content clears the fixed bottom tab bar below lg */
+  .main-with-tabbar {
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
+  }
+  @media (min-width: 1024px) {
+    .main-with-tabbar { padding-bottom: 24px; }
+  }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  /* sticky sheet footers: at least 16px, more on notched phones */
+  .sheet-footer { padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+  @media (min-width: 640px) {
+    .sheet-footer { padding-bottom: 16px; }
+  }
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* static background used instead of WebGL on mobile / reduced motion */
+  .sq-static-bg {
+    background:
+      radial-gradient(ellipse 80% 50% at 15% 0%, rgba(37, 99, 235, 0.16), transparent 70%),
+      radial-gradient(ellipse 70% 45% at 95% 30%, rgba(29, 78, 216, 0.12), transparent 70%),
+      radial-gradient(ellipse 90% 50% at 50% 110%, rgba(37, 99, 235, 0.10), transparent 70%),
+      var(--bg-page);
   }
 }

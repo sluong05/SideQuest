@@ -26,12 +26,25 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
-  function loginUser(token) {
+  // loginUser(token) — existing callers. Optional opts:
+  //   user:     user object from the auth response (shown immediately; /me
+  //             refresh still runs to pick up the full shape)
+  //   redirect: where to go afterwards (default '/'; false = stay)
+  function loginUser(token, opts = {}) {
+    const { user: initialUser, redirect = '/' } = opts || {};
     localStorage.setItem('token', token);
+    if (initialUser) setUser(initialUser);
     getMe()
       .then((res) => setUser(res.data.user))
       .catch(() => {});
-    router.push('/');
+    if (redirect) router.push(redirect);
+  }
+
+  // Re-fetch /api/auth/me (e.g. after settings changes).
+  function refreshUser() {
+    return getMe()
+      .then((res) => { setUser(res.data.user); return res.data.user; })
+      .catch(() => null);
   }
 
   function updateUser(userData) {
@@ -45,7 +58,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, logoutUser, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, loginUser, logoutUser, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

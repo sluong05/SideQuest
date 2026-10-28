@@ -4,10 +4,13 @@ import { useRouter } from 'next/router';
 import { login } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import ParticleBackground from '../components/ParticleBackground';
+import OAuthButtons from '../components/OAuthButtons';
+import { PageMeta } from '../lib/site';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, loginUser } = useAuth();
@@ -35,16 +38,25 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-navy-600 relative overflow-hidden flex items-center justify-center p-4">
+      <PageMeta
+        title="Sign in"
+        description="Sign in to SideQuest to check today's quests, your streak and any debt you owe."
+        path="/login"
+      />
       <ParticleBackground />
       <div className="relative z-10 w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
           <img src="/sidequest-logo.svg" alt="SideQuest" className="h-12 w-auto mx-auto mb-3" />
-          <p className="text-navy-200 text-sm mt-1">Turn procrastination into gains</p>
+          <p className="text-navy-200 text-sm mt-1">Welcome back, questor</p>
         </div>
 
         <div className="card">
           <h2 className="text-lg font-bold text-navy-50 mb-6">Sign In</h2>
+
+          <div className="mb-4">
+            <OAuthButtons mode="login" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -55,6 +67,8 @@ export default function Login() {
                 placeholder="username or you@example.com"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
+                autoCapitalize="none"
                 autoFocus
                 required
               />
@@ -62,14 +76,25 @@ export default function Login() {
 
             <div>
               <label className="label">Password</label>
-              <input
-                type="password"
-                className="input"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="input pr-16"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-navy-300 hover:text-navy-100 px-2 py-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -86,7 +111,7 @@ export default function Login() {
           <div className="mt-6 space-y-2 text-center text-sm">
             <p className="text-navy-200">
               No account?{' '}
-              <Link href="/signup" className="text-blue-400 hover:text-blue-300 font-medium">
+              <Link href={{ pathname: '/signup', query: router.query?.ref ? { ref: router.query.ref, ...(router.query.challenge ? { challenge: router.query.challenge } : {}) } : {} }} className="text-blue-400 hover:text-blue-300 font-medium">
                 Sign up
               </Link>
             </p>

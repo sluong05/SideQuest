@@ -1,12 +1,10 @@
 import Link from 'next/link';
-import Head from 'next/head';
+import { PageMeta, SUPPORT_EMAIL } from '../lib/site';
 
 export default function Terms() {
   return (
     <>
-      <Head>
-        <title>Terms of Service — SideQuest</title>
-      </Head>
+      <PageMeta title="Terms of Service" description="The terms that govern your use of SideQuest." path="/terms" />
       <div className="min-h-screen bg-navy-600 text-navy-50">
         <header className="border-b border-blue-500/20 bg-navy-800/80 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -96,7 +94,7 @@ export default function Terms() {
           </Section>
 
           <Section title="16. Contact">
-            <p>Questions about these Terms? Email us at <a href="mailto:stevenluong05@gmail.com" className="text-blue-400 hover:underline">stevenluong05@gmail.com</a>.</p>
+            <p>Questions about these Terms? Email us at <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:underline">{SUPPORT_EMAIL}</a>.</p>
           </Section>
 
           <div className="mt-10 pt-6 border-t border-navy-500 flex gap-6 text-sm text-slate-400">

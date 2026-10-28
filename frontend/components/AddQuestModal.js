@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { createQuest } from '../lib/api';
 import { Icon, CategoryIcon } from './Icons';
 import { CATEGORY_COLORS } from '../lib/questMeta';
+import { useSheetBehavior, isCoarsePointer, SheetCloseButton, SheetHandle, FREE_EDIT_MINUTES } from './SheetModal';
+
+// Server caps chargeable overdue days per quest (DEBT_MAX_DAYS)
+const MAX_DEBT_DAYS = 7;
 
 const CATEGORIES = [
   { value: 'fitness',      label: 'Fitness'      },
@@ -72,9 +76,9 @@ function QuestPreview({ title, description, category, difficulty, dueDate, dueTi
       <div>
         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Debt Breakdown Preview</h4>
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(239,68,68,0.2)' }}>
-          {[1, 3, 7].map((days) => (
-            <div key={days} className="flex items-center justify-between px-3 py-2" style={{ borderBottom: days < 7 ? '1px solid rgba(239,68,68,0.1)' : 'none', background: 'rgba(239,68,68,0.04)' }}>
-              <span className="text-xs text-slate-400">Day {days} overdue</span>
+          {[1, 3, MAX_DEBT_DAYS].map((days) => (
+            <div key={days} className="flex items-center justify-between px-3 py-2" style={{ borderBottom: days < MAX_DEBT_DAYS ? '1px solid rgba(239,68,68,0.1)' : 'none', background: 'rgba(239,68,68,0.04)' }}>
+              <span className="text-xs text-slate-400">Day {days} overdue{days === MAX_DEBT_DAYS ? ' (max)' : ''}</span>
               <span className="text-xs font-bold text-red-400">
                 {debtAmount * days} pts
               </span>
@@ -117,12 +121,16 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
   const [debtAmount, setDebtAmount] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // Don't pop the on-screen keyboard over the sheet on touch devices
+  const [autoFocusTitle] = useState(() => !isCoarsePointer());
 
-  const selectedDiff = DIFFICULTIES.find((d) => d.value === difficulty);
+  useSheetBehavior(onClose);
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!title.trim()) { setError('Quest title is required'); return; }
+    const penalty = Math.round(Number(debtAmount));
+    if (!Number.isFinite(penalty) || penalty < 1 || penalty > 999) { setError('Penalty must be between 1 and 999 pts'); return; }
     setLoading(true);
     setError('');
     try {
@@ -130,10 +138,11 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
       const [hours, minutes] = dueTime.split(':').map(Number);
       const dueDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
       const res = await createQuest(title.trim(), dueDateTime.toISOString(), recurrence, {
-        category, difficulty, debtType: 'custom', debtAmount: Number(debtAmount),
+        category, difficulty, debtType: 'custom', debtAmount: penalty,
         description: description.trim(),
       });
-      onQuestAdded(res.data.quest);
+      // `warning` = soft debt lockout notice (quest is still created)
+      onQuestAdded(res.data.quest, res.data.warning);
       onClose();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create quest');
@@ -143,29 +152,34 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div
-        className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-quest-title"
+        className="w-full max-w-4xl max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
         style={{ background: '#080F20', border: '1px solid rgba(59,130,246,0.25)' }}
       >
+        <SheetHandle />
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(59,130,246,0.12)' }}>
-          <div>
-            <h2 className="text-lg font-bold text-navy-50">Create Quest</h2>
+        <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-3 sm:py-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(59,130,246,0.12)' }}>
+          <div className="min-w-0">
+            <h2 id="add-quest-title" className="text-lg font-bold text-navy-50">Create Quest</h2>
             <p className="text-xs text-slate-400 mt-0.5">Set a challenge and define the debt if you miss it.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-navy-200 transition-colors p-1">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <SheetCloseButton onClose={onClose} label="Close create quest" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2">
-          {/* Left: Form */}
-          <div className="p-6" style={{ borderRight: '1px solid rgba(59,130,246,0.1)' }}>
-            <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4">Quest Details</p>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Scrollable body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="grid grid-cols-1 lg:grid-cols-2">
+            {/* Left: Form */}
+            <div className="p-5 sm:p-6 lg:border-r" style={{ borderColor: 'rgba(59,130,246,0.1)' }}>
+              <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4">Quest Details</p>
+              <form id="add-quest-form" onSubmit={handleSubmit} className="space-y-4">
               {/* Title */}
               <div>
                 <label className="label">Quest Title</label>
@@ -175,7 +189,8 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                   placeholder="e.g. Complete 30 minutes of focused study"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  autoFocus
+                  autoFocus={autoFocusTitle}
+                  enterKeyHint="next"
                   maxLength={200}
                 />
               </div>
@@ -206,7 +221,8 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                         key={cat.value}
                         type="button"
                         onClick={() => setCategory(cat.value)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all"
+                        aria-pressed={active}
+                        className="flex items-center gap-1 px-3 min-h-[40px] rounded-lg text-xs font-medium transition-all"
                         style={{
                           background: active ? 'rgba(59,130,246,0.2)' : 'rgba(13,31,56,0.8)',
                           border: `1px solid ${active ? 'rgba(59,130,246,0.6)' : 'rgba(59,130,246,0.12)'}`,
@@ -231,7 +247,8 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                         key={diff.value}
                         type="button"
                         onClick={() => setDifficulty(diff.value)}
-                        className="py-2 rounded-lg text-xs font-semibold transition-all"
+                        aria-pressed={active}
+                        className="py-2 min-h-[44px] rounded-lg text-xs font-semibold transition-all"
                         style={{
                           background: active ? diff.activeBg : 'rgba(13,31,56,0.8)',
                           border: `1px solid ${active ? diff.activeBorder : 'rgba(59,130,246,0.12)'}`,
@@ -239,7 +256,7 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                         }}
                       >
                         {diff.label}
-                        <span className="block text-[10px] mt-0.5 opacity-70">+{diff.xp} XP</span>
+                        <span className="block text-[11px] mt-0.5 opacity-80">+{diff.xp} XP</span>
                       </button>
                     );
                   })}
@@ -251,7 +268,7 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                 <label className="label">Due Date &amp; Time</label>
                 <div className="flex gap-2">
                   <input type="date" className="input flex-1" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-                  <input type="time" className="input w-28" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
+                  <input type="time" className="input w-32 sm:w-28" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
                 </div>
               </div>
 
@@ -266,7 +283,8 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
                         key={opt.value}
                         type="button"
                         onClick={() => setRecurrence(opt.value)}
-                        className="py-2 rounded-lg text-xs font-medium transition-all"
+                        aria-pressed={active}
+                        className="py-2 min-h-[44px] rounded-lg text-xs font-medium transition-all"
                         style={{
                           background: active ? 'rgba(59,130,246,0.15)' : 'rgba(13,31,56,0.8)',
                           border: `1px solid ${active ? 'rgba(59,130,246,0.5)' : 'rgba(59,130,246,0.12)'}`,
@@ -283,54 +301,63 @@ export default function AddQuestModal({ onClose, onQuestAdded }) {
               {/* IF I FAIL */}
               <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)' }}>
                 <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1"><Icon name="alert" className="w-3 h-3 inline -mt-0.5 mr-1" color="#f87171" />If I fail this quest, I owe…</p>
-                <p className="text-[11px] mb-3" style={{ color: '#64748b' }}>
-                  You can choose how to pay it off (pushups, study, walk, etc.) when paying your debt.
+                <p className="text-[11px] mb-3" style={{ color: '#94a3b8' }}>
+                  You choose how to pay it off later (pushups, focus, a walk, chores…).
                 </p>
                 <div className="flex items-center gap-2">
                   <input
+                    id="quest-penalty"
                     type="number"
+                    inputMode="numeric"
                     min={1}
                     max={999}
                     className="input w-20 text-center"
                     value={debtAmount}
                     onChange={(e) => setDebtAmount(e.target.value)}
+                    aria-describedby="quest-penalty-help"
                   />
-                  <span className="text-xs" style={{ color: '#94a3b8' }}>
-                    debt points per overdue day
-                  </span>
+                  <label htmlFor="quest-penalty" className="text-xs" style={{ color: '#94a3b8' }}>
+                    pts per overdue day
+                  </label>
                 </div>
+                <p id="quest-penalty-help" className="text-[11px] mt-2" style={{ color: '#94a3b8' }}>
+                  Penalty if missed: <span className="font-bold text-red-400">{Number(debtAmount) || 0} pts</span> per overdue day (max {MAX_DEBT_DAYS} days).
+                  {' '}Free to delete for {FREE_EDIT_MINUTES} min after creating.
+                </p>
               </div>
 
               {error && (
-                <p className="text-xs text-red-400 px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <p role="alert" className="text-xs text-red-400 px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
                   {error}
                 </p>
               )}
+              </form>
+            </div>
 
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={onClose} className="btn-secondary flex-1" disabled={loading}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary flex-1" disabled={loading}>
-                  {loading ? 'Creating…' : <span className="flex items-center justify-center gap-2"><Icon name="swords" className="w-4 h-4" color="currentColor" /> Save Quest</span>}
-                </button>
-              </div>
-            </form>
+            {/* Right: Preview (desktop only) */}
+            <div className="hidden lg:block p-6" style={{ background: 'rgba(4,10,20,0.5)' }}>
+              <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4">Quest Preview</p>
+              <QuestPreview
+                title={title}
+                description={description}
+                category={category}
+                difficulty={difficulty}
+                dueDate={dueDate}
+                dueTime={dueTime}
+                debtAmount={Number(debtAmount) || 0}
+              />
+            </div>
           </div>
+        </div>
 
-          {/* Right: Preview */}
-          <div className="p-6" style={{ background: 'rgba(4,10,20,0.5)' }}>
-            <p className="text-xs font-semibold text-blue-400 uppercase tracking-widest mb-4">Quest Preview</p>
-            <QuestPreview
-              title={title}
-              description={description}
-              category={category}
-              difficulty={difficulty}
-              dueDate={dueDate}
-              dueTime={dueTime}
-              debtAmount={Number(debtAmount)}
-            />
-          </div>
+        {/* Sticky footer */}
+        <div className="sheet-footer flex gap-3 px-5 sm:px-6 pt-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(59,130,246,0.12)', background: '#080F20' }}>
+          <button type="button" onClick={onClose} className="btn-secondary flex-1 min-h-[44px]" disabled={loading}>
+            Cancel
+          </button>
+          <button type="submit" form="add-quest-form" className="btn-primary flex-1 min-h-[44px]" disabled={loading}>
+            {loading ? 'Creating…' : <span className="flex items-center justify-center gap-2"><Icon name="swords" className="w-4 h-4" color="currentColor" /> Save Quest</span>}
+          </button>
         </div>
       </div>
     </div>

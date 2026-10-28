@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Icon } from '../../components/Icons';
-import { usePayoff, PayoffShell, PayoffResult, formatClock } from '../../components/PayoffShell';
+import { usePayoff, PayoffShell, PayoffResult, formatClock, SESSION_CAPS } from '../../components/PayoffShell';
+
+const MAX_PTS = SESSION_CAPS.wellness; // server cap per session
 
 const COLOR = { main: '#4ade80', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.35)', glow: 'rgba(34,197,94,0.2)' };
 const PTS_PER_MIN = 1;
@@ -22,26 +24,67 @@ const MODES = [
 
 export default function WellnessPayoff() {
   const payoff = usePayoff('wellness');
-  const { submitting, result, setResult, submitPoints } = payoff;
+  const { submitting, result, setResult, submitPoints, beginSession } = payoff;
 
   const [mode, setMode] = useState(MODES[0]);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [starting, setStarting] = useState(false);
+  // Wall-clock timing (correct after backgrounding / screen lock)
+  const runStartRef = useRef(null);  // Date.now() when the current run segment began
+  const bankedRef = useRef(0);       // ms accumulated in previous segments
 
-  const earned = Math.floor(elapsed / 60) * PTS_PER_MIN;
+  const earned = Math.min(MAX_PTS, Math.floor(elapsed / 60) * PTS_PER_MIN);
+  const capped = Math.floor(elapsed / 60) * PTS_PER_MIN >= MAX_PTS;
 
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
-    return () => clearInterval(id);
+    function tick() {
+      setElapsed(Math.floor((bankedRef.current + Date.now() - runStartRef.current) / 1000));
+    }
+    tick();
+    const id = setInterval(tick, 500);
+    document.addEventListener('visibilitychange', tick);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); };
   }, [running]);
+
+  async function start() {
+    if (starting) return;
+    setStarting(true);
+    const token = await beginSession();
+    setStarting(false);
+    if (!token) return;
+    bankedRef.current = 0;
+    runStartRef.current = Date.now();
+    setElapsed(0);
+    setStarted(true);
+    setRunning(true);
+  }
+
+  function pause() {
+    bankedRef.current += Date.now() - runStartRef.current;
+    setElapsed(Math.floor(bankedRef.current / 1000));
+    setRunning(false);
+  }
+
+  function resume() {
+    runStartRef.current = Date.now();
+    setRunning(true);
+  }
+
+  function finish() {
+    if (running) pause();
+    setEnded(true);
+  }
 
   function reset() {
     setRunning(false);
     setStarted(false);
     setEnded(false);
+    bankedRef.current = 0;
+    runStartRef.current = null;
     setElapsed(0);
     setResult(null);
   }
@@ -56,7 +99,7 @@ export default function WellnessPayoff() {
       icon="heart"
       color={COLOR}
       title="Wellness Session"
-      subtitle={`Breathe, stretch, or walk it off — ${PTS_PER_MIN} pt per minute.`}
+      subtitle={`Breathe, stretch, or walk it off — ${PTS_PER_MIN} pt per minute, up to ${MAX_PTS} pts per session.`}
     >
       {result ? (
         <PayoffResult result={result} onReset={reset} />
@@ -64,19 +107,20 @@ export default function WellnessPayoff() {
         <div className="card flex flex-col items-center py-8">
 
           {/* Mode picker */}
-          <div className="flex items-center gap-2 mb-7">
+          <div className="flex items-center gap-2 mb-7 flex-wrap justify-center">
             {MODES.map((m) => (
               <button
                 key={m.id}
                 onClick={() => !started && setMode(m)}
                 disabled={started}
-                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-150 disabled:cursor-not-allowed"
+                aria-pressed={mode.id === m.id}
+                className="flex items-center gap-1.5 px-4 min-h-[44px] text-xs font-bold rounded-lg transition-all duration-150 disabled:cursor-not-allowed"
                 style={mode.id === m.id
                   ? { background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.45)', color: '#4ade80', boxShadow: '0 0 10px rgba(34,197,94,0.2)' }
-                  : { background: 'rgba(8,21,37,0.7)', border: '1px solid rgba(59,130,246,0.12)', color: '#64748b', opacity: started ? 0.5 : 1 }
+                  : { background: 'rgba(8,21,37,0.7)', border: '1px solid rgba(59,130,246,0.12)', color: '#94A3B8', opacity: started ? 0.5 : 1 }
                 }
               >
-                <Icon name={m.icon} className="w-3.5 h-3.5" color={mode.id === m.id ? '#4ade80' : '#64748b'} />
+                <Icon name={m.icon} className="w-3.5 h-3.5" color={mode.id === m.id ? '#4ade80' : '#94A3B8'} />
                 {m.label}
               </button>
             ))}
@@ -98,37 +142,39 @@ export default function WellnessPayoff() {
             />
             <div className="relative flex flex-col items-center">
               <span className="text-4xl font-bold tabular-nums" style={{ color: '#f8fafc' }}>{formatClock(elapsed)}</span>
-              <span className="text-xs mt-1 font-semibold" style={{ color: started ? '#4ade80' : '#475569' }}>
+              <span className="text-xs mt-1 font-semibold" style={{ color: started ? '#4ade80' : '#94A3B8' }}>
                 {!started ? 'ready when you are' : mode.id === 'breathe' && running ? breathText : `+${earned} pts earned`}
               </span>
+              {capped && <span className="text-[11px] mt-0.5" style={{ color: '#94A3B8' }}>session max reached</span>}
             </div>
           </div>
 
           {/* Controls */}
           {!ended ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-center">
               {!started ? (
                 <button
-                  onClick={() => { setStarted(true); setRunning(true); }}
-                  className="flex items-center gap-2 text-sm font-bold text-white px-7 py-2.5 rounded-xl transition-all duration-150"
+                  onClick={start}
+                  disabled={starting}
+                  className="flex items-center gap-2 text-sm font-bold text-white px-7 min-h-[44px] rounded-xl transition-all duration-150 disabled:opacity-60"
                   style={{ background: 'rgba(34,197,94,0.85)', border: '1px solid rgba(34,197,94,0.5)', boxShadow: '0 0 14px rgba(34,197,94,0.35)' }}
                 >
                   <Icon name="play" className="w-4 h-4" color="#fff" />
-                  Start {mode.label}
+                  {starting ? 'Starting…' : `Start ${mode.label}`}
                 </button>
               ) : (
                 <>
                   <button
-                    onClick={() => setRunning((v) => !v)}
-                    className="flex items-center gap-2 text-sm font-bold text-white px-6 py-2.5 rounded-xl transition-all duration-150"
+                    onClick={running ? pause : resume}
+                    className="flex items-center gap-2 text-sm font-bold text-white px-6 min-h-[44px] rounded-xl transition-all duration-150"
                     style={{ background: 'rgba(34,197,94,0.85)', border: '1px solid rgba(34,197,94,0.5)', boxShadow: '0 0 14px rgba(34,197,94,0.35)' }}
                   >
                     <Icon name={running ? 'pause' : 'play'} className="w-4 h-4" color="#fff" />
                     {running ? 'Pause' : 'Resume'}
                   </button>
                   <button
-                    onClick={() => { setRunning(false); setEnded(true); }}
-                    className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-150"
+                    onClick={finish}
+                    className="flex items-center gap-2 text-sm font-semibold px-5 min-h-[44px] rounded-xl transition-all duration-150"
                     style={{ background: 'rgba(8,21,37,0.8)', border: '1px solid rgba(59,130,246,0.15)', color: '#94a3b8' }}
                   >
                     <Icon name="stop" className="w-4 h-4" color="#94a3b8" />
@@ -145,7 +191,7 @@ export default function WellnessPayoff() {
               <button
                 onClick={() => submitPoints(earned)}
                 disabled={submitting}
-                className="text-sm font-bold text-white px-7 py-2.5 rounded-xl transition-all duration-150 disabled:opacity-60"
+                className="text-sm font-bold text-white px-7 min-h-[44px] rounded-xl transition-all duration-150 disabled:opacity-60"
                 style={{ background: 'rgba(37,99,235,0.9)', border: '1px solid rgba(59,130,246,0.55)', boxShadow: '0 0 14px rgba(37,99,235,0.35)' }}
               >
                 {submitting ? 'Logging…' : `Pay off ${earned} pts`}
@@ -154,17 +200,17 @@ export default function WellnessPayoff() {
           ) : (
             <div className="flex flex-col items-center">
               <p className="text-sm mb-4" style={{ color: '#94a3b8' }}>Keep going for at least 1 minute to earn points.</p>
-              <button onClick={reset} className="btn-secondary text-sm py-2 px-5">Start Over</button>
+              <button onClick={reset} className="btn-secondary text-sm min-h-[44px] px-5">Start Over</button>
             </div>
           )}
 
           {/* Tips */}
           {!ended && (
             <div className="w-full max-w-sm mt-7 rounded-xl p-4" style={{ background: 'rgba(8,21,37,0.6)', border: '1px solid rgba(34,197,94,0.12)' }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#475569' }}>{mode.label} tips</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: '#94A3B8' }}>{mode.label} tips</p>
               <ul className="space-y-1.5">
                 {mode.tips.map((tip) => (
-                  <li key={tip} className="flex items-start gap-2 text-xs" style={{ color: '#64748b' }}>
+                  <li key={tip} className="flex items-start gap-2 text-xs" style={{ color: '#94A3B8' }}>
                     <span className="w-1 h-1 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#4ade80' }} />
                     {tip}
                   </li>

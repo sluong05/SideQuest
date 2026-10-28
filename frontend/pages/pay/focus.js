@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Icon } from '../../components/Icons';
 import { usePayoff, PayoffShell, PayoffResult, formatClock } from '../../components/PayoffShell';
@@ -10,7 +10,7 @@ const PTS_PER_MIN = 1;
 
 export default function FocusPayoff() {
   const payoff = usePayoff('focus');
-  const { submitting, result, setResult, submitPoints } = payoff;
+  const { submitting, result, setResult, submitPoints, beginSession } = payoff;
   const router = useRouter();
 
   const [durationMin, setDurationMin] = useState(25);
@@ -18,6 +18,12 @@ export default function FocusPayoff() {
   const [running, setRunning] = useState(false);
   const [started, setStarted] = useState(false);
   const [ended, setEnded] = useState(false);
+  const [starting, setStarting] = useState(false);
+  // Wall-clock based timer so it stays correct after the tab is backgrounded
+  // or the phone is locked: endAtRef = when the timer hits 0 while running;
+  // remainingRef = ms left while paused.
+  const endAtRef = useRef(null);
+  const remainingRef = useRef(25 * 60 * 1000);
 
   // Optional quest context (?quest=<id>) — e.g. from the dashboard's Daily Focus card
   const [quest, setQuest] = useState(null);
@@ -54,28 +60,64 @@ export default function FocusPayoff() {
 
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          setRunning(false);
-          setEnded(true);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
+    function tick() {
+      const msLeft = Math.max(0, endAtRef.current - Date.now());
+      setSecondsLeft(Math.ceil(msLeft / 1000));
+      if (msLeft <= 0) {
+        remainingRef.current = 0;
+        setRunning(false);
+        setEnded(true);
+      }
+    }
+    tick();
+    const id = setInterval(tick, 500);
+    // Catch up immediately when the page becomes visible again
+    document.addEventListener('visibilitychange', tick);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); };
   }, [running]);
 
   function pickDuration(min) {
     setDurationMin(min);
     setSecondsLeft(min * 60);
+    remainingRef.current = min * 60 * 1000;
+  }
+
+  async function startTimer() {
+    if (starting) return;
+    setStarting(true);
+    // Register the session first — the server checks minutes against this start time
+    const token = await beginSession();
+    setStarting(false);
+    if (!token) return;
+    remainingRef.current = durationMin * 60 * 1000;
+    endAtRef.current = Date.now() + remainingRef.current;
+    setStarted(true);
+    setRunning(true);
+  }
+
+  function pauseTimer() {
+    remainingRef.current = Math.max(0, endAtRef.current - Date.now());
+    setSecondsLeft(Math.ceil(remainingRef.current / 1000));
+    setRunning(false);
+  }
+
+  function resumeTimer() {
+    endAtRef.current = Date.now() + remainingRef.current;
+    setRunning(true);
+  }
+
+  function endSession() {
+    if (running) pauseTimer();
+    setRunning(false);
+    setEnded(true);
   }
 
   function reset() {
     setRunning(false);
     setStarted(false);
     setEnded(false);
+    endAtRef.current = null;
+    remainingRef.current = durationMin * 60 * 1000;
     setSecondsLeft(durationMin * 60);
     setResult(null);
   }
@@ -107,7 +149,7 @@ export default function FocusPayoff() {
               <span className="text-xs font-semibold truncate" style={{ color: '#94a3b8' }}>
                 Focusing on: <span style={{ color: '#f8fafc' }}>{quest.title}</span>
               </span>
-              <span className="text-[10px] flex-shrink-0" style={{ color: '#475569' }}>
+              <span className="text-[11px] flex-shrink-0" style={{ color: '#94A3B8' }}>
                 +{quest.xpReward ?? 50} XP if completed
               </span>
             </div>
@@ -115,15 +157,16 @@ export default function FocusPayoff() {
 
           {/* Duration picker (before starting) */}
           {!started && (
-            <div className="flex items-center gap-2 mb-7">
+            <div className="flex items-center gap-2 mb-7 flex-wrap justify-center">
               {DURATIONS.map((min) => (
                 <button
                   key={min}
                   onClick={() => pickDuration(min)}
-                  className="px-4 py-1.5 text-xs font-bold rounded-lg transition-all duration-150"
+                  aria-pressed={durationMin === min}
+                  className="px-4 min-h-[44px] text-xs font-bold rounded-lg transition-all duration-150"
                   style={durationMin === min
                     ? { background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.45)', color: '#34d399', boxShadow: '0 0 10px rgba(16,185,129,0.2)' }
-                    : { background: 'rgba(8,21,37,0.7)', border: '1px solid rgba(59,130,246,0.12)', color: '#64748b' }
+                    : { background: 'rgba(8,21,37,0.7)', border: '1px solid rgba(59,130,246,0.12)', color: '#94A3B8' }
                   }
                 >
                   {min} min · +{min * PTS_PER_MIN} pts
@@ -150,7 +193,7 @@ export default function FocusPayoff() {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-4xl font-bold tabular-nums" style={{ color: '#f8fafc' }}>{formatClock(secondsLeft)}</span>
-              <span className="text-xs mt-1 font-semibold" style={{ color: started ? '#34d399' : '#475569' }}>
+              <span className="text-xs mt-1 font-semibold" style={{ color: started ? '#34d399' : '#94A3B8' }}>
                 {started ? `+${earned} pts earned` : 'ready to focus'}
               </span>
             </div>
@@ -158,29 +201,30 @@ export default function FocusPayoff() {
 
           {/* Controls */}
           {!ended ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-center">
               {!started ? (
                 <button
-                  onClick={() => { setStarted(true); setRunning(true); }}
-                  className="flex items-center gap-2 text-sm font-bold text-white px-7 py-2.5 rounded-xl transition-all duration-150"
+                  onClick={startTimer}
+                  disabled={starting}
+                  className="flex items-center gap-2 text-sm font-bold text-white px-7 min-h-[44px] rounded-xl transition-all duration-150 disabled:opacity-60"
                   style={{ background: 'rgba(16,185,129,0.85)', border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 14px rgba(16,185,129,0.35)' }}
                 >
                   <Icon name="play" className="w-4 h-4" color="#fff" />
-                  Start Focusing
+                  {starting ? 'Starting…' : 'Start Focusing'}
                 </button>
               ) : (
                 <>
                   <button
-                    onClick={() => setRunning((v) => !v)}
-                    className="flex items-center gap-2 text-sm font-bold text-white px-6 py-2.5 rounded-xl transition-all duration-150"
+                    onClick={running ? pauseTimer : resumeTimer}
+                    className="flex items-center gap-2 text-sm font-bold text-white px-6 min-h-[44px] rounded-xl transition-all duration-150"
                     style={{ background: 'rgba(16,185,129,0.85)', border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 14px rgba(16,185,129,0.35)' }}
                   >
                     <Icon name={running ? 'pause' : 'play'} className="w-4 h-4" color="#fff" />
                     {running ? 'Pause' : 'Resume'}
                   </button>
                   <button
-                    onClick={() => { setRunning(false); setEnded(true); }}
-                    className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-150"
+                    onClick={endSession}
+                    className="flex items-center gap-2 text-sm font-semibold px-5 min-h-[44px] rounded-xl transition-all duration-150"
                     style={{ background: 'rgba(8,21,37,0.8)', border: '1px solid rgba(59,130,246,0.15)', color: '#94a3b8' }}
                   >
                     <Icon name="stop" className="w-4 h-4" color="#94a3b8" />
@@ -197,7 +241,7 @@ export default function FocusPayoff() {
               <button
                 onClick={() => submitPoints(earned)}
                 disabled={submitting}
-                className="text-sm font-bold text-white px-7 py-2.5 rounded-xl transition-all duration-150 disabled:opacity-60"
+                className="text-sm font-bold text-white px-7 min-h-[44px] rounded-xl transition-all duration-150 disabled:opacity-60"
                 style={{ background: 'rgba(37,99,235,0.9)', border: '1px solid rgba(59,130,246,0.55)', boxShadow: '0 0 14px rgba(37,99,235,0.35)' }}
               >
                 {submitting ? 'Logging…' : `Pay off ${earned} pts`}
@@ -206,13 +250,13 @@ export default function FocusPayoff() {
           ) : (
             <div className="flex flex-col items-center">
               <p className="text-sm mb-4" style={{ color: '#94a3b8' }}>Focus for at least 1 minute to earn points.</p>
-              <button onClick={reset} className="btn-secondary text-sm py-2 px-5">Start Over</button>
+              <button onClick={reset} className="btn-secondary text-sm min-h-[44px] px-5">Start Over</button>
             </div>
           )}
 
           {!ended && (
-            <p className="text-[11px] mt-6" style={{ color: '#334155' }}>
-              Stay on this page while the timer runs. Pausing doesn't lose progress.
+            <p className="text-[11px] mt-6 text-center px-4" style={{ color: '#94A3B8' }}>
+              The timer keeps time even if you lock your phone. Pausing doesn't lose progress.
             </p>
           )}
         </div>
@@ -239,14 +283,14 @@ export default function FocusPayoff() {
                 <p className="text-sm font-bold truncate" style={{ color: '#f8fafc' }}>
                   Did you finish "{quest.title}"?
                 </p>
-                <p className="text-[11px] mt-0.5" style={{ color: '#64748b' }}>
+                <p className="text-[11px] mt-0.5" style={{ color: '#94A3B8' }}>
                   Mark it complete to earn +{quest.xpReward ?? 50} XP and avoid debt.
                 </p>
               </div>
               <button
                 onClick={handleCompleteQuest}
                 disabled={completing}
-                className="text-xs font-bold text-white px-5 py-2 rounded-lg flex-shrink-0 transition-all duration-150 disabled:opacity-60"
+                className="text-xs font-bold text-white px-5 min-h-[44px] rounded-lg flex-shrink-0 transition-all duration-150 disabled:opacity-60"
                 style={{ background: 'rgba(34,197,94,0.8)', border: '1px solid rgba(34,197,94,0.5)', boxShadow: '0 0 12px rgba(34,197,94,0.25)' }}
               >
                 {completing ? 'Saving…' : 'Complete Quest'}

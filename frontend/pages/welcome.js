@@ -5,6 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import ParticleBackground from '../components/ParticleBackground';
 import { Icon } from '../components/Icons';
 import { PAYOFF_METHODS } from '../components/PayoffShell';
+import AppStoreBadge from '../components/AppStoreBadge';
+import { PageMeta, SUPPORT_EMAIL, DEFAULT_TITLE, DEFAULT_DESCRIPTION } from '../lib/site';
+import { track, captureRef } from '../lib/analytics';
 
 function SideQuestLogo() {
   return (
@@ -116,24 +119,24 @@ function ProductMock() {
 
 const STEPS = [
   { n: 1, icon: 'pencil', color: '#60a5fa', title: 'Create a Quest',   desc: 'Pick a category, set a real deadline, and choose the stakes if you miss it.' },
-  { n: 2, icon: 'check',  color: '#4ade80', title: 'Complete On Time', desc: 'Earn XP and coins, keep your streak alive, and climb the weekly leaderboard.' },
-  { n: 3, icon: 'clock',  color: '#fb923c', title: 'Miss It? Debt.',   desc: '5 pts per day overdue — and it keeps stacking until you do something about it.' },
-  { n: 4, icon: 'bolt',   color: '#c084fc', title: 'Pay It Back',      desc: 'Reps, focused minutes, chores — clear your debt with real effort and level up anyway.' },
+  { n: 2, icon: 'check',  color: '#4ade80', title: 'Complete On Time', desc: 'Earn XP plus 2 coins for finishing on time, keep your streak alive, and climb the weekly leaderboard.' },
+  { n: 3, icon: 'clock',  color: '#fb923c', title: 'Miss It? Debt.',   desc: 'Each overdue day adds a few points of debt (5 by default), capped at a week per quest.' },
+  { n: 4, icon: 'bolt',   color: '#c084fc', title: 'Pay It Back',      desc: 'Pushups, focus time or chores — every point you repay earns XP and coins.' },
 ];
 
 const DEBT_LADDER = [
   { range: '1–25',  label: 'Light Burden',     color: '#fbbf24' },
   { range: '26–75', label: 'Quest Debt',       color: '#fb923c' },
-  { range: '76–125', label: 'Debt Spiral',     color: '#f87171' },
-  { range: '126–175', label: 'Quest Bankruptcy', color: '#f87171' },
-  { range: '176–249', label: 'Critical Mass',  color: '#c084fc' },
-  { range: '250+', label: 'Beyond Recovery — quests locked', color: '#c084fc' },
+  { range: '76–125', label: 'Piling Up',       color: '#f87171' },
+  { range: '126–175', label: 'Heavy Load',      color: '#f87171' },
+  { range: '176–249', label: 'High Debt',      color: '#c084fc' },
+  { range: '250+', label: 'Deep in Debt', color: '#c084fc' },
 ];
 
 const FEATURES = [
   { icon: 'bolt',     color: '#60a5fa', title: 'XP, Levels & Leagues', desc: 'Every quest pays XP. Climb from Bronze to Diamond as your total grows — ranked weekly against everyone.' },
-  { icon: 'flame',    color: '#fb923c', title: 'Streak Tracking',      desc: 'Finish your quests and stay debt-free to build a daily streak. One lazy day resets it.' },
-  { icon: 'coins',    color: '#fbbf24', title: 'Coins & The Shop',     desc: 'Quests completed debt-free earn coins. Spend them on power-ups — or drop a debt bomb on a friend.' },
+  { icon: 'flame',    color: '#fb923c', title: 'Streak Tracking',      desc: 'Finish most of the day’s quests to build a daily streak — with one free grace day every week.' },
+  { icon: 'coins',    color: '#fbbf24', title: 'Coins & The Shop',     desc: 'On-time quests earn +2 coins, and paying off debt earns coins and XP. Spend them on power-ups — or a playful debt bomb for a friend.' },
   { icon: 'dumbbell', color: '#4ade80', title: 'Camera-Verified Reps', desc: 'MediaPipe pose tracking watches your form. A rep only counts when the range of motion is legit.' },
   { icon: 'heart',    color: '#f87171', title: 'Friends & Challenges', desc: 'Add friends, see their activity feed, and challenge them head-to-head on streaks or quests.' },
   { icon: 'list',     color: '#c084fc', title: 'Recurring Quests',     desc: 'Daily and weekly quests reset automatically, so your habits never fall off the board.' },
@@ -141,21 +144,14 @@ const FEATURES = [
 
 /* ── page ─────────────────────────────────────────────────────────────────── */
 
-export default function Welcome() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+// Full marketing landing. Renders identically on the server and client; only
+// the nav buttons depend on auth state (logged-out buttons until it resolves).
+export function WelcomeLanding({ user = null, loading = false }) {
+  useEffect(() => { captureRef(); }, []);
 
   useEffect(() => {
-    if (!loading && user) router.push('/');
-  }, [user, loading]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+    if (!loading && !user) track('landing_view');
+  }, [loading, !!user]);
 
   return (
     <div className="min-h-screen bg-navy-600 relative overflow-x-hidden">
@@ -166,8 +162,14 @@ export default function Welcome() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <SideQuestLogo />
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/login" className="btn-ghost text-sm">Sign In</Link>
-            <Link href="/signup" className="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4">Get Started Free</Link>
+            {user && !loading ? (
+              <Link href="/" className="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4">Open Dashboard</Link>
+            ) : (
+              <>
+                <Link href="/login" className="btn-ghost text-sm">Sign In</Link>
+                <Link href="/signup" className="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4">Get Started Free</Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -181,27 +183,46 @@ export default function Welcome() {
               Accountability that actually works
             </div>
 
-            <h1 className="rise rise-2 text-4xl sm:text-5xl lg:text-6xl font-bold text-navy-50 leading-[1.08] mb-2">
-              Your life is the main quest.
-            </h1>
-            <h1
-              className="rise rise-2 text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] mb-7"
-              style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 50%, #93C5FD 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                filter: 'drop-shadow(0 0 40px rgba(59,130,246,0.4))',
-              }}
-            >
-              These are your side quests.
+            <h1 className="rise rise-2 text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] mb-5">
+              <span className="block text-navy-50 mb-2">Miss a deadline?</span>
+              <span
+                className="block"
+                style={{
+                  background: 'linear-gradient(135deg, #3B82F6 0%, #60A5FA 50%, #93C5FD 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  filter: 'drop-shadow(0 0 40px rgba(59,130,246,0.4))',
+                }}
+              >
+                You owe pushups.
+              </span>
             </h1>
 
-            <p className="rise rise-3 text-base sm:text-lg text-navy-200 max-w-xl mb-8 leading-relaxed">
-              Set quests with real deadlines. Miss one and you take on debt —
-              paid back in pushups, focused minutes, or chores. Complete quests
-              to earn XP, keep your streak, and climb the leagues.
+            <p className="rise rise-3 text-lg sm:text-xl font-semibold text-navy-100 mb-3">
+              Your life is the main quest. These are your side quests.
             </p>
+            <p className="rise rise-3 text-base sm:text-lg text-navy-200 max-w-xl mb-6 leading-relaxed">
+              Set quests with real deadlines. Miss one and you take on a little
+              debt — pay it back with pushups, focused minutes, or chores.
+              Finish quests to earn XP, keep your streak, and climb the leagues.
+            </p>
+
+            <ol className="rise rise-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-8 text-sm text-navy-200">
+              {[
+                { icon: 'pencil', color: '#60a5fa', text: 'Make a quest' },
+                { icon: 'clock',  color: '#fb923c', text: 'Miss it = debt' },
+                { icon: 'bolt',   color: '#4ade80', text: 'Pay it off with reps, focus or chores' },
+              ].map(({ icon, color, text }, i) => (
+                <li key={text} className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `${color}1f`, border: `1px solid ${color}55` }}>
+                    <Icon name={icon} className="w-3.5 h-3.5" color={color} />
+                  </span>
+                  <span>{text}</span>
+                  {i < 2 && <span className="hidden sm:inline text-slate-600" aria-hidden="true">→</span>}
+                </li>
+              ))}
+            </ol>
 
             <div className="rise rise-4 flex flex-col sm:flex-row gap-3">
               <Link
@@ -214,6 +235,11 @@ export default function Welcome() {
               <Link href="/login" className="btn-secondary py-3 px-8 text-base text-center">
                 Sign In
               </Link>
+            </div>
+
+            <div className="rise rise-4 mt-5 flex items-center gap-3 flex-wrap">
+              <AppStoreBadge source="hero" />
+              <span className="text-xs text-slate-400">or keep going right here in your browser</span>
             </div>
 
             <div className="rise rise-5 flex items-center gap-4 mt-8 flex-wrap">
@@ -240,7 +266,7 @@ export default function Welcome() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-bold text-navy-50 mb-2">How SideQuest works</h2>
-            <p className="text-navy-300 text-sm">Four steps. No excuses accepted.</p>
+            <p className="text-navy-300 text-sm">Four steps. Real accountability, no guilt trips.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -272,16 +298,18 @@ export default function Welcome() {
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs font-semibold text-orange-400" style={{ background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.25)' }}>
                 <Icon name="flame" className="w-3.5 h-3.5" color="#fb923c" /> The Debt System
               </div>
-              <h2 className="text-3xl font-bold text-navy-50 mb-4">Consequences are real.</h2>
+              <h2 className="text-3xl font-bold text-navy-50 mb-4">Stakes that keep you honest.</h2>
               <p className="text-navy-200 leading-relaxed mb-6">
-                The formula never changes:{' '}
-                <span className="font-bold font-mono text-orange-400">5 pts × days overdue.</span>{' '}
-                Forget a quest for a week and you owe 35 points of effort. Let your
-                total hit 250 and new quests are locked until you pay up.
+                The formula is simple:{' '}
+                <span className="font-bold font-mono text-orange-400">5 pts × days overdue</span>{' '}
+                (capped at a week per quest). Forget a quest for a week and you owe
+                35 points of effort. Past 250 we'll nudge you to pay some back before
+                piling on more.
               </p>
               <p className="text-navy-300 text-sm leading-relaxed">
-                Unlike a normal to-do list, ignored quests don't quietly disappear.
-                They sink you deeper into the ladder — and the only way out is real effort.
+                Unlike a normal to-do list, missed quests don't quietly disappear —
+                but paying them back is quick, every point repaid earns XP, and you can
+                pause debt or take a fresh start when life gets busy.
               </p>
             </div>
 
@@ -360,10 +388,14 @@ export default function Welcome() {
       <section className="relative z-10 py-20" style={{ borderTop: '1px solid rgba(59,130,246,0.1)', background: 'rgba(6,12,24,0.5)', backdropFilter: 'blur(8px)' }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <p className="text-xs font-semibold uppercase tracking-widest mb-3 text-blue-400">Mobile app</p>
-          <h2 className="text-3xl font-bold text-navy-50 mb-3">Coming to the App Store soon</h2>
-          <p className="text-navy-300 text-sm">
-            A native SideQuest app is on the way. In the meantime, sign up and start your first quest right here in the browser.
+          <h2 className="text-3xl font-bold text-navy-50 mb-3">Get SideQuest on your iPhone</h2>
+          <p className="text-navy-300 text-sm mb-6">
+            Reminders before deadlines, camera-verified reps and your streak in your pocket.
+            Your account works on the web and in the app.
           </p>
+          <div className="flex justify-center">
+            <AppStoreBadge source="install_section" />
+          </div>
         </div>
       </section>
 
@@ -374,7 +406,7 @@ export default function Welcome() {
             <Icon name="bolt" className="w-7 h-7" color="#60a5fa" />
           </Hexagon>
           <h2 className="text-4xl font-bold text-navy-50 mt-6 mb-4">Your first quest is waiting.</h2>
-          <p className="text-navy-300 mb-10">Free to use. No excuses accepted.</p>
+          <p className="text-navy-300 mb-10">Free to use. Start with one small quest.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup"
@@ -394,7 +426,7 @@ export default function Welcome() {
         <div className="flex items-center justify-center gap-5">
           <Link href="/privacy" className="hover:text-navy-200 transition-colors">Privacy Policy</Link>
           <Link href="/terms" className="hover:text-navy-200 transition-colors">Terms of Service</Link>
-          <a href="mailto:stevenluong05@gmail.com" className="hover:text-navy-200 transition-colors">Contact</a>
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-navy-200 transition-colors">Contact</a>
         </div>
       </footer>
 
@@ -418,5 +450,21 @@ export default function Welcome() {
         .float-slower { animation: floaty 5.5s ease-in-out 0.8s infinite; }
       `}</style>
     </div>
+  );
+}
+
+export default function Welcome() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) router.push('/');
+  }, [user, loading]);
+
+  return (
+    <>
+      <PageMeta title={DEFAULT_TITLE} description={DEFAULT_DESCRIPTION} path="/welcome" />
+      <WelcomeLanding user={user} loading={loading} />
+    </>
   );
 }

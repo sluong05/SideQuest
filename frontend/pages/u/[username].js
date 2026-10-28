@@ -5,14 +5,81 @@ import Layout from '../../components/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPublicProfile, sendFriendRequest, getFriends, createChallenge, getStreak } from '../../lib/api';
 import { Icon } from '../../components/Icons';
+import PublicProfileCard from '../../components/PublicProfileCard';
+import ParticleBackground from '../../components/ParticleBackground';
+import AppStoreBadge from '../../components/AppStoreBadge';
+import { PageMeta, SITE_URL } from '../../lib/site';
+import { fetchPublicProfile, profileMetaTitle, profileMetaDescription } from '../../lib/publicProfile';
+import { track, captureRef } from '../../lib/analytics';
+
+// SSR: fetch the no-auth public profile for per-user OG tags and the
+// logged-out view. Unknown user / backend failure → 404.
+export async function getServerSideProps({ params, res }) {
+  const publicProfile = await fetchPublicProfile(params?.username);
+  if (!publicProfile) return { notFound: true };
+  res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+  return { props: { publicProfile } };
+}
+
+function ProfileMeta({ publicProfile }) {
+  if (!publicProfile) return null;
+  return (
+    <PageMeta
+      title={profileMetaTitle(publicProfile)}
+      description={profileMetaDescription(publicProfile)}
+      path={`/u/${encodeURIComponent(publicProfile.username)}`}
+      image={`${SITE_URL}/api/og?username=${encodeURIComponent(publicProfile.username)}`}
+      type="profile"
+    />
+  );
+}
+
+// Logged-out (and auth-loading) view: public card + join CTA.
+function PublicView({ publicProfile }) {
+  const name = publicProfile.username;
+  const joinHref = `/join?ref=${encodeURIComponent(name)}`;
+  return (
+    <div className="min-h-screen bg-navy-600 relative overflow-x-hidden">
+      <ParticleBackground />
+      <header className="border-b bg-navy-700/80 backdrop-blur-md sticky top-0 z-50" style={{ borderColor: 'rgba(59,130,246,0.15)' }}>
+        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/welcome"><img src="/sidequest-logo-navbar.svg" alt="SideQuest" className="h-8 w-auto" /></Link>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="btn-ghost text-sm">Sign In</Link>
+            <Link href={joinHref} className="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4">Join Free</Link>
+          </div>
+        </div>
+      </header>
+      <main className="relative z-10 max-w-lg mx-auto px-4 py-10">
+        <PublicProfileCard profile={publicProfile}>
+          <div className="mt-5 pt-5 border-t border-navy-700 text-center">
+            <p className="text-sm text-navy-200 mb-3">
+              On SideQuest, missed deadlines turn into debt you pay back with pushups, focus time or chores.
+            </p>
+            <Link
+              href={joinHref}
+              onClick={() => track('invite_cta_clicked', { source: 'public_profile', ref: name })}
+              className="btn-primary w-full py-3 inline-flex items-center justify-center gap-1.5 font-semibold"
+            >
+              <Icon name="swords" className="w-4 h-4" color="currentColor" /> Join SideQuest to challenge {name}
+            </Link>
+          </div>
+        </PublicProfileCard>
+        <div className="flex justify-center mt-6">
+          <AppStoreBadge source="public_profile" size="sm" />
+        </div>
+      </main>
+    </div>
+  );
+}
 
 const CHALLENGE_TYPES = [
   { value: 'quests', label: 'Most quests completed' },
-  { value: 'pushups', label: 'Most debt paid' },
+  { value: 'pushups', label: 'Most pushups' },
 ];
 const DURATIONS = [3, 7, 14, 30];
 
-export default function PublicProfile() {
+export default function PublicProfile({ publicProfile = null }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { username } = router.query;
@@ -31,9 +98,7 @@ export default function PublicProfile() {
   const [challengeSending, setChallengeSending] = useState(false);
   const [challengeMsg, setChallengeMsg] = useState(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) router.push('/welcome');
-  }, [user, authLoading]);
+  useEffect(() => { captureRef(); }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -70,6 +135,7 @@ export default function PublicProfile() {
     try {
       await sendFriendRequest(username);
       setRequestSent(true);
+      track('friend_added', { via: 'profile' });
     } catch {}
   }
 
@@ -88,16 +154,24 @@ export default function PublicProfile() {
     }
   }
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-navy-600 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        <ProfileMeta publicProfile={publicProfile} />
+        {publicProfile ? (
+          <PublicView publicProfile={publicProfile} />
+        ) : (
+          <div className="min-h-screen bg-navy-600 flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </>
     );
   }
 
   return (
     <Layout streak={streak}>
+      <ProfileMeta publicProfile={publicProfile} />
       <div className="max-w-lg mx-auto">
         <Link href="/friends" className="inline-flex items-center gap-1 text-sm text-navy-200 hover:text-navy-100 mb-6 transition-colors">
           ← Friends
@@ -122,8 +196,8 @@ export default function PublicProfile() {
             <div className="card mb-4">
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-navy-600 flex-shrink-0">
-                  {profile.avatar ? (
-                    <img src={profile.avatar} alt={profile.username} className="w-full h-full object-cover" />
+                  {(profile.avatarUrl || profile.avatar) ? (
+                    <img src={profile.avatarUrl || profile.avatar} alt={profile.username} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-blue-500/20 flex items-center justify-center">
                       <span className="text-2xl font-bold text-blue-400">
@@ -139,7 +213,7 @@ export default function PublicProfile() {
                   )}
                   <p className="text-xs text-slate-400 mt-1">
                     Member since{' '}
-                    {new Date(profile.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {new Date(profile.memberSince || publicProfile?.joinedAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                   </p>
                   <div className="flex gap-2 mt-3">
                     {isFriend ? (

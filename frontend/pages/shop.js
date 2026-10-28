@@ -1,18 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { getFriends, getQuests, buyShopItem, getInventory, useItem, getStreak } from '../lib/api';
+import { getFriends, getQuests, buyShopItem, getInventory, useItem, getStreak, getShopItems } from '../lib/api';
+import SocialTabs from '../components/SocialTabs';
+import { PageMeta } from '../lib/site';
 import { Icon } from '../components/Icons';
 import { timeAgo } from '../lib/questMeta';
 import { PANEL_STYLE, SELECT_STYLE, PanelHeader } from '../components/Panel';
 
-const SHOP_ITEMS = [
+const BASE_SHOP_ITEMS = [
   {
     id: 'debt_bomb',
     name: 'Debt Bomb',
-    description: "Add 10 pts to a friend's debt. Evil. Necessary.",
+    description: "Add 10 pts to a friend's debt — all in good fun. Only friends who allow Debt Bombs can be targeted.",
     cost: 50,
     icon: 'bomb',
     iconColor: '#f87171',
@@ -24,7 +26,7 @@ const SHOP_ITEMS = [
   {
     id: 'taunt',
     name: 'Taunt',
-    description: "Send a push notification to a friend to remind them they owe debt.",
+    description: "Send a friend a nudge (with an optional message) to get them moving on their debt.",
     cost: 10,
     icon: 'megaphone',
     iconColor: '#fb923c',
@@ -36,8 +38,8 @@ const SHOP_ITEMS = [
   {
     id: 'streak_shield',
     name: 'Streak Shield',
-    description: "Protect your streak from breaking once. Auto-fires when your streak is about to snap.",
-    cost: 75,
+    description: "Protects one day of your streak. Auto-fires on the first day your streak would otherwise break.",
+    cost: 40,
     icon: 'shield',
     iconColor: '#60a5fa',
     type: 'inventory',
@@ -78,7 +80,7 @@ const SHOP_ITEMS = [
   {
     id: 'debt_discount',
     name: 'Debt Discount',
-    description: "Slash all your current debt by 25%. Instant relief.",
+    description: "Cut your current debt by 25% (up to 50 pts). Usable once every 7 days.",
     cost: 20,
     icon: 'ticket',
     iconColor: '#c084fc',
@@ -97,8 +99,7 @@ const SHOP_ITEMS = [
   },
 ];
 
-const ITEM_MAP = Object.fromEntries(SHOP_ITEMS.map((i) => [i.id, i]));
-const FEATURED_ITEM = SHOP_ITEMS.find((i) => i.featured);
+const BASE_FEATURED_ITEM = BASE_SHOP_ITEMS.find((i) => i.featured);
 
 const CATEGORY_TABS = [
   { key: 'All',      label: 'All' },
@@ -110,12 +111,30 @@ const CATEGORY_TABS = [
 
 const RECENT_KEY = 'sq_recent_purchases';
 
+// Friendly copy for structured shop errors from the server.
+function shopErrorMessage(err, fallback) {
+  const data = err?.response?.data || {};
+  switch (data.code) {
+    case 'EMAIL_NOT_VERIFIED':
+      return 'Verify your email to send Debt Bombs and Taunts. Check your inbox for the link (you can resend it from the banner at the top).';
+    case 'TARGET_LIMIT':
+      return "That friend has already received the max of 3 Debt Bombs this week. Try someone else or check back in a few days.";
+    case 'CHAOS_DISABLED':
+    case 'TARGET_OPTED_OUT':
+      return "That friend has turned off Debt Bombs & taunts.";
+    case 'COOLDOWN':
+      return data.error || 'This item is on cooldown — try again later.';
+    default:
+      return data.error || fallback;
+  }
+}
+
 function CoinPrice({ amount, size = 'sm' }) {
   const img = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
   const txt = size === 'sm' ? 'text-sm' : 'text-base';
   return (
     <span className="inline-flex items-center gap-1.5">
-      <img src="/Pcoin.svg" alt="coin" className={img} />
+      <img src="/coin.png" width={64} height={64} alt="coin" className={img} />
       <span className={`${txt} font-bold text-yellow-400 tabular-nums`}>{amount}</span>
     </span>
   );
@@ -156,6 +175,31 @@ export default function Shop() {
       setRecentPurchases(JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'));
     } catch { /* ignore corrupt storage */ }
   }, []);
+
+  // Server is authoritative for prices — merge its catalog over the local
+  // presentation data (icons, categories, copy).
+  const [serverItems, setServerItems] = useState(null);
+  useEffect(() => {
+    if (!user) return;
+    getShopItems()
+      .then((r) => setServerItems(Array.isArray(r.data?.items) ? r.data.items : null))
+      .catch(() => {});
+  }, [user]);
+
+  const { SHOP_ITEMS, ITEM_MAP, FEATURED_ITEM } = useMemo(() => {
+    const byId = Object.fromEntries((serverItems || []).map((i) => [i.id, i]));
+    const items = BASE_SHOP_ITEMS
+      .filter((i) => !serverItems || byId[i.id])
+      .map((i) => {
+        const srv = byId[i.id];
+        return srv && typeof srv.cost === 'number' ? { ...i, cost: srv.cost } : i;
+      });
+    return {
+      SHOP_ITEMS: items,
+      ITEM_MAP: Object.fromEntries(BASE_SHOP_ITEMS.map((i) => [i.id, items.find((x) => x.id === i.id) || i])),
+      FEATURED_ITEM: items.find((i) => i.featured) || items[0] || BASE_FEATURED_ITEM,
+    };
+  }, [serverItems]);
 
   useEffect(() => {
     if (!user) return;
@@ -203,8 +247,9 @@ export default function Shop() {
     setBuying(true);
     setBuyResult(null);
     try {
-      await buyShopItem(buyItem.id, selectedFriend?.username, buyItem.id === 'taunt' ? tauntMessage.trim() : undefined);
-      updateUser({ ...user, coins: (user.coins ?? 0) - buyItem.cost });
+      const resp = await buyShopItem(buyItem.id, selectedFriend?.username, buyItem.id === 'taunt' ? tauntMessage.trim() : undefined);
+      const spent = typeof resp?.data?.coinsSpent === 'number' ? resp.data.coinsSpent : buyItem.cost;
+      updateUser({ ...user, coins: Math.max(0, (user.coins ?? 0) - spent) });
       recordPurchase(buyItem);
 
       if (buyItem.type === 'inventory') {
@@ -223,7 +268,7 @@ export default function Shop() {
       setBuyResult({ type: 'success', message: msg });
       setSelectedFriend(null);
     } catch (err) {
-      setBuyResult({ type: 'error', message: err.response?.data?.error || 'Purchase failed' });
+      setBuyResult({ type: 'error', message: shopErrorMessage(err, 'Purchase failed') });
     } finally {
       setBuying(false);
     }
@@ -266,7 +311,7 @@ export default function Shop() {
       setUseResult({ type: 'success', message: resp.data.message });
       setSelectedQuest(null);
     } catch (err) {
-      setUseResult({ type: 'error', message: err.response?.data?.error || 'Failed to use item' });
+      setUseResult({ type: 'error', message: shopErrorMessage(err, 'Failed to use item') });
     } finally {
       setUsing(false);
     }
@@ -275,6 +320,7 @@ export default function Shop() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#050A14' }}>
+        <PageMeta title="Shop" description="Spend SideQuest coins on streak shields, deadline extensions and friendly chaos." path="/shop" noindex />
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -307,7 +353,7 @@ export default function Shop() {
   const statCards = [
     {
       label: 'Available Coins',
-      icon: <img src="/Pcoin.svg" alt="coin" className="w-5 h-5" />,
+      icon: <img src="/coin.png" width={64} height={64} alt="coin" className="w-5 h-5" />,
       iconBg: 'rgba(234,179,8,0.12)', iconBorder: 'rgba(234,179,8,0.3)',
       value: <span className="text-lg font-bold text-yellow-400 tabular-nums">{coins} <span className="text-xs font-semibold">coins</span></span>,
       sub: <Link href="/quests" className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 transition-colors">Earn more →</Link>,
@@ -346,6 +392,8 @@ export default function Shop() {
 
   return (
     <Layout streak={streak}>
+      <PageMeta title="Shop" description="Spend SideQuest coins on streak shields, deadline extensions and friendly chaos." path="/shop" noindex />
+      <SocialTabs />
 
       {/* Page header */}
       <div className="mb-5">
@@ -611,7 +659,7 @@ export default function Shop() {
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold truncate" style={{ color: '#f8fafc' }}>{item.name}</p>
                         <p className="text-[10px] flex items-center gap-1" style={{ color: '#475569' }}>
-                          <img src="/Pcoin.svg" alt="" className="w-2.5 h-2.5" />
+                          <img src="/coin.png" width={64} height={64} alt="" className="w-2.5 h-2.5" />
                           <span className="font-bold text-yellow-400">{item.cost}</span>
                         </p>
                       </div>
@@ -666,12 +714,12 @@ export default function Shop() {
                 className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)', boxShadow: '0 0 14px rgba(234,179,8,0.15)' }}
               >
-                <img src="/Pcoin.svg" alt="coin" className="w-5 h-5" />
+                <img src="/coin.png" width={64} height={64} alt="coin" className="w-5 h-5" />
               </div>
               <p className="text-sm font-bold" style={{ color: '#f8fafc' }}>Earn more coins</p>
             </div>
             <p className="text-xs leading-relaxed mb-3" style={{ color: '#64748b' }}>
-              Log payoff actions to bank coins: <span className="font-bold" style={{ color: '#fbbf24' }}>1 coin per 5 pts</span> of debt repaid, or <span className="font-bold" style={{ color: '#fbbf24' }}>1 coin per point</span> once you're debt-free.
+              Finish quests on time for <span className="font-bold" style={{ color: '#fbbf24' }}>+2 coins</span> each. Paying off debt earns coins and XP, and logging actions once you're debt-free banks extra coins (up to a daily cap).
             </p>
             <Link
               href="/pay"
@@ -692,7 +740,7 @@ export default function Shop() {
             <div>
               <h2 className="text-lg font-bold text-navy-50">{buyItem.name}</h2>
               <p className="flex items-center gap-1 text-xs text-yellow-400 font-semibold">
-                <img src="/Pcoin.svg" alt="coin" className="w-3.5 h-3.5" />
+                <img src="/coin.png" width={64} height={64} alt="coin" className="w-3.5 h-3.5" />
                 {buyItem.cost} coins
               </p>
             </div>
@@ -729,7 +777,7 @@ export default function Shop() {
                 onChange={(e) => setTauntMessage(e.target.value)}
                 maxLength={140}
                 rows={2}
-                placeholder="go pay off your debt."
+                placeholder="You've got this — knock out a few reps!"
                 className="input w-full resize-none text-sm"
               />
               <p className="text-[11px] text-navy-400 mt-1 text-right">{tauntMessage.length}/140</p>
@@ -747,7 +795,7 @@ export default function Shop() {
             >
               {buying ? 'Processing…' : (
                 <span className="flex items-center justify-center gap-1.5">
-                  Confirm — <img src="/Pcoin.svg" alt="coin" className="w-4 h-4" /> {buyItem.cost}
+                  Confirm — <img src="/coin.png" width={64} height={64} alt="coin" className="w-4 h-4" /> {buyItem.cost}
                 </span>
               )}
             </button>
@@ -842,8 +890,8 @@ function FriendOption({ friend, selected, onSelect }) {
       }}
     >
       <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0" style={{ border: '1px solid rgba(59,130,246,0.2)' }}>
-        {friend.avatar ? (
-          <img src={friend.avatar} alt={friend.username} className="w-full h-full object-cover" />
+        {(friend.avatarUrl || friend.avatar) ? (
+          <img src={friend.avatarUrl || friend.avatar} alt={friend.username} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.15)' }}>
             <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>{friend.username[0].toUpperCase()}</span>

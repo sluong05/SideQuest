@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import Head from 'next/head';
 import Layout from '../components/Layout';
 import AddQuestModal from '../components/AddQuestModal';
 import QuestDetailModal from '../components/QuestDetailModal';
@@ -11,9 +12,36 @@ import { getQuests, getDebt, getStreak, getSessions, recalculateDebt, setUsernam
 import confetti from 'canvas-confetti';
 import { Icon, CategoryIcon } from '../components/Icons';
 import { CATEGORY_COLORS, DIFF_STYLES, timeAgo } from '../lib/questMeta';
+import { WelcomeLanding } from './welcome';
+import Onboarding, { hasOnboarded, markOnboarded } from '../components/Onboarding';
+import ShareButton from '../components/ShareButton';
+import { PageMeta, DEFAULT_TITLE, DEFAULT_DESCRIPTION, SITE_URL } from '../lib/site';
+import { trackOnce } from '../lib/analytics';
+import { streakShareText, levelShareText, profileLink } from '../lib/share';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const MILESTONES = [3, 7, 14, 30, 60, 100];
+const SHARE_MILESTONES = [7, 30, 100];
+const DAY_MS = 86400000;
+
+function isNewAccount(user) {
+  if (!user?.createdAt) return false;
+  return Date.now() - new Date(user.createdAt).getTime() < DAY_MS;
+}
+
+// Server `warning` may be a string or { message }.
+function warningText(w) {
+  if (!w) return null;
+  if (typeof w === 'string') return w;
+  return typeof w.message === 'string' ? w.message : null;
+}
+
+function readNum(key) {
+  try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; }
+}
+function writeNum(key, n) {
+  try { localStorage.setItem(key, String(n)); } catch { /* ignore */ }
+}
 
 function todayLabel() {
   return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -188,7 +216,9 @@ function DashQuestRow({ quest, onComplete, onUncomplete, onDelete, onUpdated }) 
           <div className="card w-full max-w-sm text-center">
             <div className="flex justify-center mb-3"><Icon name="alert" className="w-9 h-9" color="#fbbf24" /></div>
             <h2 className="text-base font-bold text-navy-50 mb-2">Skip This Quest?</h2>
-            <p className="text-navy-300 text-sm mb-5">Skipping adds <span className="text-red-400 font-bold">5 to your debt</span>.</p>
+            <p className="text-navy-300 text-sm mb-5">
+              Skipping adds <span className="text-orange-400 font-bold">{debtAmt} pts of debt</span> — free if you created it in the last 15 minutes.
+            </p>
             <div className="flex gap-3">
               <button onClick={() => setShowConfirm(false)} className="btn-secondary flex-1">Cancel</button>
               <button onClick={doDelete} className="flex-1 py-2 px-4 rounded-lg font-semibold text-sm text-white" style={{ background: 'rgba(239,68,68,0.8)' }}>
@@ -256,7 +286,7 @@ function DebtOverviewPanel({ totalOwed, debts }) {
   const ratio = Math.min(totalOwed / 250, 1);
   const dashoffset = circumference * (1 - ratio);
   const timeStr = totalOwed;
-  const xpReward = Math.min(Math.round(totalOwed * 5), 999);
+  const xpReward = Math.min(Math.round(totalOwed), 999); // 1 XP per debt point repaid
 
   if (totalOwed === 0) {
     return (
@@ -270,7 +300,7 @@ function DebtOverviewPanel({ totalOwed, debts }) {
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold text-white"
           style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.85), rgba(234,179,8,0.5))', border: '1px solid rgba(234,179,8,0.5)', boxShadow: '0 0 20px rgba(234,179,8,0.25)' }}
         >
-          <img src="/Pcoin.svg" alt="" className="w-4 h-4" /> Log Actions for Coins
+          <img src="/coin.png" width={64} height={64} alt="" className="w-4 h-4" /> Log Actions for Coins
         </Link>
       </div>
     );
@@ -435,12 +465,13 @@ function DashCoinPanel({ totalOwed, coins }) {
     >
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Coin Status</p>
       <div className="flex items-center gap-2.5 mb-1.5">
-        <img src="/Pcoin.svg" alt="" className="w-5 h-5" />
+        <img src="/coin.png" width={64} height={64} alt="" className="w-5 h-5" />
         <div>
           <p className="text-sm font-bold" style={{ color: '#fbbf24' }}>{coins} Coins</p>
           <p className="text-[10px]" style={{ color: '#475569' }}>
-            {inDebt ? 'Earn 1 coin per 5 pts of debt repaid' : 'Earn 1 coin per point logged'}
+            {inDebt ? 'Paying off debt earns coins and XP' : 'Earn 1 coin per point logged'}
           </p>
+          <p className="text-[10px]" style={{ color: '#475569' }}>On-time quests earn +2 coins</p>
         </div>
       </div>
     </div>
@@ -474,7 +505,7 @@ function RecentActivityPanel({ sessions }) {
                 <p className="text-xs font-medium text-navy-100">{meta.label}</p>
                 <p className="text-[10px] text-slate-500">{timeAgo(s.date)} · {s.amount} pts</p>
               </div>
-              <span className="text-xs font-bold text-green-400 flex-shrink-0">+{Math.round(s.amount * 2)} XP</span>
+              <span className="text-xs font-bold text-green-400 flex-shrink-0">+{Math.round(s.xpEarned ?? s.amount)} XP</span>
             </div>
           );
         })}
@@ -495,16 +526,18 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
   const [allTimePaid, setAllTimePaid] = useState(0);
   const [showAddQuest, setShowAddQuest] = useState(false);
-  const [showDebtBlock, setShowDebtBlock] = useState(false);
+  const [debtWarning, setDebtWarning] = useState(null);
+  const [lockoutThreshold, setLockoutThreshold] = useState(250);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [sharePrompt, setSharePrompt] = useState(null); // { kind: 'streak'|'level', value }
   const [dataLoading, setDataLoading] = useState(true);
   const [hasFriends, setHasFriends] = useState(false);
   const [usernameInput, setUsernameInput] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameSaving, setUsernameSaving] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) router.push('/welcome');
-  }, [user, authLoading]);
+  // Logged-out visitors get the landing page rendered right here (SSR-friendly),
+  // so no redirect to /welcome.
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -526,6 +559,8 @@ export default function Dashboard() {
       ));
       setDebts(debtRes.data.debts);
       setTotalOwed(debtRes.data.totalOwed);
+      if (debtRes.data.lockoutThreshold) setLockoutThreshold(debtRes.data.lockoutThreshold);
+      setDebtWarning(warningText(debtRes.data.warning));
       setStreak(streakRes.data.streak);
       setSessions(sessionsRes.data.sessions);
       setAllTimePaid(sessionsRes.data.allTimePaid);
@@ -539,15 +574,43 @@ export default function Dashboard() {
     recalculateDebt().catch(() => {}).finally(() => loadData());
   }, [user]);
 
+  // First-run onboarding: new accounts (< 24h) or nobody with quests yet.
   useEffect(() => {
-    document.title = totalOwed > 0 ? `(${totalOwed} debt) SideQuest` : 'SideQuest';
-    return () => { document.title = 'SideQuest'; };
-  }, [totalOwed]);
+    if (!user || dataLoading || hasOnboarded()) return;
+    const noQuests = quests.length === 0 && (user.totalQuestsCompleted ?? 0) === 0;
+    if (isNewAccount(user) || noQuests) setShowOnboarding(true);
+    else markOnboarded();
+  }, [user?.id, dataLoading]);
+
+  // Share prompt when a streak milestone (7/30/100) is reached.
+  useEffect(() => {
+    if (!user || dataLoading) return;
+    const key = `sq_share_streak_${user.id}`;
+    const last = readNum(key);
+    const hit = [...SHARE_MILESTONES].reverse().find((m) => streak >= m);
+    if (hit && hit > last) {
+      writeNum(key, hit);
+      setSharePrompt({ kind: 'streak', value: hit });
+    }
+  }, [user?.id, dataLoading, streak]);
+
+  // Share prompt after a level-up (also catches level-ups from other devices).
+  useEffect(() => {
+    if (!user?.id || !user.level) return;
+    const key = `sq_last_level_${user.id}`;
+    const last = readNum(key);
+    if (last && user.level > last) setSharePrompt({ kind: 'level', value: user.level });
+    if (user.level !== last) writeNum(key, user.level);
+  }, [user?.id, user?.level]);
 
   async function handleComplete(questId) {
     try {
-      await completeQuest(questId);
+      const res = await completeQuest(questId);
       confetti({ particleCount: 80, spread: 55, origin: { y: 0.6 }, colors: ['#3b82f6', '#60a5fa', '#34d399', '#fbbf24', '#fff'], scalar: 0.9 });
+      if (res?.data?.leveledUp && res.data.newLevel) {
+        setSharePrompt({ kind: 'level', value: res.data.newLevel });
+        if (user?.id) writeNum(`sq_last_level_${user.id}`, res.data.newLevel);
+      }
       loadData();
     } catch (err) { console.error(err); }
   }
@@ -560,7 +623,14 @@ export default function Dashboard() {
   function handleQuestUpdated(updated) {
     setQuests((prev) => prev.map((q) => (q.id === updated.id ? { ...q, ...updated } : q)));
   }
-  async function handleQuestAdded() {
+  // AddQuestModal calls onQuestAdded(quest[, warning]); the server's soft
+  // lockout warning (createQuest → { quest, warning? }) is shown as a banner.
+  async function handleQuestAdded(quest, warning) {
+    const w = warningText(warning || quest?.warning);
+    if (w) setDebtWarning(w);
+    if (user && quests.length === 0 && (user.totalQuestsCompleted ?? 0) === 0) {
+      trackOnce('first_quest_created', {}, `first_quest_created_${user.id}`);
+    }
     await recalculateDebt().catch(() => {});
     loadData();
   }
@@ -591,6 +661,10 @@ export default function Dashboard() {
     return due >= today && due <= todayEnd;
   });
   const displayName = user?.username || 'Questor';
+  const greeting = isNewAccount(user) ? `Welcome, ${displayName}.` : `Welcome back, ${displayName}.`;
+  const shareUrl = user?.username ? profileLink(user.username) : SITE_URL;
+  const shareText = sharePrompt?.kind === 'streak' ? streakShareText(sharePrompt.value) : levelShareText(sharePrompt?.value);
+  const deepInDebt = totalOwed >= lockoutThreshold;
   const sortedQuests = [...quests].sort((a, b) => {
     if (a.completed && !b.completed) return 1;
     if (!a.completed && b.completed) return -1;
@@ -598,15 +672,63 @@ export default function Dashboard() {
   });
 
   if (authLoading || !user) {
+    // Server-rendered marketing landing for logged-out visitors (and while auth
+    // resolves); the dashboard replaces it once a session is confirmed.
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#050A14' }}>
-        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        <PageMeta title={DEFAULT_TITLE} description={DEFAULT_DESCRIPTION} path="/" />
+        <WelcomeLanding user={null} loading={authLoading} />
+      </>
     );
   }
 
   return (
     <Layout streak={streak}>
+      <Head>
+        <title key="title">{totalOwed > 0 ? `(${totalOwed} debt) Dashboard — SideQuest` : 'Dashboard — SideQuest'}</title>
+        <meta key="robots" name="robots" content="noindex" />
+      </Head>
+
+      {/* Share prompt (streak milestone / level-up) */}
+      {sharePrompt && (
+        <div className="card mb-5 p-4 flex items-center gap-3 flex-wrap" style={{ borderColor: 'rgba(249,115,22,0.35)', background: 'rgba(249,115,22,0.06)' }}>
+          <Icon name={sharePrompt.kind === 'streak' ? 'flame' : 'arrowUpCircle'} className="w-6 h-6 flex-shrink-0" color={sharePrompt.kind === 'streak' ? '#fb923c' : '#60a5fa'} />
+          <div className="flex-1 min-w-[180px]">
+            <p className="text-sm font-semibold text-navy-50">
+              {sharePrompt.kind === 'streak' ? `${sharePrompt.value}-day streak!` : `Level ${sharePrompt.value} reached!`}
+            </p>
+            <p className="text-xs text-navy-300">Nice work. Share it and get a friend to keep you honest.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ShareButton
+              text={shareText}
+              url={shareUrl}
+              eventProps={{ source: `dashboard_${sharePrompt.kind}`, value: sharePrompt.value }}
+              className="btn-primary text-xs py-2 px-3"
+            />
+            <button onClick={() => setSharePrompt(null)} className="text-xs text-slate-400 hover:text-navy-100 px-2 py-2">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Soft debt warning (quest creation is never blocked) */}
+      {(deepInDebt || debtWarning) && (
+        <div className="card mb-5 p-4 flex items-start gap-3 flex-wrap" style={{ borderColor: 'rgba(192,132,252,0.35)', background: 'rgba(168,85,247,0.06)' }}>
+          <Icon name="alert" className="w-5 h-5 flex-shrink-0 mt-0.5" color="#c084fc" />
+          <div className="flex-1 min-w-[180px]">
+            <p className="text-sm font-semibold text-purple-300">You're deep in debt</p>
+            <p className="text-xs text-navy-200 mt-0.5">
+              {debtWarning || `You owe ${totalOwed} pts. You can still add quests — paying a little back first will make the next ones easier to keep.`}
+            </p>
+          </div>
+          <Link href="/pay" className="btn-primary text-xs py-2 px-3 inline-flex items-center gap-1.5 flex-shrink-0">
+            <Icon name="swords" className="w-3.5 h-3.5" color="currentColor" /> Pay some back
+          </Link>
+        </div>
+      )}
+
       {/* Username prompt */}
       {!user?.username && (
         <div className="card mb-5 p-4" style={{ borderColor: 'rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.05)' }}>
@@ -634,13 +756,12 @@ export default function Dashboard() {
       <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
         <div>
           <p className="text-slate-400 text-sm mb-0.5">{todayLabel()}</p>
-          <h1 className="text-2xl font-bold text-white">Welcome back, {displayName}.</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Complete your quests and finish your favorites.</p>
+          <h1 className="text-2xl font-bold text-white">{greeting}</h1>
+          <p className="text-slate-400 text-sm mt-0.5">Finish today's quests and keep your streak alive.</p>
         </div>
         <button
-          onClick={() => totalOwed > 249 ? setShowDebtBlock(true) : setShowAddQuest(true)}
+          onClick={() => setShowAddQuest(true)}
           className="btn-primary flex items-center gap-1.5 py-2.5 px-4 text-sm font-semibold flex-shrink-0"
-          style={{ opacity: totalOwed > 249 ? 0.5 : 1 }}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -760,18 +881,11 @@ export default function Dashboard() {
         <AddQuestModal onClose={() => setShowAddQuest(false)} onQuestAdded={handleQuestAdded} />
       )}
 
-      {showDebtBlock && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-sm text-center">
-            <div className="flex justify-center mb-4"><Icon name="ban" className="w-9 h-9" color="#f87171" /></div>
-            <h2 className="text-lg font-bold text-navy-50 mb-2">Quest Creation Locked</h2>
-            <p className="text-navy-200 text-sm mb-6">You can't add new quests until your debt drops below 250.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowDebtBlock(false)} className="btn-secondary flex-1">Dismiss</button>
-              <Link href="/pay" className="btn-primary flex-1 text-center inline-flex items-center justify-center gap-1.5"><Icon name="swords" className="w-4 h-4" color="currentColor" /> Pay Debt</Link>
-            </div>
-          </div>
-        </div>
+      {showOnboarding && (
+        <Onboarding
+          onClose={() => setShowOnboarding(false)}
+          onCreateQuest={() => setShowAddQuest(true)}
+        />
       )}
     </Layout>
   );

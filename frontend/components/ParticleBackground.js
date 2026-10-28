@@ -1,12 +1,37 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+// WebGL only on desktop-size screens without a reduced-motion preference.
+// Phones/tablets get a static CSS gradient (no GPU/battery cost).
+const MOBILE_QUERY = '(max-width: 1023px)';
+const REDUCED_QUERY = '(prefers-reduced-motion: reduce)';
+
+function canUseWebGL() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return !window.matchMedia(MOBILE_QUERY).matches && !window.matchMedia(REDUCED_QUERY).matches;
+}
 
 export default function ParticleBackground({
   showPushupModel = false,
   showIdleModel = false,
+  disabled = false,
 }) {
   const mountRef = useRef(null);
+  const [webgl, setWebgl] = useState(false);
+
+  // Track the media queries so resizing across the breakpoint switches modes
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const update = () => setWebgl(canUseWebGL());
+    update();
+    const mqs = [window.matchMedia(MOBILE_QUERY), window.matchMedia(REDUCED_QUERY)];
+    mqs.forEach((mq) => (mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update)));
+    return () => mqs.forEach((mq) => (mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update)));
+  }, []);
+
+  const active = webgl && !disabled;
 
   useEffect(() => {
+    if (!active) return;
     const mountEl = mountRef.current;
     let animId;
     let renderer;
@@ -30,9 +55,9 @@ export default function ParticleBackground({
       camera.position.set(0, 0, 30);
 
       // ── Renderer ───────────────────────────────────────────────────────────
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power' });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setClearColor(0x000000, 0);
       mountEl.appendChild(renderer.domElement);
 
@@ -200,8 +225,9 @@ export default function ParticleBackground({
       document.addEventListener('scroll', onScroll);
 
       // ── Animation loop ─────────────────────────────────────────────────────
+      let paused = false;
       function animate() {
-        if (cancelled) return;
+        if (cancelled || paused) return;
         animId = requestAnimationFrame(animate);
 
         ico.rotation.z += 0.005;
@@ -230,7 +256,21 @@ export default function ParticleBackground({
       }
       animate();
 
+      // Pause rendering while the tab is hidden
+      function onVisibility() {
+        if (document.hidden) {
+          paused = true;
+          if (animId) cancelAnimationFrame(animId);
+        } else if (paused) {
+          paused = false;
+          clock.getDelta(); // drop the time spent hidden
+          animate();
+        }
+      }
+      document.addEventListener('visibilitychange', onVisibility);
+
       mountEl._threeCleanup = () => {
+        document.removeEventListener('visibilitychange', onVisibility);
         window.removeEventListener('resize', onResize);
         document.removeEventListener('scroll', onScroll);
         starGeo.dispose();
@@ -245,16 +285,18 @@ export default function ParticleBackground({
     return () => {
       cancelled = true;
       if (animId) cancelAnimationFrame(animId);
-      if (mountEl._threeCleanup) mountEl._threeCleanup();
+      if (mountEl._threeCleanup) { mountEl._threeCleanup(); mountEl._threeCleanup = null; }
       if (renderer?.domElement?.parentNode === mountEl) {
         mountEl.removeChild(renderer.domElement);
       }
     };
-  }, [showPushupModel, showIdleModel]);
+  }, [showPushupModel, showIdleModel, active]);
 
   return (
     <div
       ref={mountRef}
+      aria-hidden
+      className={active ? undefined : 'sq-static-bg'}
       style={{
         position: 'fixed',
         top: 0,

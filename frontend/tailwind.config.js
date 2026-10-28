@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // hover: utilities only apply on devices that can actually hover, so
+  // touch screens don't get "sticky" hover states after a tap.
+  future: { hoverOnlyWhenSupported: true },
   content: [
     './pages/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
@@ -34,6 +37,8 @@ module.exports = {
           warning: '#F59E0B',
           danger:  '#EF4444',
           success: '#22C55E',
+          // readable secondary text — use for anything that carries information
+          secondary: '#94A3B8',
         },
       },
       boxShadow: {

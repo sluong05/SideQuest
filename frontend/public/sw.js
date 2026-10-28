@@ -1,4 +1,4 @@
-const CACHE = 'sidequest-v1';
+const CACHE = 'sidequest-v2';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE = [
@@ -63,22 +63,35 @@ self.addEventListener('fetch', (e) => {
   // For navigation requests: network-first, fall back to offline page
   if (request.mode === 'navigate') {
     e.respondWith(
-      fetch(request).catch(() => caches.match('/offline') || caches.match('/'))
+      fetch(request).catch(() =>
+        caches.match(OFFLINE_URL).then((r) => r || caches.match('/'))
+      )
     );
     return;
   }
 
-  // For static assets: cache-first
+  // Only cache same-origin static assets (CDN scripts/models are left to the browser cache)
+  if (new URL(request.url).origin !== self.location.origin) return;
+
+  // Static assets: stale-while-revalidate — answer from cache immediately,
+  // refresh the cached copy in the background for next time.
   e.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
-        if (res && res.status === 200) {
-          const clone = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, clone));
+    caches.open(CACHE).then((cache) =>
+      cache.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((res) => {
+            if (res && res.status === 200 && res.type === 'basic') {
+              cache.put(request, res.clone());
+            }
+            return res;
+          })
+          .catch(() => cached);
+        if (cached) {
+          e.waitUntil(network.then(() => undefined, () => undefined));
+          return cached;
         }
-        return res;
-      });
-    })
+        return network;
+      })
+    )
   );
 });

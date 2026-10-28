@@ -3,8 +3,12 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import { getLeaderboard, getStreak } from '../lib/api';
+import { getLeaderboard, getStreak, getFriends, getInviteLink } from '../lib/api';
 import { Icon } from '../components/Icons';
+import SocialTabs from '../components/SocialTabs';
+import ShareButton from '../components/ShareButton';
+import { PageMeta, joinUrl } from '../lib/site';
+import { track } from '../lib/analytics';
 
 const LEAGUES = [
   { name: 'Bronze',   minXP: 0,     color: '#CD7F32', bg: 'rgba(205,127,50,0.15)',   border: 'rgba(205,127,50,0.4)',  icon: 'medal' },
@@ -75,8 +79,8 @@ function Avatar({ entry, size = 32, ring = 'rgba(59,130,246,0.4)', glow = false 
         boxShadow: glow ? `0 0 16px ${ring}` : 'none',
       }}
     >
-      {entry.avatar ? (
-        <img src={entry.avatar} alt={entry.username || 'avatar'} className="w-full h-full object-cover" />
+      {(entry.avatarUrl || entry.avatar) ? (
+        <img src={entry.avatarUrl || entry.avatar} alt={entry.username || 'avatar'} className="w-full h-full object-cover" loading="lazy" />
       ) : (
         (entry.username || '?')[0].toUpperCase()
       )}
@@ -221,7 +225,7 @@ function RankTable({ entries, userId, scope }) {
 export default function Leaderboard() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState('Global');
+  const [tab, setTab] = useState(null); // null until we know whether the user has friends
   const [scope, setScope] = useState('week'); // 'week' | 'all'
   const [leaderboard, setLeaderboard] = useState([]);
   const [friendsLeaderboard, setFriendsLeaderboard] = useState([]);
@@ -244,6 +248,29 @@ export default function Leaderboard() {
       .finally(() => setLoading(false));
   }, [user]);
 
+  // Default to the Friends board when the user has at least one friend.
+  useEffect(() => {
+    if (!user) return;
+    getFriends()
+      .then((r) => {
+        const n = r.data.friends?.length ?? 0;
+        setTab((t) => t ?? (n > 0 ? 'Friends' : 'Global'));
+      })
+      .catch(() => setTab((t) => t ?? 'Global'));
+  }, [user]);
+
+  async function getInvitePayload() {
+    let url;
+    try { url = (await getInviteLink()).data.url; }
+    catch { url = user?.username ? joinUrl({ ref: user.username }) : joinUrl(); }
+    track('invite_sent', { kind: 'friend', source: 'leaderboard' });
+    return {
+      title: 'Join me on SideQuest',
+      text: 'Race me up the SideQuest leaderboard — quests with real deadlines, and missed ones cost pushups.',
+      url,
+    };
+  }
+
   useEffect(() => {
     if (!user || tab !== 'Friends') return;
     setFriendsLoading(true);
@@ -256,13 +283,14 @@ export default function Leaderboard() {
   if (authLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#050A14' }}>
+        <PageMeta title="Leaderboard" description="See who's finishing the most quests this week on SideQuest." path="/leaderboard" noindex />
         <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   const baseEntries = tab === 'Friends' ? friendsLeaderboard : leaderboard;
-  const isLoadingActive = tab === 'Friends' ? friendsLoading : loading;
+  const isLoadingActive = tab === null || (tab === 'Friends' ? friendsLoading : loading);
   const activeEntries = scope === 'all'
     ? [...baseEntries].sort((a, b) => (b.totalQuestsCompleted - a.totalQuestsCompleted) || (b.totalPaid - a.totalPaid))
     : baseEntries;
@@ -279,6 +307,8 @@ export default function Leaderboard() {
 
   return (
     <Layout streak={streak}>
+      <PageMeta title="Leaderboard" description="See who's finishing the most quests this week on SideQuest." path="/leaderboard" noindex />
+      <SocialTabs />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 items-start">
         {/* ── Left column ── */}
         <div className="space-y-4 min-w-0">
@@ -362,14 +392,34 @@ export default function Leaderboard() {
               <div className="flex justify-center mb-3"><Icon name="users" className="w-9 h-9" color="#475569" /></div>
               <p className="text-navy-200 font-medium mb-1">No entries yet</p>
               <p className="text-slate-400 text-sm mb-4">
-                {tab === 'Friends' ? 'Add friends to see how you stack up.' : 'Complete quests to appear here.'}
+                {tab === 'Friends' ? 'Invite a friend to see how you stack up — you both get bonus coins.' : 'Complete quests to appear here.'}
               </p>
-              {tab === 'Friends' && <Link href="/friends" className="btn-primary text-sm py-2 px-5 inline-block">Find Friends</Link>}
+              <div className="flex gap-2 justify-center flex-wrap">
+                <ShareButton
+                  getPayload={getInvitePayload}
+                  label="Invite friends"
+                  eventProps={{ source: 'leaderboard_empty', kind: 'invite' }}
+                  className="btn-primary text-sm py-2 px-5"
+                />
+                {tab === 'Friends' && <Link href="/friends" className="btn-secondary text-sm py-2 px-5 inline-block">Find Friends</Link>}
+              </div>
             </div>
           ) : (
             <>
               <Podium entries={activeEntries} />
               <RankTable entries={activeEntries} userId={user?.id} scope={scope} />
+              {tab === 'Friends' && activeEntries.length < 4 && (
+                <div className="card flex items-center gap-3 flex-wrap">
+                  <Icon name="users" className="w-5 h-5 flex-shrink-0" color="#60a5fa" />
+                  <p className="flex-1 min-w-[160px] text-sm text-navy-200">More friends, more competition.</p>
+                  <ShareButton
+                    getPayload={getInvitePayload}
+                    label="Invite friends"
+                    eventProps={{ source: 'leaderboard_footer', kind: 'invite' }}
+                    className="btn-secondary text-xs py-1.5 px-3"
+                  />
+                </div>
+              )}
             </>
           )}
         </div>

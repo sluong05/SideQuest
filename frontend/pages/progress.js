@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { getSessions, getStreak, getQuests } from '../lib/api';
 import { CategoryIcon } from '../components/Icons';
+import { PageMeta } from '../lib/site';
 
 const MILESTONES = [3, 7, 14, 30, 60, 100];
 const XP_PER_LEVEL = 500;
@@ -701,6 +702,7 @@ export default function Progress() {
 
   return (
     <Layout streak={streak}>
+      <PageMeta title="Your progress" description="Your SideQuest XP, streaks and achievements." path="/progress" noindex />
       {/* Header */}
       <div className="mb-6">
         <p className="text-[11px] text-slate-500 mb-1">

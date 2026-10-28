@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { logPayoff, startPayoffSession, getDebt, getStreak } from '../lib/api';
 import { Icon } from '../components/Icons';
+import { useSheetBehavior, SheetCloseButton, SheetHandle } from '../components/SheetModal';
 
 // ─── MediaPipe landmark indices ───────────────────────────────────────────────
 const IDX = {
@@ -34,7 +35,45 @@ const ARM_CONNECTIONS = [
   [IDX.R_ELBOW,    IDX.R_WRIST],
 ];
 
+// Pinned MediaPipe builds (unpinned "@0.5" can silently change under us)
+const POSE_VERSION = '0.5.1675469404';
+const POSE_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${POSE_VERSION}`;
+const DRAWING_UTILS_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function isLowPowerDevice() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(max-width: 1023px)').matches;
+}
+
+function detectPlatform() {
+  if (typeof navigator === 'undefined') return 'desktop';
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'desktop';
+}
+
+// Recovery steps when the camera permission was denied
+const PERMISSION_STEPS = {
+  ios: [
+    'In Safari, tap the aA button in the address bar',
+    'Tap Website Settings',
+    'Set Camera to Allow',
+    'Come back here and tap Try again',
+  ],
+  android: [
+    'In Chrome, tap the lock (or ⓘ) icon left of the address',
+    'Tap Permissions → Camera',
+    'Choose Allow',
+    'Come back here and tap Try again',
+  ],
+  desktop: [
+    'Click the camera or lock icon in the address bar',
+    'Allow camera access for this site',
+    'Click Try again',
+  ],
+};
 function calcAngle(a, b, c) {
   const rad =
     Math.atan2(c.y - b.y, c.x - b.x) -
@@ -93,6 +132,9 @@ export default function VerifyPushups() {
   const countingRef = useRef(false);  // whether rep counting is active
   const dingRef     = useRef(null);
   const downSinceRef = useRef(null);  // timestamp when elbow first dropped below 90°
+  const lastInferRef = useRef(0);     // performance.now() of the last pose.send
+  const wakeLockRef  = useRef(null);
+  const bodyVisKeyRef = useRef('');   // last checklist state, to avoid re-render spam
 
   function playDing() {
     if (typeof window === 'undefined') return;
@@ -118,8 +160,15 @@ export default function VerifyPushups() {
   const [stage,           setStage]           = useState('up');
   const [counting,        setCounting]        = useState(false);
   const [downHoldProgress, setDownHoldProgress] = useState(0); // 0–1 while waiting to lock 'down'
-  const [mpLoading,  setMpLoading]  = useState(true);
-  const [camError,   setCamError]   = useState('');
+  const [mpLoading,  setMpLoading]  = useState(false);
+  const [camError,   setCamError]   = useState(null);   // { kind, message } | null
+  const [cameraAttempt, setCameraAttempt] = useState(0); // 0 = camera not requested yet
+  const [cameraOn,   setCameraOn]   = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [isTouch,    setIsTouch]    = useState(false);
+  const [countdown,  setCountdown]  = useState(0);
+  const [bodyVis,    setBodyVis]    = useState({ shoulders: false, hips: false, wrists: false });
+  const [xpEarned,   setXpEarned]   = useState(0);
   const [submitting,   setSubmitting]   = useState(false);
   const [submitted,    setSubmitted]    = useState(false);
   const [submitError,  setSubmitError]  = useState('');
@@ -137,7 +186,7 @@ export default function VerifyPushups() {
   // its timestamp to reject rep counts faster than a human pace.
   useEffect(() => {
     if (!user || sessionTokenRef.current) return;
-    startPayoffSession()
+    startPayoffSession('fitness')
       .then((r) => { sessionTokenRef.current = r.data.sessionToken; })
       .catch(() => {});
   }, [user]);
@@ -169,9 +218,28 @@ export default function VerifyPushups() {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
 
-    if (!results.poseLandmarks) return;
+    if (!results.poseLandmarks) {
+      if (bodyVisKeyRef.current !== '000') {
+        bodyVisKeyRef.current = '000';
+        setBodyVis({ shoulders: false, hips: false, wrists: false });
+      }
+      return;
+    }
 
     const L = results.poseLandmarks;
+
+    // Live "in frame" checklist from landmark visibility
+    const seen = (a, b) => Math.max(L[a]?.visibility || 0, L[b]?.visibility || 0) > 0.5;
+    const checks = {
+      shoulders: seen(IDX.L_SHOULDER, IDX.R_SHOULDER),
+      hips:      seen(IDX.L_HIP, IDX.R_HIP),
+      wrists:    seen(IDX.L_WRIST, IDX.R_WRIST),
+    };
+    const visKey = `${+checks.shoulders}${+checks.hips}${+checks.wrists}`;
+    if (visKey !== bodyVisKeyRef.current) {
+      bodyVisKeyRef.current = visKey;
+      setBodyVis(checks);
+    }
 
     // Mirror x so the canvas overlay lines up with the CSS-flipped video
     const fx = (x) => W - x * W;
@@ -375,18 +443,18 @@ export default function VerifyPushups() {
       // Draw progress arc near the raised wrist
       const wx = fx(activeWristLm.x);
       const wy = fy(activeWristLm.y);
-      const R  = 20;
+      const R  = 26;
 
       // Background circle
       ctx.beginPath();
-      ctx.arc(wx, wy - 36, R, 0, 2 * Math.PI);
+      ctx.arc(wx, wy - 44, R, 0, 2 * Math.PI);
       ctx.strokeStyle = 'rgba(255,255,255,0.15)';
       ctx.lineWidth   = 3;
       ctx.stroke();
 
       // Progress arc
       ctx.beginPath();
-      ctx.arc(wx, wy - 36, R, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * progress);
+      ctx.arc(wx, wy - 44, R, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * progress);
       ctx.strokeStyle = countingRef.current ? '#f87171' : '#4ade80';
       ctx.lineWidth   = 3;
       ctx.lineCap     = 'round';
@@ -394,11 +462,11 @@ export default function VerifyPushups() {
 
       // Label inside arc
       const label = countingRef.current ? 'STOP' : 'GO';
-      ctx.font         = 'bold 9px Inter, system-ui, sans-serif';
+      ctx.font         = 'bold 14px Inter, system-ui, sans-serif';
       ctx.fillStyle    = '#fff';
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, wx, wy - 36);
+      ctx.fillText(label, wx, wy - 44);
       ctx.textBaseline = 'alphabetic';
 
       if (held >= GESTURE_HOLD_MS) {
@@ -422,44 +490,70 @@ export default function VerifyPushups() {
     }
   }, []);
 
-  // ── MediaPipe + Camera init ──────────────────────────────────────────────────
+  // ── Orientation / pointer tracking (landscape guidance, low-power model) ──────
   useEffect(() => {
-    if (!user) return;
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const pq = window.matchMedia('(orientation: portrait)');
+    const tq = window.matchMedia('(pointer: coarse)');
+    const update = () => { setIsPortrait(pq.matches); setIsTouch(tq.matches); };
+    update();
+    const add = (mq) => (mq.addEventListener ? mq.addEventListener('change', update) : mq.addListener(update));
+    const rm = (mq) => (mq.removeEventListener ? mq.removeEventListener('change', update) : mq.removeListener(update));
+    add(pq); add(tq);
+    return () => { rm(pq); rm(tq); };
+  }, []);
+
+  // ── Keep the screen awake while counting (re-acquired after tab switches) ────
+  useEffect(() => {
+    if (!counting || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return undefined;
+    let active = true;
+    async function acquire() {
+      try {
+        if (active && document.visibilityState === 'visible') {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        }
+      } catch (_) { /* denied / unsupported — counting still works */ }
+    }
+    function onVisibility() { if (document.visibilityState === 'visible') acquire(); }
+    acquire();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (wakeLockRef.current) { wakeLockRef.current.release().catch(() => {}); wakeLockRef.current = null; }
+    };
+  }, [counting]);
+
+  // ── Start-counting countdown (time to get into position) ────────────────────
+  useEffect(() => {
+    if (countdown <= 0) return undefined;
+    const id = setTimeout(() => {
+      if (countdown === 1) { setCountdown(0); startCounting(); }
+      else setCountdown(countdown - 1);
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [countdown]);
+
+  // ── Camera + MediaPipe init — only after the user taps "Start camera" ───────
+  // Key on "signed in" rather than the user object: updateUser() after a
+  // submit must not tear down and restart the camera.
+  const signedIn = !!user;
+  useEffect(() => {
+    if (!signedIn || cameraAttempt === 0) return undefined;
 
     let cancelled = false;
 
     async function init() {
+      setCamError(null);
+      setMpLoading(true);
       try {
-        // Load drawing_utils first (pose.js depends on it)
-        await loadScript(
-          'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js'
-        );
-        await loadScript(
-          'https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js'
-        );
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          const e = new Error('This browser can’t open the camera here. Use Safari or Chrome over a secure (https) connection.');
+          e.name = 'InsecureContextError';
+          throw e;
+        }
 
-        if (cancelled) return;
-        setMpLoading(false);
-
-        // Instantiate Pose
-        const pose = new window.Pose({
-          locateFile: (file) =>
-            `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`,
-        });
-
-        pose.setOptions({
-          modelComplexity:       1,
-          smoothLandmarks:       true,
-          enableSegmentation:    false,
-          smoothSegmentation:    false,
-          minDetectionConfidence: 0.5,
-          minTrackingConfidence:  0.5,
-        });
-
-        pose.onResults(onResults);
-        poseRef.current = pose;
-
-        // Open webcam
+        // Ask for the camera first so the permission prompt follows the tap
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width:      { ideal: 640 },
@@ -474,19 +568,49 @@ export default function VerifyPushups() {
           return;
         }
 
-        streamRef.current       = stream;
+        streamRef.current = stream;
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        if (cancelled) return;
+        setCameraOn(true);
 
-        // Frame-by-frame inference loop
+        // drawing_utils is loaded alongside pose (same release train)
+        await loadScript(DRAWING_UTILS_URL);
+        await loadScript(`${POSE_BASE}/pose.js`);
+        if (cancelled) return;
+
+        const pose = new window.Pose({
+          locateFile: (file) => `${POSE_BASE}/${file}`,
+        });
+
+        pose.setOptions({
+          // lite model on phones/tablets — much faster, accurate enough for elbows
+          modelComplexity:       isLowPowerDevice() ? 0 : 1,
+          smoothLandmarks:       true,
+          enableSegmentation:    false,
+          smoothSegmentation:    false,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence:  0.5,
+        });
+
+        pose.onResults(onResults);
+        poseRef.current = pose;
+        setMpLoading(false);
+
+        // Inference loop, throttled to ~15 fps (plenty for pushups, saves battery)
+        const FRAME_MS = 1000 / 15;
         async function loop() {
           if (cancelled) return;
-          try {
-            if (poseRef.current && videoRef.current?.readyState >= 2) {
-              await poseRef.current.send({ image: videoRef.current });
+          const now = performance.now();
+          if (!document.hidden && now - lastInferRef.current >= FRAME_MS) {
+            lastInferRef.current = now;
+            try {
+              if (poseRef.current && videoRef.current?.readyState >= 2) {
+                await poseRef.current.send({ image: videoRef.current });
+              }
+            } catch (_) {
+              // skip bad frames
             }
-          } catch (_) {
-            // skip bad frames
           }
           if (!cancelled) {
             animRef.current = requestAnimationFrame(loop);
@@ -498,17 +622,14 @@ export default function VerifyPushups() {
         if (cancelled) return;
         setMpLoading(false);
         console.error('Pose init error:', err);
-        if (
-          err.name === 'NotAllowedError' ||
-          err.name === 'PermissionDeniedError'
-        ) {
-          setCamError(
-            'Camera access was denied. Please allow camera permissions and refresh.'
-          );
-        } else if (err.name === 'NotFoundError') {
-          setCamError('No camera found on this device.');
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'SecurityError') {
+          setCamError({ kind: 'denied', message: 'Camera access is blocked for this site.' });
+        } else if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') {
+          setCamError({ kind: 'notfound', message: 'No camera found on this device.' });
+        } else if (err.name === 'NotReadableError') {
+          setCamError({ kind: 'busy', message: 'Your camera is being used by another app. Close it, then try again.' });
         } else {
-          setCamError(`Could not start: ${err.message}`);
+          setCamError({ kind: 'other', message: err.message ? `Could not start: ${err.message}` : 'Could not start the camera.' });
         }
       }
     }
@@ -520,12 +641,15 @@ export default function VerifyPushups() {
       if (animRef.current) cancelAnimationFrame(animRef.current);
       if (poseRef.current) {
         try { poseRef.current.close(); } catch (_) {}
+        poseRef.current = null;
       }
-if (streamRef.current) {
+      if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
+      setCameraOn(false);
     };
-  }, [user, onResults]);
+  }, [signedIn, onResults, cameraAttempt]);
 
   // ── Start / stop counting ────────────────────────────────────────────────────
   function startCounting() {
@@ -539,6 +663,7 @@ if (streamRef.current) {
   }
 
   function stopCounting() {
+    setCountdown(0);
     countingRef.current  = false;
     downSinceRef.current = null;
     setCounting(false);
@@ -554,20 +679,27 @@ if (streamRef.current) {
     try {
       if (!sessionTokenRef.current) {
         // Mount-time fetch failed (e.g. flaky network) — try once more
-        sessionTokenRef.current = (await startPayoffSession()).data.sessionToken;
+        sessionTokenRef.current = (await startPayoffSession('fitness')).data.sessionToken;
       }
       const res = await logPayoff(reps, 'fitness', sessionTokenRef.current);
       setTotalOwed(res.data.totalOwed);
       const earned = res.data.coinsEarned ?? 0;
+      const xp = res.data.xpEarned ?? 0;
       setCoinsEarned(earned);
-      if (earned > 0) updateUser({ ...user, coins: (user.coins ?? 0) + earned });
+      setXpEarned(xp);
+      if (earned > 0 || xp > 0) updateUser({ ...user, coins: (user.coins ?? 0) + earned, xp: (user.xp ?? 0) + xp });
       setSubmitted(true);
+      // Fresh token for the next set (each token covers one logged session)
+      sessionTokenRef.current = null;
+      startPayoffSession('fitness')
+        .then((r) => { sessionTokenRef.current = r.data.sessionToken; })
+        .catch(() => {});
       // Reset counter so user can do another set
       repsRef.current  = 0;
       stageRef.current = 'up';
       setReps(0);
       setStage('up');
-      setTimeout(() => { setSubmitted(false); setCoinsEarned(0); }, 4000);
+      setTimeout(() => { setSubmitted(false); setCoinsEarned(0); setXpEarned(0); }, 4000);
     } catch (err) {
       console.error(err);
       setSubmitError(err.response?.data?.error || 'Could not log reps — try again');
@@ -586,72 +718,38 @@ if (streamRef.current) {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
+  const platform = typeof navigator === 'undefined' ? 'desktop' : detectPlatform();
+  const cameraReady = cameraOn && !mpLoading && !camError;
+  // Full-screen camera on phones while counting (or counting down)
+  const immersive = cameraReady && (counting || countdown > 0);
+  const showRotateHint = cameraReady && isTouch && isPortrait;
+
+  function startCamera() {
+    setShowTipsModal(false);
+    setCameraAttempt((a) => a + 1);
+  }
+
   return (
-    <Layout streak={streak}>
+    <Layout streak={streak} disableBackground>
 
-      {/* ── Camera tips modal ─────────────────────────────────────────────── */}
+      {/* ── Camera tips (shown before the camera is ever requested) ──────── */}
       {showTipsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="card bg-navy-700 max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div>
-              <p className="text-xs text-navy-200 font-medium uppercase tracking-wide mb-3">
-                Camera Position Reference
-              </p>
-              <p className="text-sm text-navy-300 mb-3">
-                Place your camera to the <span className="text-blue-400 font-semibold">side</span> so you look like the photos below — your full body should be visible in profile.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
-                    <img
-                      src="/upPushupPostition.png"
-                      alt="Up position — arms extended"
-                      className="w-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs text-green-400 font-medium">▲ Up position</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5">
-                  <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
-                    <img
-                      src="/downPushupPosition.png"
-                      alt="Down position — elbows bent"
-                      className="w-full object-contain"
-                    />
-                  </div>
-                  <span className="text-xs text-blue-400 font-medium">▼ Down position</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-navy-600 pt-4 space-y-1.5">
-              <p className="text-sm text-navy-200">
-                <span className="font-medium">Tips:</span> Face the camera side-on for best elbow tracking.
-                Keep your arms fully visible. Good lighting improves accuracy.
-              </p>
-              <p className="text-sm text-navy-300">
-                <span className="text-blue-400 font-medium">Gesture shortcut:</span> Raise one hand above your shoulder and hold for 1.5 s to start or stop counting — no button needed.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setShowTipsModal(false)}
-              className="btn-primary w-full py-3 text-base font-bold"
-            >
-              Got it!
-            </button>
-          </div>
-        </div>
+        <TipsSheet
+          isTouch={isTouch}
+          cameraStarted={cameraAttempt > 0}
+          onClose={() => setShowTipsModal(false)}
+          onStartCamera={startCamera}
+        />
       )}
 
       <div className="max-w-5xl mx-auto">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-6 gap-4">
-          <div>
+        <div className="flex items-start justify-between mb-4 sm:mb-6 gap-4">
+          <div className="min-w-0">
             <Link
               href="/pay"
-              className="inline-flex items-center gap-1 text-sm text-navy-200 hover:text-navy-100 mb-2 transition-colors"
+              className="inline-flex items-center gap-1 min-h-[44px] text-sm text-navy-200 hover:text-navy-100 transition-colors"
             >
               ← Change payoff method
             </Link>
@@ -660,12 +758,12 @@ if (streamRef.current) {
               Camera-verified reps · elbow angle tracking
             </p>
           </div>
-          <div className="card py-3 px-5 text-center flex-shrink-0">
+          <div className="card py-3 px-4 sm:px-5 text-center flex-shrink-0">
             <p className="text-xs text-navy-200 mb-0.5">Debt Remaining</p>
             <p className={`text-2xl font-bold tabular-nums ${totalOwed > 0 ? 'text-red-400' : 'text-green-400'}`}>
               {totalOwed}
             </p>
-            <p className="text-xs text-navy-300">pushups</p>
+            <p className="text-xs text-navy-200">pts</p>
           </div>
         </div>
 
@@ -674,79 +772,147 @@ if (streamRef.current) {
           {/* ── Left: Camera feed ─────────────────────────────────────────── */}
           <div className="lg:col-span-2 space-y-3">
 
-            {/* Video container */}
-            <div className="card p-0 overflow-hidden bg-navy-600 relative" style={{ aspectRatio: '4/3' }}>
+            {/* Video container — becomes full-screen on phones while counting */}
+            <div
+              className={immersive
+                ? 'fixed inset-0 z-[60] bg-black overflow-hidden lg:relative lg:inset-auto lg:z-auto lg:rounded-2xl lg:aspect-[4/3]'
+                : 'card p-0 overflow-hidden bg-navy-600 relative aspect-[4/3]'}
+            >
 
-              {/* Loading overlay */}
-              {mpLoading && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700">
-                  <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-                  <p className="text-navy-100 font-medium">Loading pose detection…</p>
-                  <p className="text-navy-300 text-xs mt-1">Downloading MediaPipe model (~10 MB)</p>
-                </div>
-              )}
-
-              {/* Camera error overlay */}
-              {camError && !mpLoading && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700 p-8 text-center">
-                  <img src="/Camera.svg" alt="camera" className="w-14 h-14 mb-4" />
-                  <p className="text-red-400 font-medium">{camError}</p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="btn-secondary mt-4 text-sm"
-                  >
-                    Refresh page
+              {/* Not started yet */}
+              {cameraAttempt === 0 && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700 p-6 text-center gap-3">
+                  <img src="/Camera.svg" alt="" width={56} height={56} className="w-14 h-14" />
+                  <p className="text-navy-100 font-semibold">Camera is off</p>
+                  <p className="text-navy-200 text-sm max-w-xs">Your video never leaves your device — reps are counted right here in the browser.</p>
+                  <button onClick={startCamera} className="btn-primary min-h-[48px] px-6 text-base font-bold mt-1">
+                    <Icon name="play" className="w-4 h-4" color="currentColor" /> Start camera
+                  </button>
+                  <button onClick={() => setShowTipsModal(true)} className="min-h-[44px] px-3 text-sm text-blue-400 hover:text-blue-300">
+                    How to position yourself
                   </button>
                 </div>
               )}
 
-              {/* Video feed — mirrored via CSS */}
+              {/* Loading overlay */}
+              {cameraAttempt > 0 && mpLoading && !camError && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700/90 p-6 text-center">
+                  <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                  <p className="text-navy-100 font-medium">{cameraOn ? 'Loading pose detection…' : 'Waiting for camera…'}</p>
+                  <p className="text-navy-200 text-xs mt-1">{cameraOn ? 'Downloading the MediaPipe model (first time only)' : 'Allow camera access when your browser asks'}</p>
+                </div>
+              )}
+
+              {/* Camera error overlay */}
+              {camError && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-navy-700 p-5 sm:p-8 text-center overflow-y-auto">
+                  <img src="/Camera.svg" alt="" width={48} height={48} className="w-12 h-12 mb-3" />
+                  <p className="text-red-400 font-semibold">{camError.message}</p>
+                  {camError.kind === 'denied' && (
+                    <ol className="text-left text-sm text-navy-100 mt-3 space-y-1.5 list-decimal list-inside max-w-xs">
+                      {PERMISSION_STEPS[platform].map((step) => <li key={step}>{step}</li>)}
+                    </ol>
+                  )}
+                  <button
+                    onClick={() => setCameraAttempt((a) => a + 1)}
+                    className="btn-primary mt-4 min-h-[44px] px-6 text-sm"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {/* Video feed — mirrored via CSS; contain so the whole body stays in view */}
               <video
                 ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
                 style={{ transform: 'scaleX(-1)' }}
                 playsInline
                 muted
               />
 
-              {/* Canvas overlay — draws at native video res, displayed via CSS */}
+              {/* Canvas overlay — same object-fit as the video so landmarks line up */}
               <canvas
                 ref={canvasRef}
-                className="absolute inset-0 w-full h-full"
+                className="absolute inset-0 w-full h-full object-contain"
                 style={{ pointerEvents: 'none' }}
               />
 
-              {/* Start counting overlay — shown when camera is ready but not yet counting */}
-              {!mpLoading && !camError && !counting && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] gap-4">
-                  <Icon name="hand" className="w-12 h-12 drop-shadow-lg" color="#f8fafc" />
+              {/* Live visibility checklist */}
+              {cameraReady && (
+                <div
+                  className="absolute left-2 z-20 flex flex-wrap gap-1.5 pointer-events-none"
+                  style={{ top: immersive ? 'calc(env(safe-area-inset-top, 0px) + 8px)' : 8 }}
+                  aria-live="polite"
+                >
+                  {[['shoulders', 'Shoulders'], ['hips', 'Hips'], ['wrists', 'Wrists']].map(([k, lbl]) => (
+                    <span
+                      key={k}
+                      className="flex items-center gap-1 text-[12px] font-semibold px-2 py-1 rounded-full"
+                      style={bodyVis[k]
+                        ? { background: 'rgba(22,101,52,0.75)', color: '#bbf7d0' }
+                        : { background: 'rgba(0,0,0,0.6)', color: '#fca5a5' }}
+                    >
+                      {bodyVis[k] ? '✓' : '✗'} {lbl}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Portrait hint on phones */}
+              {showRotateHint && !counting && countdown === 0 && (
+                <div className="absolute inset-x-3 bottom-16 z-20 rounded-xl px-3 py-2.5 text-sm text-center pointer-events-none" style={{ background: 'rgba(0,0,0,0.72)', color: '#fde68a' }}>
+                  Turn your phone sideways, lean it ~2m away at floor level so your whole body fits.
+                </div>
+              )}
+
+              {/* Ready overlay — camera on, not counting */}
+              {cameraReady && !counting && countdown === 0 && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 gap-3 p-4">
+                  <Icon name="hand" className="w-10 h-10 drop-shadow-lg" color="#f8fafc" />
                   <div className="text-center">
                     <p className="text-white font-bold text-lg drop-shadow-md">
                       {reps > 0 ? 'Ready to resume' : 'Get in position'}
                     </p>
                     <p className="text-navy-100 text-sm drop-shadow-md mt-1">
-                      Raise your hand above your shoulder<br />
-                      and hold for <span className="text-blue-400 font-semibold">1.5 s</span> to start
+                      Raise your hand above your shoulder for <span className="text-blue-300 font-semibold">1.5 s</span>, or
                     </p>
                   </div>
+                  <button
+                    onClick={() => setCountdown(5)}
+                    className="btn-primary min-h-[48px] px-6 text-base font-bold"
+                  >
+                    Start counting in 5 s
+                  </button>
+                </div>
+              )}
+
+              {/* Countdown */}
+              {cameraReady && countdown > 0 && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/30 pointer-events-none">
+                  <p className="text-8xl font-black text-white tabular-nums" style={{ textShadow: '0 4px 24px rgba(0,0,0,0.9)' }}>{countdown}</p>
+                  <p className="text-white/90 text-sm font-semibold mt-2">Get into the up position</p>
                 </div>
               )}
 
               {/* Stage cue + rep count — centered on video while counting */}
-              {!mpLoading && !camError && counting && (
+              {cameraReady && counting && (
                 <>
                   {/* Stage cue — large, top-center */}
-                  <div className="absolute top-5 inset-x-0 flex justify-center z-10 pointer-events-none">
+                  <div
+                    className="absolute inset-x-0 flex justify-center z-10 pointer-events-none"
+                    style={{ top: immersive ? 'calc(env(safe-area-inset-top, 0px) + 44px)' : 20 }}
+                  >
                     {stage === 'down' ? (
                       <span
-                        className="text-3xl font-black px-8 py-3 rounded-full bg-blue-600 text-white"
+                        className="text-2xl sm:text-3xl font-black px-8 py-3 rounded-full bg-blue-600 text-white"
                         style={{ textShadow: '0 2px 10px rgba(0,0,0,0.6)', boxShadow: '0 4px 20px rgba(249,115,22,0.4)' }}
                       >
                         ▼ DOWN
                       </span>
                     ) : downHoldProgress > 0 ? (
                       <div
-                        className="relative overflow-hidden text-3xl font-black px-8 py-3 rounded-full bg-navy-800/90 text-blue-400 border-2 border-blue-500/60"
+                        className="relative overflow-hidden text-2xl sm:text-3xl font-black px-8 py-3 rounded-full bg-navy-800/90 text-blue-400 border-2 border-blue-500/60"
                         style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
                       >
                         <div
@@ -757,7 +923,7 @@ if (streamRef.current) {
                       </div>
                     ) : (
                       <span
-                        className="text-3xl font-black px-8 py-3 rounded-full bg-navy-800/80 text-green-400 border-2 border-green-500/40"
+                        className="text-2xl sm:text-3xl font-black px-8 py-3 rounded-full bg-navy-800/80 text-green-400 border-2 border-green-500/40"
                         style={{ textShadow: '0 2px 10px rgba(0,0,0,0.6)', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
                       >
                         ▲ UP
@@ -768,59 +934,67 @@ if (streamRef.current) {
                   {/* Rep count — centered on video */}
                   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                     <p
-                      className="text-9xl font-black tabular-nums text-blue-400 select-none"
+                      className="text-8xl sm:text-9xl font-black tabular-nums text-blue-400 select-none"
                       style={{ textShadow: '0 0 40px rgba(0,0,0,0.95), 0 4px 24px rgba(0,0,0,0.9)' }}
+                      aria-live="polite"
                     >
                       {reps}
                     </p>
                   </div>
 
-                  {/* Raise-hand hint */}
-                  <div className="absolute bottom-3 right-3 z-10">
-                    <span className="flex items-center gap-1 text-white/50 text-xs bg-black/40 px-2 py-1 rounded-full"><Icon name="hand" className="w-3 h-3" color="currentColor" /> raise hand to stop</span>
+                  {/* Raise-hand hint (desktop) */}
+                  <div className="hidden lg:block absolute bottom-3 right-3 z-10">
+                    <span className="flex items-center gap-1 text-white/70 text-xs bg-black/40 px-2 py-1 rounded-full"><Icon name="hand" className="w-3 h-3" color="currentColor" /> raise hand to stop</span>
                   </div>
                 </>
               )}
 
-              {/* ── Mobile stats bar — always visible at bottom of video ── */}
-              {!mpLoading && !camError && (
-                <div className="absolute bottom-0 left-0 right-0 z-10 lg:hidden bg-black/60 backdrop-blur-sm px-4 py-2 flex items-center justify-between gap-3">
+              {/* ── Mobile control bar — bottom of video ── */}
+              {cameraReady && (
+                <div
+                  className="absolute bottom-0 left-0 right-0 z-20 lg:hidden bg-black/65 backdrop-blur-sm px-3 pt-2 flex items-center justify-between gap-2"
+                  style={{ paddingBottom: immersive ? 'max(8px, env(safe-area-inset-bottom, 0px))' : 8 }}
+                >
                   {/* Rep count */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     {counting && <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse flex-shrink-0" />}
-                    <span className={`text-3xl font-bold tabular-nums ${counting ? 'text-blue-400' : reps > 0 ? 'text-white' : 'text-navy-300'}`}>
+                    <span className={`text-3xl font-bold tabular-nums ${counting ? 'text-blue-400' : reps > 0 ? 'text-white' : 'text-navy-200'}`}>
                       {reps}
                     </span>
-                    <span className="text-xs text-navy-300">reps</span>
-                  </div>
-
-                  {/* Back angle status */}
-                  <div className="text-center">
-                    {backAngle !== null ? (
-                      <span className={`text-xs font-medium ${backAngle < 40 ? 'text-green-400' : 'text-red-400'}`}>
-                        {backAngle < 40 ? '✓ back ok' : '✗ too upright'}
+                    <span className="text-xs text-navy-200">reps</span>
+                    {backAngle !== null && (
+                      <span className={`text-xs font-medium ml-1 ${backAngle < 40 ? 'text-green-400' : 'text-red-400'}`}>
+                        {backAngle < 40 ? '✓ back' : '✗ upright'}
                       </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">align body</span>
                     )}
                   </div>
 
-                  {/* Submit / log button */}
-                  {!counting && reps > 0 && (
-                    <button
-                      onClick={handleSubmit}
-                      disabled={submitting}
-                      className="btn-primary py-1.5 px-3 text-xs font-bold flex-shrink-0"
-                    >
-                      {submitting ? 'Logging…' : `Log ${reps}`}
-                    </button>
-                  )}
-                  {submitError && (
-                    <span className="text-xs text-red-400 font-medium">{submitError}</span>
-                  )}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {(counting || countdown > 0) && (
+                      <button
+                        onClick={stopCounting}
+                        className="btn-secondary min-h-[44px] px-4 text-sm font-bold"
+                      >
+                        Stop
+                      </button>
+                    )}
+                    {!counting && countdown === 0 && reps > 0 && (
+                      <button
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="btn-primary min-h-[44px] px-4 text-sm font-bold"
+                      >
+                        {submitting ? 'Logging…' : `Log ${reps}`}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
+
+            {submitError && (
+              <p role="alert" className="text-sm text-red-400 font-medium px-1">{submitError}</p>
+            )}
 
             {/* Angle threshold guide */}
             <div className="grid grid-cols-2 gap-3">
@@ -848,10 +1022,10 @@ if (streamRef.current) {
               </div>
             </div>
 
-            {/* Reopen tips modal */}
+            {/* Reopen tips */}
             <button
               onClick={() => setShowTipsModal(true)}
-              className="btn-secondary w-full py-2.5 text-sm"
+              className="btn-secondary w-full min-h-[44px] text-sm"
             >
               How to position yourself
             </button>
@@ -861,7 +1035,7 @@ if (streamRef.current) {
           <div className="space-y-4 lg:block">
 
             {/* Rep counter */}
-            <div className={`card text-center py-8 transition-colors duration-200 ${counting ? 'border-blue-500/40 bg-orange-950/10' : ''}`}>
+            <div className={`card text-center py-6 sm:py-8 transition-colors duration-200 ${counting ? 'border-blue-500/40 bg-orange-950/10' : ''}`}>
               <div className="flex items-center justify-center gap-2 mb-3">
                 {counting && (
                   <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
@@ -871,13 +1045,13 @@ if (streamRef.current) {
                 </p>
               </div>
               <p
-                className={`text-8xl font-bold tabular-nums transition-all duration-200 ${
-                  counting ? 'text-blue-400' : reps > 0 ? 'text-navy-50' : 'text-navy-300'
+                className={`text-7xl sm:text-8xl font-bold tabular-nums transition-all duration-200 ${
+                  counting ? 'text-blue-400' : reps > 0 ? 'text-navy-50' : 'text-navy-200'
                 }`}
               >
                 {reps}
               </p>
-              <p className="text-navy-300 text-sm mt-3">pushups</p>
+              <p className="text-navy-200 text-sm mt-3">pushups</p>
             </div>
 
             {/* Back angle indicator */}
@@ -888,7 +1062,7 @@ if (streamRef.current) {
                 backAngle === null ? 'bg-navy-700' : backAngle < 40 ? 'bg-green-500/20' : 'bg-red-500/20'
               }`}>
                 <span className={`text-sm font-bold ${
-                  backAngle === null ? 'text-navy-300' : backAngle < 40 ? 'text-green-400' : 'text-red-400'
+                  backAngle === null ? 'text-navy-200' : backAngle < 40 ? 'text-green-400' : 'text-red-400'
                 }`}>—</span>
               </div>
               <div className="flex-1 min-w-0">
@@ -901,7 +1075,7 @@ if (streamRef.current) {
                     </span>
                   </p>
                 ) : (
-                  <p className="text-navy-300 text-sm">Waiting for pose…</p>
+                  <p className="text-navy-200 text-sm">Waiting for pose…</p>
                 )}
               </div>
             </div>
@@ -950,43 +1124,48 @@ if (streamRef.current) {
                       style={{ left: `${(155 / 180) * 100}%` }}
                     />
                   </div>
-                  <div className="flex justify-between mt-1 text-xs text-navy-300">
+                  <div className="flex justify-between mt-1 text-xs text-navy-200">
                     <span>0°</span>
-                    <span className="text-orange-500/50">90°</span>
-                    <span className="text-green-500/50">155°</span>
+                    <span className="text-orange-400">90°</span>
+                    <span className="text-green-400">155°</span>
                     <span>180°</span>
                   </div>
                 </>
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-navy-300 text-sm">Waiting for pose…</p>
-                  <p className="text-navy-300 text-xs mt-1">Stand in frame</p>
+                  <p className="text-navy-200 text-sm">Waiting for pose…</p>
+                  <p className="text-navy-200 text-xs mt-1">{cameraOn ? 'Get your whole body in frame' : 'Start the camera to begin'}</p>
                 </div>
               )}
             </div>
 
             {/* Submit button */}
             {submitted ? (
-              <div className="card bg-green-900/20 border-green-800/40 text-center py-5">
+              <div className="card bg-green-900/20 border-green-800/40 text-center py-5" role="status">
                 <p className="text-green-400 font-bold text-lg">✓ Reps Logged!</p>
                 <p className="text-navy-200 text-sm mt-1">
                   {totalOwed > 0
-                    ? `${totalOwed} pushups remaining`
+                    ? `${totalOwed} pts remaining`
                     : 'All debt cleared!'}
                 </p>
-                {coinsEarned > 0 && (
-                  <p className="flex items-center justify-center gap-1.5 text-yellow-400 font-semibold text-sm mt-2">
-                    <img src="/Pcoin.svg" alt="coin" className="w-4 h-4" />
-                    +{coinsEarned} coin{coinsEarned !== 1 ? 's' : ''} earned!
-                  </p>
+                {(xpEarned > 0 || coinsEarned > 0) && (
+                  <div className="flex items-center justify-center gap-3 mt-2">
+                    {xpEarned > 0 && <span className="text-blue-400 font-bold text-sm">+{xpEarned} XP</span>}
+                    {coinsEarned > 0 && (
+                      <span className="flex items-center gap-1.5 text-yellow-400 font-semibold text-sm">
+                        <img src="/coin.png" alt="" width={16} height={16} className="w-4 h-4" />
+                        +{coinsEarned} coin{coinsEarned !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
                 )}
-                <p className="text-navy-300 text-xs mt-2">Counter reset — keep going!</p>
+                <p className="text-navy-200 text-xs mt-2">Counter reset — keep going!</p>
               </div>
             ) : (
               <button
                 onClick={handleSubmit}
                 disabled={reps === 0 || submitting}
-                className="btn-primary w-full py-4 text-base font-bold"
+                className="btn-primary w-full min-h-[52px] text-base font-bold"
               >
                 {submitting
                   ? 'Logging…'
@@ -998,7 +1177,7 @@ if (streamRef.current) {
 
             <Link
               href="/"
-              className="btn-secondary w-full text-center block py-3 text-sm"
+              className="btn-secondary w-full text-center min-h-[44px] text-sm"
             >
               ← Back to Dashboard
             </Link>
@@ -1008,12 +1187,74 @@ if (streamRef.current) {
               <div className="card bg-green-900/10 border-green-800/30 text-center p-4">
                 <div className="flex justify-center mb-1"><Icon name="partyPopper" className="w-6 h-6" color="#4ade80" /></div>
                 <p className="text-green-400 font-semibold text-sm">Debt Free!</p>
-                <p className="text-navy-300 text-xs mt-1">No debt outstanding</p>
+                <p className="text-navy-200 text-xs mt-1">No debt outstanding</p>
               </div>
             )}
           </div>
         </div>
       </div>
     </Layout>
+  );
+}
+
+// ─── Camera tips sheet ────────────────────────────────────────────────────────
+function TipsSheet({ isTouch, cameraStarted, onClose, onStartCamera }) {
+  useSheetBehavior(onClose);
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pushup-tips-title"
+        className="w-full sm:max-w-lg max-h-[92dvh] flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden"
+        style={{ background: '#060C18', border: '1px solid rgba(59,130,246,0.25)' }}
+      >
+        <SheetHandle />
+        <div className="flex items-center justify-between gap-3 px-5 pt-2 sm:pt-4 pb-2 flex-shrink-0">
+          <h2 id="pushup-tips-title" className="text-base font-bold text-navy-50">Set up your camera</h2>
+          <SheetCloseButton onClose={onClose} label="Close tips" />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-4 space-y-4">
+          <p className="text-sm text-navy-200">
+            Place your camera to the <span className="text-blue-400 font-semibold">side</span> so you look like the photos below — your full body should be visible in profile.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
+                <img src="/upPushupPostition.png" alt="Up position — arms extended" className="w-full object-contain" />
+              </div>
+              <span className="text-xs text-green-400 font-medium">▲ Up position</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="rounded-lg overflow-hidden bg-white/5 border border-navy-600 w-full">
+                <img src="/downPushupPosition.png" alt="Down position — elbows bent" className="w-full object-contain" />
+              </div>
+              <span className="text-xs text-blue-400 font-medium">▼ Down position</span>
+            </div>
+          </div>
+          <ul className="text-sm text-navy-100 space-y-2">
+            {isTouch && (
+              <li className="flex gap-2"><span className="text-amber-300">•</span> Turn your phone sideways, lean it ~2m away at floor level.</li>
+            )}
+            <li className="flex gap-2"><span className="text-blue-400">•</span> Face the camera side-on so your elbow is clearly visible.</li>
+            <li className="flex gap-2"><span className="text-blue-400">•</span> Keep shoulders, hips and wrists in frame — the checklist turns green when they are.</li>
+            <li className="flex gap-2"><span className="text-blue-400">•</span> Good lighting improves accuracy. Video stays on your device.</li>
+            <li className="flex gap-2"><span className="text-blue-400">•</span> <span><span className="text-blue-400 font-medium">Gesture:</span> raise one hand above your shoulder for 1.5 s to start or stop counting.</span></li>
+          </ul>
+        </div>
+        <div className="sheet-footer px-5 pt-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(59,130,246,0.12)' }}>
+          {cameraStarted ? (
+            <button onClick={onClose} className="btn-primary w-full min-h-[48px] text-base font-bold">Got it</button>
+          ) : (
+            <button onClick={onStartCamera} className="btn-primary w-full min-h-[48px] text-base font-bold">
+              <Icon name="play" className="w-4 h-4" color="currentColor" /> Start camera
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
