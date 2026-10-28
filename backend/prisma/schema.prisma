@@ -35,6 +35,18 @@ model User {
   payoffMultiplierActive Boolean  @default(false) @map("pushupMultiplierActive")
   profileFlair          String?
 
+  // --- audit fixes (2026-10) ---
+  tokenVersion          Int       @default(0)   // bumped on password change/reset to revoke old JWTs
+  streakShieldDate      DateTime?               // the local day a Streak Shield protected (persisted)
+  currentStreak         Int       @default(0)   // cached; recomputed on completion + nightly
+  pausedUntil           DateTime?               // pause mode: no debt accrues until this time
+  lastPauseAt           DateTime?               // pause quota tracking
+  lastFreshStartAt      DateTime?               // Fresh Start quota tracking
+  pushReminders         Boolean   @default(true) // independent of emailReminders
+  allowChaos            Boolean   @default(true) // receive Debt Bombs / taunts from friends
+  invitedById           Int?
+  lastActiveAt          DateTime?
+
   quests             Quest[]
   payoffSessions     PayoffSession[]
   debts              Debt[]
@@ -46,6 +58,7 @@ model User {
   deviceTokens       DeviceToken[]
   inventory          UserItem[]
   appNotifications   AppNotification[]
+  questCompletions   QuestCompletion[]
 }
 
 model Friendship {
@@ -72,9 +85,14 @@ model Challenge {
   startDate    DateTime?
   endDate      DateTime?
   createdAt    DateTime  @default(now())
+  challengerScore Int?    // frozen when the challenge ends
+  challengedScore Int?
 
   challenger User @relation("ChallengesGiven", fields: [challengerId], references: [id], onDelete: Cascade)
   challenged User @relation("ChallengesReceived", fields: [challengedId], references: [id], onDelete: Cascade)
+
+  @@index([challengerId])
+  @@index([challengedId])
 }
 
 // Mapped to the legacy "Task" table — physical DB names unchanged by the
@@ -99,6 +117,7 @@ model Quest {
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   debt Debt?
+  completions QuestCompletion[]
 
   @@index([userId, deletedAt])
   @@index([dueDate])
@@ -113,6 +132,8 @@ model Debt {
   userId          Int
   amountOwed      Float    @map("pushupsOwed")
   daysOverdue     Int
+  frozenDays      Int      @default(0)        // overdue days skipped by Debt Freeze / pause (never charged)
+  source          String   @default("quest")  // quest | delete | bomb  (bombs don't count toward the lockout)
   resolved        Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -129,6 +150,7 @@ model PayoffSession {
   id       Int      @id @default(autoincrement())
   amount   Int      @map("pushupsCompleted")
   activity String   @default("fitness") // fitness | focus | wellness | chores | custom
+  coinsEarned Int   @default(0)         // for the daily surplus-coin cap
   date     DateTime @default(now())
   userId   Int
 
@@ -190,4 +212,31 @@ model DeviceToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// One row per quest per local day it was completed. Streaks and recurring-quest
+// history are computed from this instead of Quest.dueDate (which moves forward
+// every day for recurring quests).
+model QuestCompletion {
+  id          Int      @id @default(autoincrement())
+  questId     Int?
+  userId      Int
+  localDate   String   // YYYY-MM-DD in the user's timezone
+  completedAt DateTime @default(now())
+
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, localDate])
+  @@index([userId, localDate])
+}
+
+// Idempotency ledger for cron jobs and one-off sends (e.g. "winback7:<userId>").
+model JobRun {
+  id        Int      @id @default(autoincrement())
+  name      String
+  runKey    String
+  createdAt DateTime @default(now())
+
+  @@unique([name, runKey])
 }

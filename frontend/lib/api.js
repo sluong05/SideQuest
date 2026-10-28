@@ -76,7 +76,7 @@ export const recalculateDebt = () => api.post('/api/debt/calculate');
 
 // Payoff sessions — activity: fitness | focus | wellness | chores | custom
 // Fitness requires a sessionToken from startPayoffSession (server pace check).
-export const startPayoffSession = () => api.post('/api/sessions/start');
+export const startPayoffSession = (activity = 'fitness') => api.post('/api/sessions/start', { activity });
 export const logPayoff = (amount, activity = 'fitness', sessionToken) =>
   api.post('/api/sessions', { amount, activity, sessionToken });
 
@@ -126,5 +126,24 @@ export const subscribePush = (endpoint, p256dh, auth) =>
   api.post('/api/push/subscribe', { endpoint, p256dh, auth });
 export const unsubscribePush = (endpoint) =>
   api.delete('/api/push/unsubscribe', { data: { endpoint } });
+
+// --- audit fixes (see docs/AUDIT_FIXES.md) ---
+export const updateQuest = (questId, fields) => api.patch(`/api/quests/${questId}`, fields);
+export const pauseDebt = (days) => api.post('/api/debt/pause', { days });
+export const resumeDebt = () => api.post('/api/debt/resume');
+export const freshStart = () => api.post('/api/debt/fresh-start');
+export const updatePushReminders = (pushReminders) =>
+  api.patch('/api/auth/notifications', { pushReminders });
+export const updatePreferences = (prefs) => api.patch('/api/auth/preferences', prefs);
+export const getInviteLink = () => api.get('/api/friends/invite');
+export const getChallengeInviteLink = (type, durationDays) =>
+  api.post('/api/challenges/invite-link', { type, durationDays });
+export const getPublicProfileAnon = (username) => api.get(`/api/users/public/${encodeURIComponent(username)}`);
+export const signupWithInvite = (fields) => api.post('/api/auth/signup', fields);
+export const signInWithApple = (identityToken, fullName) => api.post('/api/auth/apple', { identityToken, fullName });
+export const signInWithGoogle = (credential) => api.post('/api/auth/google', { credential });
+export const trackEvent = (name, props = {}, anonId) =>
+  api.post('/api/events', { name, props, anonId }).catch(() => {});
+export const API_BASE_URL = BASE_URL;
 
 export default api;
