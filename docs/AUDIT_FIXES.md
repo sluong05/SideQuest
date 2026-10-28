@@ -84,3 +84,16 @@ remove or rename an existing request field or response field — only add.
 
 ## Jobs (hourly, guarded by `src/lib/jobLock.js`)
 Debt recalculation; recurring-quest reset at each user's local midnight (only when their local date is past `completedAt`'s local date); reminders in the user's local time: 08:00 morning plan, ~3h-before-due reminder (once per quest), 19:00 "streak ends tonight" (streak ≥ 3, incomplete today), 20:00 digest; onboarding nudges day 1 / day 3 for users with 0 quests; win-back at 7 and 14 days inactive. Email only to `emailVerified` users with `emailReminders`; push only with `pushReminders`. Emails carry `List-Unsubscribe` + `List-Unsubscribe-Post`. Debt push deep-links to `/pay`.
+
+## Rollout checklist (do in this order)
+1. **Backend first** (all changes are additive, so the live iOS build and the old web keep working):
+   - Locally on the Mac: `cd backend && npm install && npx prisma generate && npm test`.
+   - Deploy to Railway; `npm start` runs `prisma migrate deploy`, which applies `20261028000000_audit_fixes` (adds columns/tables, backfills `QuestCompletion` from completed quests).
+   - Set env: `SITE_URL`, `EMAIL_FROM`, `API_PUBLIC_URL` (public Railway URL), `RESEND_API_KEY` (existing). Optional: `POSTHOG_KEY`, `SENTRY_DSN` (needs Node ≥ 20.19), `REDIS_URL`, `GOOGLE_CLIENT_ID`, `APPLE_SIGNIN_ENABLED`/`APPLE_SERVICES_ID`.
+   - Smoke test: `/api/health` → `{status:'ok'}`; sign in on the live iOS app; log a pushup set; complete/uncomplete a quest; check `/api/debt`.
+2. **Web** (Vercel): set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_APP_STORE_ID`; optional `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_APPLE_SERVICES_ID`. After deploy, check a link preview of `/` and `/u/<you>` (e.g. opengraph.xyz) and that `/.well-known/apple-app-site-association` returns JSON.
+3. **iOS**: `cd SideQuest-iOS && xcodegen generate`, build in Xcode (nothing was compiled here — see "check first" list in the iOS notes), test on device: offline launch, wrong password, delete account failure, rep counter, Social tab, Dynamic Type at the largest size. Then submit.
+   - Universal links: add `com.apple.developer.associated-domains` = `applinks:pushupdebt.com` to `SideQuest.entitlements` (the AASA file is already served by the web app).
+   - Sign in with Apple: add `com.apple.developer.applesignin` = `[Default]`, set `AppConfig.signInWithAppleEnabled = true`, set `APPLE_SIGNIN_ENABLED=true` on the backend.
+4. **After most iOS users have updated**: set `REQUIRE_SESSION_TOKEN=true` on the backend to close the last token-less payoff path.
+5. `support@pushupdebt.com` must be a real mailbox (used on the landing page, privacy and terms). `public/robots.txt` and `public/sitemap.xml` hardcode pushupdebt.com — update if the domain changes.

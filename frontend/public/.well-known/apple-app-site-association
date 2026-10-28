@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["V4SD98HHAT.com.steventracy.sidequest"],
+        "components": [
+          { "/": "/u/*", "comment": "Public profiles" },
+          { "/": "/join*", "comment": "Invites and challenge links" },
+          { "/": "/pay*", "comment": "Pay off debt" }
+        ]
+      }
+    ]
+  }
+}
