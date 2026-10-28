@@ -1,9 +1,17 @@
 const webpush = require('web-push');
 const prisma = require('../lib/prisma');
+const { EMAIL_FROM } = require('../lib/siteConfig');
+
+// VAPID contact: VAPID_SUBJECT, else the address inside EMAIL_FROM.
+function vapidSubject() {
+  if (process.env.VAPID_SUBJECT) return process.env.VAPID_SUBJECT;
+  const m = /<([^>]+)>/.exec(EMAIL_FROM);
+  return `mailto:${(m ? m[1] : EMAIL_FROM).trim()}`;
+}
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
-    'mailto:noreply@pushupdebt.com',
+    vapidSubject(),
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
@@ -106,4 +114,11 @@ async function sendPushToUser(userId, title, body, url = '/') {
   ]);
 }
 
-module.exports = { sendPushToUser };
+// Reminder pushes (jobs) respect User.pushReminders, independent of the email
+// flag. Social pushes (friend requests, taunts) keep using sendPushToUser.
+async function sendReminderPush(user, title, body, url = '/') {
+  if (!user || user.pushReminders === false) return;
+  await sendPushToUser(user.id, title, body, url);
+}
+
+module.exports = { sendPushToUser, sendReminderPush };

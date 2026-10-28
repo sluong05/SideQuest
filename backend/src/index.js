@@ -8,12 +8,16 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32 ||
   process.exit(1);
 }
 
+// Sentry must initialize before express/routes are loaded (no-op without SENTRY_DSN).
+const sentry = require('./lib/sentry');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const { startDebtCronJob } = require('./jobs/dailyDebt');
 const { startEmailReminderJobs } = require('./jobs/emailReminders');
-const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
+const { authLimiter, generalLimiter, eventsLimiter } = require('./middleware/rateLimiter');
+const prisma = require('./lib/prisma');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +56,9 @@ app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/reset-password', authLimiter);
 app.use('/api/auth/verify-email', authLimiter);
 app.use('/api/auth/resend-verification', authLimiter);
+app.use('/api/auth/apple', authLimiter);
+app.use('/api/auth/google', authLimiter);
+app.use('/api/events', eventsLimiter);
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -68,10 +75,31 @@ app.use('/api/challenges', require('./routes/challenges'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/shop', require('./routes/shop'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/events', require('./routes/events'));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check — includes a DB round-trip so the platform restarts/alerts on a
+// dead database connection instead of reporting healthy.
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', db: 'ok', timestamp: new Date().toISOString() });
+  } catch (err) {
+    console.error('[Health] DB check failed:', err.message);
+    res.status(503).json({ status: 'error', db: 'unreachable', timestamp: new Date().toISOString() });
+  }
+});
+
+// Error handling: Sentry's handler (when enabled) reports, then the final
+// handler returns JSON instead of Express's HTML stack page.
+sentry.setupErrorHandler(app);
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body' });
+  if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'Request body too large' });
+  if (err && err.message === 'Not allowed by CORS') return res.status(403).json({ error: 'Not allowed by CORS' });
+  console.error('[Error]', err);
+  return res.status(err.status || 500).json({ error: 'Server error' });
 });
 
 // Start cron jobs

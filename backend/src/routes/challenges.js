@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { getFriendIds } = require('./friends');
+const { SITE_URL } = require('../lib/siteConfig');
 
 const router = express.Router();
 
@@ -12,12 +13,26 @@ async function computeScore(userId, type, startDate, endDate) {
     });
     return count;
   }
-  // pushups
-  const sessions = await prisma.payoffSession.findMany({
-    where: { userId, date: { gte: startDate, lte: endDate } },
-    select: { amount: true },
+  // pushups — only real fitness sessions count (not focus/chores/custom points)
+  const agg = await prisma.payoffSession.aggregate({
+    where: { userId, activity: 'fitness', date: { gte: startDate, lte: endDate } },
+    _sum: { amount: true },
   });
-  return sessions.reduce((s, r) => s + r.amount, 0);
+  return agg._sum.amount || 0;
+}
+
+// Freezes both scores once a challenge has ended (first read after endDate),
+// so later activity, deleted quests or the cleanup job can't change the result.
+async function freezeScores(c) {
+  const [challengerScore, challengedScore] = await Promise.all([
+    computeScore(c.challengerId, c.type, c.startDate, c.endDate),
+    computeScore(c.challengedId, c.type, c.startDate, c.endDate),
+  ]);
+  await prisma.challenge.updateMany({
+    where: { id: c.id, challengerScore: null, challengedScore: null },
+    data: { challengerScore, challengedScore },
+  });
+  return { challengerScore, challengedScore };
 }
 
 // GET /api/challenges — all challenges for current user
@@ -47,10 +62,19 @@ router.get('/', auth, async (req, res) => {
 
         if (c.status === 'active' || (c.status !== 'pending' && c.endDate && new Date(c.endDate) < now)) {
           const opponentId = c.challengerId === req.userId ? c.challengedId : c.challengerId;
-          [myScore, opponentScore] = await Promise.all([
-            computeScore(req.userId, c.type, c.startDate, c.endDate || now),
-            computeScore(opponentId, c.type, c.startDate, c.endDate || now),
-          ]);
+          const ended = c.startDate && c.endDate && new Date(c.endDate) < now;
+          if (ended) {
+            let scores = { challengerScore: c.challengerScore, challengedScore: c.challengedScore };
+            if (scores.challengerScore == null || scores.challengedScore == null) scores = await freezeScores(c);
+            const iAmChallenger = c.challengerId === req.userId;
+            myScore = iAmChallenger ? scores.challengerScore : scores.challengedScore;
+            opponentScore = iAmChallenger ? scores.challengedScore : scores.challengerScore;
+          } else {
+            [myScore, opponentScore] = await Promise.all([
+              computeScore(req.userId, c.type, c.startDate, c.endDate || now),
+              computeScore(opponentId, c.type, c.startDate, c.endDate || now),
+            ]);
+          }
 
           if (c.endDate && new Date(c.endDate) < now && c.status === 'active') {
             winner = myScore > opponentScore ? 'you' : myScore < opponentScore ? 'them' : 'tie';
@@ -76,6 +100,30 @@ router.get('/', auth, async (req, res) => {
     );
 
     return res.json({ challenges: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/challenges/invite-link { type, durationDays } — shareable link that
+// signs a non-user up and creates a pending challenge from the inviter.
+router.post('/invite-link', auth, async (req, res) => {
+  const { type } = req.body || {};
+  const durationDays = Number(req.body?.durationDays);
+  if (!['quests', 'pushups'].includes(type)) {
+    return res.status(400).json({ error: 'type must be quests or pushups' });
+  }
+  if (![3, 7, 14, 30].includes(durationDays)) {
+    return res.status(400).json({ error: 'durationDays must be 3, 7, 14, or 30' });
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { username: true } });
+    if (!user?.username) {
+      return res.status(400).json({ error: 'Set a username before sharing invite links', code: 'USERNAME_REQUIRED' });
+    }
+    const url = `${SITE_URL}/join?ref=${encodeURIComponent(user.username)}&challenge=${type}-${durationDays}`;
+    return res.json({ url });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });

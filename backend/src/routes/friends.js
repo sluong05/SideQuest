@@ -1,12 +1,25 @@
 const express = require('express');
-const { Resend } = require('resend');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { escapeHtml } = require('../lib/escapeHtml');
 const { sendPushToUser } = require('../jobs/pushNotifications');
+const { avatarUrl, SITE_URL } = require('../lib/siteConfig');
+const { sendEmail, layout, button, siteLink, isEmailConfigured } = require('../lib/email');
 
 const router = express.Router();
-const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Lists never inline the base64 avatar (payload fix) — clients load avatarUrl.
+// Which users have one is found with a filtered id-only query, so the base64
+// strings are never read from the DB for list endpoints.
+async function hasAvatarMap(ids) {
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.user.findMany({
+    where: { id: { in: ids }, avatar: { not: null } },
+    select: { id: true },
+  });
+  const set = new Set(rows.map((r) => r.id));
+  return new Map(ids.map((id) => [id, set.has(id)]));
+}
 
 // Helper: get all accepted friendships for a user (returns array of the OTHER user's id)
 async function getFriendIds(userId) {
@@ -32,7 +45,6 @@ router.get('/', auth, async (req, res) => {
         id: true,
         username: true,
         email: true,
-        avatar: true,
         maxStreak: true,
         totalQuestsCompleted: true,
         debts: { where: { resolved: false }, select: { amountOwed: true } },
@@ -40,10 +52,12 @@ router.get('/', auth, async (req, res) => {
       },
     });
 
+    const avatars = await hasAvatarMap(friends.map((f) => f.id));
     const result = friends.map((f) => ({
       id: f.id,
       username: f.username || f.email.split('@')[0],
-      avatar: f.avatar || null,
+      avatar: null,
+      avatarUrl: avatarUrl(f.id, avatars.get(f.id)),
       totalDebt: Math.ceil(f.debts.reduce((s, d) => s + d.amountOwed, 0)),
       totalPaid: f.payoffSessions.reduce((s, s2) => s + s2.amount, 0),
       maxStreak: f.maxStreak,
@@ -62,9 +76,10 @@ router.get('/requests', auth, async (req, res) => {
   try {
     const requests = await prisma.friendship.findMany({
       where: { receiverId: req.userId, status: 'pending' },
-      include: { requester: { select: { id: true, username: true, email: true, avatar: true } } },
+      include: { requester: { select: { id: true, username: true, email: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    const avatars = await hasAvatarMap(requests.map((r) => r.requester.id));
 
     return res.json({
       requests: requests.map((r) => ({
@@ -72,7 +87,8 @@ router.get('/requests', auth, async (req, res) => {
         from: {
           id: r.requester.id,
           username: r.requester.username || r.requester.email.split('@')[0],
-          avatar: r.requester.avatar || null,
+          avatar: null,
+          avatarUrl: avatarUrl(r.requester.id, avatars.get(r.requester.id)),
         },
         createdAt: r.createdAt,
       })),
@@ -140,6 +156,21 @@ router.get('/feed', auth, async (req, res) => {
   }
 });
 
+// GET /api/friends/invite — shareable invite link for the current user.
+router.get('/invite', auth, async (req, res) => {
+  try {
+    const me = await prisma.user.findUnique({ where: { id: req.userId }, select: { username: true } });
+    if (!me) return res.status(404).json({ error: 'User not found' });
+    if (!me.username) {
+      return res.status(400).json({ error: 'Set a username to get an invite link', code: 'USERNAME_REQUIRED' });
+    }
+    return res.json({ url: `${SITE_URL}/join?ref=${encodeURIComponent(me.username)}` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/friends/search?q= — search users by username
 router.get('/search', auth, async (req, res) => {
   const q = (req.query.q || '').trim();
@@ -164,9 +195,10 @@ router.get('/search', auth, async (req, res) => {
         id: { notIn: [...new Set([...acceptedIds, req.userId])] },
         NOT: { username: null },
       },
-      select: { id: true, username: true, avatar: true },
+      select: { id: true, username: true },
       take: 10,
     });
+    const avatars = await hasAvatarMap(users.map((u) => u.id));
 
     // Annotate each result with pending request state so the frontend doesn't lose it on navigation
     const results = users.map((u) => {
@@ -179,7 +211,7 @@ router.get('/search', auth, async (req, res) => {
             ? 'sent'
             : 'received'
           : null;
-      return { id: u.id, username: u.username, avatar: u.avatar || null, pendingStatus, friendshipId: relation?.id ?? null };
+      return { id: u.id, username: u.username, avatar: null, avatarUrl: avatarUrl(u.id, avatars.get(u.id)), pendingStatus, friendshipId: relation?.id ?? null };
     });
 
     return res.json({ results });
@@ -196,7 +228,7 @@ router.post('/request', auth, async (req, res) => {
 
   try {
     const [target, requester] = await Promise.all([
-      prisma.user.findUnique({ where: { username }, select: { id: true, email: true, username: true, emailReminders: true } }),
+      prisma.user.findUnique({ where: { username }, select: { id: true, email: true, username: true, emailReminders: true, emailVerified: true } }),
       prisma.user.findUnique({ where: { id: req.userId }, select: { username: true, email: true } }),
     ]);
 
@@ -224,24 +256,19 @@ router.post('/request', auth, async (req, res) => {
       '/friends'
     ).catch((err) => console.error('[Friends] request push failed:', err.message));
 
-    if (target.emailReminders && process.env.RESEND_API_KEY) {
+    if (target.emailReminders && target.emailVerified && isEmailConfigured()) {
       const senderName = escapeHtml(requester.username || requester.email.split('@')[0]);
-      resend.emails.send({
-        from: 'noreply@pushupdebt.com',
+      sendEmail({
         to: target.email,
         subject: `${senderName} sent you a friend request on SideQuest`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a2e;">
+        unsubscribeUserId: target.id,
+        html: layout(`
             <h2 style="color: #1a1a2e;">You have a new friend request 👋</h2>
             <p><strong>${senderName}</strong> wants to be friends on SideQuest.</p>
             <p>Accept their request to see each other on the leaderboard, view their stats, and challenge each other.</p>
-            <a href="${process.env.FRONTEND_URL}/friends" style="display:inline-block; background:#f59e0b; color:#1a1a2e; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; margin:16px 0;">
-              View Request
-            </a>
-            <p style="color:#666; font-size:13px;">You can manage notifications in your profile settings.</p>
-          </div>
-        `,
-      }).catch(() => {}); // fire-and-forget, don't block the response
+            ${button(siteLink('/friends'), 'View Request')}
+        `, { unsubscribeUserId: target.id }),
+      }).catch((err) => console.error('[Friends] request email failed:', err.message)); // fire-and-forget
     }
 
     return res.status(201).json({ friendship });
@@ -311,4 +338,4 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-module.exports = { router, getFriendIds };
+module.exports = { router, getFriendIds, hasAvatarMap };
