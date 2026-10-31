@@ -1,6 +1,6 @@
 // Single source for public-facing URLs and sender identity. Switching domains
 // later is a one-env-var change (SITE_URL / EMAIL_FROM).
-const SITE_URL = (process.env.SITE_URL || 'https://pushupdebt.com').replace(/\/$/, '');
+const SITE_URL = (process.env.SITE_URL || 'https://www.pushupdebt.com').replace(/\/$/, '');
 const EMAIL_FROM = process.env.EMAIL_FROM || 'SideQuest <noreply@pushupdebt.com>';
 const API_PUBLIC_URL = (process.env.API_PUBLIC_URL || process.env.RAILWAY_PUBLIC_DOMAIN && `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` || 'https://pushupdebt-production.up.railway.app').replace(/\/$/, '');
 

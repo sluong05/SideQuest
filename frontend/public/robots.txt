@@ -1,4 +1,4 @@
-# SideQuest — https://pushupdebt.com
+# SideQuest — https://www.pushupdebt.com
 # NOTE: the Sitemap URL below is static; update it if NEXT_PUBLIC_SITE_URL changes.
 User-agent: *
 Allow: /$
@@ -24,4 +24,4 @@ Disallow: /forgot-password
 Disallow: /offline
 Disallow: /api/
 
-Sitemap: https://pushupdebt.com/sitemap.xml
+Sitemap: https://www.pushupdebt.com/sitemap.xml

@@ -4,7 +4,7 @@ import Head from 'next/head';
 // email, App Store links) derives from NEXT_PUBLIC_SITE_URL so the production
 // domain can change without touching code.
 
-const RAW_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pushupdebt.com';
+const RAW_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pushupdebt.com';
 
 export const SITE_URL = RAW_SITE_URL.replace(/\/+$/, '');
 

@@ -8,7 +8,7 @@ remove or rename an existing request field or response field — only add.
 ## Backend env vars (all optional; features are off/no-op until set)
 | Var | Default | Purpose |
 | --- | --- | --- |
-| `SITE_URL` | `https://pushupdebt.com` | Base for all links (emails, OG, share, unsubscribe). Read via `src/lib/siteConfig.js` |
+| `SITE_URL` | `https://www.pushupdebt.com` | Base for all links (emails, OG, share, unsubscribe). Read via `src/lib/siteConfig.js` |
 | `EMAIL_FROM` | `SideQuest <noreply@pushupdebt.com>` | Sender for all mail |
 | `REQUIRE_SESSION_TOKEN` | unset | `true` = reject token-less fitness sessions (flip once the iOS update is live) |
 | `DEBT_MAX_DAYS` | `7` | Max overdue days charged per quest |
@@ -25,7 +25,7 @@ remove or rename an existing request field or response field — only add.
 | `GOOGLE_CLIENT_ID` | unset | Enables `POST /api/auth/google` |
 
 ## Web env vars
-`NEXT_PUBLIC_SITE_URL` (default `https://pushupdebt.com`), `NEXT_PUBLIC_APP_STORE_ID` (enables App Store badge links + Smart App Banner; badge falls back to an App Store search link when unset), `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_APPLE_SERVICES_ID`. Analytics go through `POST /api/events` (no client SDK).
+`NEXT_PUBLIC_SITE_URL` (default `https://www.pushupdebt.com`), `NEXT_PUBLIC_APP_STORE_ID` (enables App Store badge links + Smart App Banner; badge falls back to an App Store search link when unset), `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_APPLE_SERVICES_ID`. Analytics go through `POST /api/events` (no client SDK).
 
 ## Debt rules (server is authoritative)
 - Charge per overdue day = `quest.debtAmount` (default 5). First charge the moment the due time passes; +1 day per local midnight.
@@ -93,7 +93,7 @@ Debt recalculation; recurring-quest reset at each user's local midnight (only wh
    - Smoke test: `/api/health` → `{status:'ok'}`; sign in on the live iOS app; log a pushup set; complete/uncomplete a quest; check `/api/debt`.
 2. **Web** (Vercel): set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_APP_STORE_ID`; optional `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_APPLE_SERVICES_ID`. After deploy, check a link preview of `/` and `/u/<you>` (e.g. opengraph.xyz) and that `/.well-known/apple-app-site-association` returns JSON.
 3. **iOS**: `cd SideQuest-iOS && xcodegen generate`, build in Xcode (nothing was compiled here — see "check first" list in the iOS notes), test on device: offline launch, wrong password, delete account failure, rep counter, Social tab, Dynamic Type at the largest size. Then submit.
-   - Universal links: add `com.apple.developer.associated-domains` = `applinks:pushupdebt.com` to `SideQuest.entitlements` (the AASA file is already served by the web app).
+   - Universal links: add `com.apple.developer.associated-domains` = `applinks:www.pushupdebt.com` to `SideQuest.entitlements` (the AASA file is already served by the web app).
    - Sign in with Apple: add `com.apple.developer.applesignin` = `[Default]`, set `AppConfig.signInWithAppleEnabled = true`, set `APPLE_SIGNIN_ENABLED=true` on the backend.
 4. **After most iOS users have updated**: set `REQUIRE_SESSION_TOKEN=true` on the backend to close the last token-less payoff path.
 5. `support@pushupdebt.com` must be a real mailbox (used on the landing page, privacy and terms). `public/robots.txt` and `public/sitemap.xml` hardcode pushupdebt.com — update if the domain changes.
