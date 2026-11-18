@@ -23,6 +23,7 @@ const USER_SELECT = {
   // audit fixes (2026-10)
   pushReminders: true, allowChaos: true, pausedUntil: true,
   currentStreak: true, invitedById: true,
+  comebackUntil: true,
 };
 
 // Adds the cacheable avatar URL. `avatar` (base64 data URL) is kept for the

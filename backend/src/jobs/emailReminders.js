@@ -198,10 +198,14 @@ function buildMessage(kind, user, ctx) {
           <h2>We saved your spot, ${name}</h2>
           <p>${kind === 'winback7'
             ? "It's been about a week. Your progress is right where you left it — one quest today is all it takes to get rolling again."
-            : "Life gets busy. If things piled up, you can pause or take a Fresh Start and come back to a clean slate."}</p>
+            : "Life gets busy. If things piled up while you were gone, you can wipe that debt for free when you come back. No catch, and your stats stay."}</p>
           ${button(siteLink('/'), 'Jump back in')}
         `, { unsubscribeUserId: user.id, footerNote }),
-        push: { title: kind === 'winback7' ? 'Pick up where you left off' : 'Ready for a fresh start?', body: 'One quest today is all it takes.', url: '/' },
+        push: {
+          title: kind === 'winback7' ? 'Pick up where you left off' : 'Ready for a fresh start?',
+          body: kind === 'winback7' ? 'One quest today is all it takes.' : 'Come back and wipe your debt for free.',
+          url: '/',
+        },
       };
     default:
       throw new Error(`Unknown reminder kind ${kind}`);

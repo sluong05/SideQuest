@@ -85,9 +85,13 @@ function planDebtUpdate({ existing, daysOverdue, frozen, debtAmount, maxDays = D
   };
 }
 
-// Penalty for deleting a quest: free when completed or inside the free-edit window.
+// Penalty for deleting a quest: free when completed, inside the free-edit
+// window, or when its debt was already settled (paid off or wiped by a Fresh
+// Start / comeback). Charging again there would bill the same miss twice and
+// punish people for cleaning up after a comeback.
 function deletePenaltyFor(quest, now = new Date(), freeMinutes = FREE_EDIT_MINUTES) {
   if (quest.completed) return 0;
+  if (quest.debt?.resolved) return 0;
   if (new Date(now).getTime() - new Date(quest.createdAt).getTime() < freeMinutes * 60 * 1000) return 0;
   return Math.max(0, Number(quest.debtAmount ?? 5) || 0);
 }

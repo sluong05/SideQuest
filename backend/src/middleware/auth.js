@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
+const { comebackUntilFor } = require('../lib/comeback');
 
 const TOKEN_TTL = '7d';
 const LAST_ACTIVE_INTERVAL_MS = 60 * 60 * 1000; // write lastActiveAt at most hourly
@@ -72,10 +73,15 @@ async function authMiddleware(req, res, next) {
 
   const now = new Date();
   if (shouldTouchLastActive(user.lastActiveAt, now)) {
-    // Fire-and-forget; updateMany so a concurrently deleted user can't throw.
-    prisma.user
-      .updateMany({ where: { id: user.id }, data: { lastActiveAt: now } })
+    const comebackUntil = comebackUntilFor(user.lastActiveAt, now);
+    // updateMany so a concurrently deleted user can't throw.
+    const touch = prisma.user
+      .updateMany({ where: { id: user.id }, data: { lastActiveAt: now, ...(comebackUntil ? { comebackUntil } : {}) } })
       .catch((err) => console.error('[Auth] lastActiveAt update failed:', err.message));
+    // A returning user's first request opens the comeback window; wait for it
+    // so the response (usually /me or /debt) already shows the offer.
+    // Otherwise fire-and-forget.
+    if (comebackUntil) await touch;
   }
 
   req.userId = decoded.userId;

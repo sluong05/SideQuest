@@ -8,7 +8,7 @@ import QuestDetailModal from '../components/QuestDetailModal';
 import ActivityFeed from '../components/ActivityFeed';
 import { useAuth } from '../contexts/AuthContext';
 import { getQuests, getDebt, getStreak, getSessions, recalculateDebt, setUsername,
-         getFriends, completeQuest, uncompleteQuest, deleteQuest } from '../lib/api';
+         getFriends, completeQuest, uncompleteQuest, deleteQuest, freshStart } from '../lib/api';
 import confetti from 'canvas-confetti';
 import { Icon, CategoryIcon } from '../components/Icons';
 import { CATEGORY_COLORS, DIFF_STYLES, timeAgo } from '../lib/questMeta';
@@ -527,6 +527,9 @@ export default function Dashboard() {
   const [allTimePaid, setAllTimePaid] = useState(0);
   const [showAddQuest, setShowAddQuest] = useState(false);
   const [debtWarning, setDebtWarning] = useState(null);
+  const [comebackUntil, setComebackUntil] = useState(null);
+  const [comebackBusy, setComebackBusy] = useState(false);
+  const [comebackDone, setComebackDone] = useState(null); // pts cleared
   const [lockoutThreshold, setLockoutThreshold] = useState(250);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sharePrompt, setSharePrompt] = useState(null); // { kind: 'streak'|'level', value }
@@ -561,6 +564,7 @@ export default function Dashboard() {
       setTotalOwed(debtRes.data.totalOwed);
       if (debtRes.data.lockoutThreshold) setLockoutThreshold(debtRes.data.lockoutThreshold);
       setDebtWarning(warningText(debtRes.data.warning));
+      setComebackUntil(debtRes.data.comebackUntil || null);
       setStreak(streakRes.data.streak);
       setSessions(sessionsRes.data.sessions);
       setAllTimePaid(sessionsRes.data.allTimePaid);
@@ -713,8 +717,46 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Comeback amnesty: returning after 5+ days away wipes the debt for free */}
+      {comebackUntil && totalOwed > 0 && (
+        <div className="card mb-5 p-4 flex items-start gap-3 flex-wrap" style={{ borderColor: 'rgba(74,222,128,0.35)', background: 'rgba(34,197,94,0.06)' }}>
+          <Icon name="sprout" className="w-5 h-5 flex-shrink-0 mt-0.5" color="#4ade80" />
+          <div className="flex-1 min-w-[180px]">
+            <p className="text-sm font-semibold text-green-300">Welcome back! Your debt is on us.</p>
+            <p className="text-xs text-navy-200 mt-0.5">
+              {totalOwed} pts piled up while you were away. Wipe it for free and start today clean. Your streak and stats stay, and it doesn't use your Fresh Start.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              setComebackBusy(true);
+              try {
+                const res = await freshStart();
+                setComebackDone(res.data?.cleared ?? totalOwed);
+                await loadData();
+              } catch (err) {
+                setDebtWarning(err.response?.data?.error || 'Could not clear your debt. Try again from the Debt page.');
+              } finally {
+                setComebackBusy(false);
+              }
+            }}
+            disabled={comebackBusy}
+            className="btn-primary text-xs py-2 px-3 inline-flex items-center gap-1.5 flex-shrink-0 min-h-[40px]"
+          >
+            {comebackBusy ? 'Clearing…' : 'Wipe my debt'}
+          </button>
+        </div>
+      )}
+      {comebackDone !== null && (
+        <div role="status" className="card mb-5 p-4 flex items-center gap-3" style={{ borderColor: 'rgba(74,222,128,0.35)', background: 'rgba(34,197,94,0.06)' }}>
+          <Icon name="check" className="w-5 h-5 flex-shrink-0" color="#4ade80" />
+          <p className="text-sm text-green-300 flex-1">Cleared {comebackDone} pts. Add one small quest for today to get rolling.</p>
+          <button onClick={() => setComebackDone(null)} className="text-xs text-slate-400 hover:text-navy-100 px-2 py-2">Dismiss</button>
+        </div>
+      )}
+
       {/* Soft debt warning (quest creation is never blocked) */}
-      {(deepInDebt || debtWarning) && (
+      {!(comebackUntil && totalOwed > 0) && (deepInDebt || debtWarning) && (
         <div className="card mb-5 p-4 flex items-start gap-3 flex-wrap" style={{ borderColor: 'rgba(192,132,252,0.35)', background: 'rgba(168,85,247,0.06)' }}>
           <Icon name="alert" className="w-5 h-5 flex-shrink-0 mt-0.5" color="#c084fc" />
           <div className="flex-1 min-w-[180px]">
