@@ -135,7 +135,7 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function ConfirmFreshStart({ totalOwed, onCancel, onConfirm, busy }) {
+function ConfirmFreshStart({ totalOwed, onCancel, onConfirm, busy, comeback }) {
   useSheetBehavior(onCancel);
   return (
     <div
@@ -147,8 +147,14 @@ function ConfirmFreshStart({ totalOwed, onCancel, onConfirm, busy }) {
         <h2 id="fresh-start-title" className="text-base font-bold text-navy-50 mb-2 text-center">Start fresh?</h2>
         <ul className="text-sm space-y-1.5 mb-5" style={{ color: '#cbd5e1' }}>
           <li className="flex gap-2"><Icon name="check" className="w-4 h-4 flex-shrink-0 mt-0.5" color="#4ade80" /> Clears all {totalOwed > 0 ? `${totalOwed} pts of ` : ''}unpaid debt</li>
-          <li className="flex gap-2"><Icon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" color="#fbbf24" /> Resets your current streak to 0 (your best streak is kept)</li>
-          <li className="flex gap-2"><Icon name="clock" className="w-4 h-4 flex-shrink-0 mt-0.5" color="#94A3B8" /> Can be used once every 30 days</li>
+          {comeback ? (
+            <li className="flex gap-2"><Icon name="check" className="w-4 h-4 flex-shrink-0 mt-0.5" color="#4ade80" /> Welcome-back gift: your streak stays and your 30-day Fresh Start isn't used</li>
+          ) : (
+            <>
+              <li className="flex gap-2"><Icon name="alert" className="w-4 h-4 flex-shrink-0 mt-0.5" color="#fbbf24" /> Resets your current streak to 0 (your best streak is kept)</li>
+              <li className="flex gap-2"><Icon name="clock" className="w-4 h-4 flex-shrink-0 mt-0.5" color="#94A3B8" /> Can be used once every 30 days</li>
+            </>
+          )}
         </ul>
         <div className="flex gap-3">
           <button onClick={onCancel} disabled={busy} className="btn-secondary flex-1 min-h-[44px]">Cancel</button>
@@ -248,7 +254,14 @@ function RecoveryTools({ info, totalOwed, onChanged }) {
           <Icon name="sprout" className="w-4 h-4" color="#4ade80" />
           <p className="text-sm font-semibold text-navy-100">Fresh Start</p>
         </div>
-        {info.canFreshStart === false ? (
+        {info.comebackUntil && totalOwed > 0 ? (
+          <>
+            <p className="text-xs text-green-300 mb-2.5">Welcome back! Wipe the debt that piled up while you were away. Free, your streak stays, until {fmtDate(info.comebackUntil)}.</p>
+            <button onClick={() => setConfirmFresh(true)} disabled={!!busy} className="btn-primary w-full min-h-[44px] text-sm">
+              Wipe my debt
+            </button>
+          </>
+        ) : info.canFreshStart === false ? (
           <p className="text-xs text-slate-400">
             Used recently — once every 30 days.{info.nextFreshStartAt ? <> Next available <span className="font-semibold text-slate-200">{fmtDate(info.nextFreshStartAt)}</span>.</> : ''}
           </p>
@@ -272,10 +285,12 @@ function RecoveryTools({ info, totalOwed, onChanged }) {
       {confirmFresh && (
         <ConfirmFreshStart
           totalOwed={totalOwed}
+          comeback={!!info.comebackUntil}
           busy={busy === 'fresh'}
           onCancel={() => setConfirmFresh(false)}
           onConfirm={async () => {
-            await run('fresh', () => { trackEvent('fresh_start'); return freshStart(); }, 'Fresh start! Your debt is cleared.');
+            // fresh_start is tracked server-side (covers iOS too).
+            await run('fresh', () => freshStart(), 'Fresh start! Your debt is cleared.');
             setConfirmFresh(false);
           }}
         />

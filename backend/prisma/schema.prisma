@@ -46,6 +46,7 @@ model User {
   allowChaos            Boolean   @default(true) // receive Debt Bombs / taunts from friends
   invitedById           Int?
   lastActiveAt          DateTime?
+  comebackUntil         DateTime?               // returning-user amnesty window (see src/lib/comeback.js)
 
   quests             Quest[]
   payoffSessions     PayoffSession[]

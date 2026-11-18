@@ -4,6 +4,8 @@ const auth = require('../middleware/auth');
 const { calculateAndUpdateDebt } = require('../jobs/dailyDebt');
 const { recalcDebt, lockoutDebtFor, lockoutWarning } = require('../lib/debt');
 const { DEBT_MAX_DAYS, LOCKOUT_THRESHOLD } = require('../lib/siteConfig');
+const { comebackActive } = require('../lib/comeback');
+const { track } = require('../lib/analytics');
 
 const router = express.Router();
 
@@ -36,7 +38,7 @@ router.get('/', auth, async (req, res) => {
       }),
       prisma.user.findUnique({
         where: { id: req.userId },
-        select: { pausedUntil: true, lastPauseAt: true, lastFreshStartAt: true },
+        select: { pausedUntil: true, lastPauseAt: true, lastFreshStartAt: true, comebackUntil: true },
       }),
       lockoutDebtFor(prisma, req.userId),
     ]);
@@ -55,6 +57,8 @@ router.get('/', auth, async (req, res) => {
     const nextPauseAvailableAt = nextAvailable(user?.lastPauseAt, PAUSE_COOLDOWN_DAYS);
     const nextFreshStartAt = nextAvailable(user?.lastFreshStartAt, FRESH_START_COOLDOWN_DAYS);
     const warning = lockoutWarning(lockoutDebt);
+    // Only offer the comeback wipe when there's something to wipe.
+    const comebackUntil = comebackActive(user?.comebackUntil, now) && debts.length > 0 ? user.comebackUntil : null;
 
     return res.json({
       debts: sanitised,
@@ -65,8 +69,9 @@ router.get('/', auth, async (req, res) => {
       pausedUntil,
       canPause: !pausedUntil && !nextPauseAvailableAt,
       nextPauseAvailableAt,
-      canFreshStart: !nextFreshStartAt,
-      nextFreshStartAt,
+      canFreshStart: !nextFreshStartAt || !!comebackUntil,
+      nextFreshStartAt: comebackUntil ? null : nextFreshStartAt,
+      comebackUntil,
       maxDaysCharged: DEBT_MAX_DAYS,
     });
   } catch (err) {
@@ -134,13 +139,37 @@ router.post('/resume', auth, async (req, res) => {
   }
 });
 
-// POST /api/debt/fresh-start — clear all unresolved debt, reset streak; once per 30 days
+// Clears every unresolved debt inside a transaction; returns the amount cleared.
+async function clearAllDebt(tx, userId) {
+  const agg = await tx.debt.aggregate({
+    where: { userId, resolved: false },
+    _sum: { amountOwed: true },
+  });
+  await tx.debt.updateMany({
+    where: { userId, resolved: false },
+    data: { resolved: true, amountOwed: 0 },
+  });
+  return Math.ceil(agg._sum.amountOwed || 0);
+}
+
+// POST /api/debt/fresh-start — clear all unresolved debt.
+//   Comeback (returned after a long absence, window open): free — no cooldown
+//   used and the streak is left alone. The window closes once used.
+//   Otherwise: resets the streak; once per 30 days.
 router.post('/fresh-start', auth, async (req, res) => {
   try {
     const now = new Date();
     const cutoff = new Date(now.getTime() - FRESH_START_COOLDOWN_DAYS * DAY_MS);
 
     const result = await prisma.$transaction(async (tx) => {
+      const comeback = await tx.user.updateMany({
+        where: { id: req.userId, comebackUntil: { gt: now } },
+        data: { comebackUntil: null },
+      });
+      if (comeback.count > 0) {
+        return { cleared: await clearAllDebt(tx, req.userId), comeback: true };
+      }
+
       const { count } = await tx.user.updateMany({
         where: {
           id: req.userId,
@@ -149,15 +178,7 @@ router.post('/fresh-start', auth, async (req, res) => {
         data: { lastFreshStartAt: now, currentStreak: 0 },
       });
       if (count === 0) return null;
-      const agg = await tx.debt.aggregate({
-        where: { userId: req.userId, resolved: false },
-        _sum: { amountOwed: true },
-      });
-      await tx.debt.updateMany({
-        where: { userId: req.userId, resolved: false },
-        data: { resolved: true, amountOwed: 0 },
-      });
-      return Math.ceil(agg._sum.amountOwed || 0);
+      return { cleared: await clearAllDebt(tx, req.userId), comeback: false };
     });
 
     if (result === null) {
@@ -168,8 +189,18 @@ router.post('/fresh-start', auth, async (req, res) => {
         nextFreshStartAt: nextAvailable(user?.lastFreshStartAt, FRESH_START_COOLDOWN_DAYS),
       });
     }
+    track('fresh_start', String(req.userId), { comeback: result.comeback, cleared: result.cleared, source: 'server' });
+    if (result.comeback) {
+      const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { lastFreshStartAt: true } });
+      return res.json({
+        cleared: result.cleared,
+        comeback: true,
+        nextFreshStartAt: nextAvailable(user?.lastFreshStartAt, FRESH_START_COOLDOWN_DAYS),
+      });
+    }
     return res.json({
-      cleared: result,
+      cleared: result.cleared,
+      comeback: false,
       nextFreshStartAt: new Date(now.getTime() + FRESH_START_COOLDOWN_DAYS * DAY_MS),
     });
   } catch (err) {

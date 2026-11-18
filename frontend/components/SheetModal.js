@@ -21,6 +21,7 @@ export function freeWindowMinutesLeft(quest, now = Date.now()) {
 // Debt points added if this quest is deleted/skipped right now
 export function deletePenalty(quest, now = Date.now()) {
   if (!quest || quest.completed) return 0;
+  if (quest.debt?.resolved) return 0; // already settled (paid off / Fresh Start) — server matches
   if (freeWindowMinutesLeft(quest, now) > 0) return 0;
   return quest.debtAmount ?? 5;
 }
